@@ -49,6 +49,13 @@ body {
 }
 
 .prose code::before,
-.prose code::after {
-  content: "" !important;
+.terminal-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 10px;
 }

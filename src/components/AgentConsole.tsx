@@ -6,7 +6,7 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { Send, User, Bot, Terminal, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { AgentConsoleAdapter } from '../adapters/AgentConsoleAdapter'
-import type { IMessage, IToolCall } from '../interfaces/IAgentConsole'
+import type { IMessage, IToolCall, IModel } from '../interfaces/IAgentConsole'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -16,6 +16,8 @@ function cn(...inputs: ClassValue[]) {
 
 export const AgentConsole: React.FC = () => {
   const [messages, setMessages] = useState<IMessage[]>([])
+  const [models, setModels] = useState<IModel[]>([])
+  const [selectedModel, setSelectedModel] = useState<IModel | undefined>()
   const [inputValue, setInputValue] = useState('')
   const [isSending, setIsSending] = useState(false)
   const adapterRef = useRef<AgentConsoleAdapter>(new AgentConsoleAdapter())
@@ -24,8 +26,15 @@ export const AgentConsole: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       await adapterRef.current.initialize({})
-      const history = await adapterRef.current.getHistory()
+      const [history, availableModels] = await Promise.all([
+        adapterRef.current.getHistory(),
+        adapterRef.current.getModels()
+      ])
       setMessages(history)
+      setModels(availableModels)
+      if (availableModels.length > 0) {
+        setSelectedModel(availableModels[0])
+      }
     }
 
     init()
@@ -67,7 +76,7 @@ export const AgentConsole: React.FC = () => {
     setIsSending(true)
 
     try {
-      await adapterRef.current.sendMessage(inputValue)
+      await adapterRef.current.sendMessage(inputValue, selectedModel)
     } catch (error) {
       console.error('Failed to send message:', error)
     } finally {
@@ -89,6 +98,19 @@ export const AgentConsole: React.FC = () => {
       </div>
       
       <div className="p-4 border-t border-[#333] bg-[#252526]">
+        <div className="mb-2 flex items-center gap-2">
+          <select 
+            value={selectedModel?.id} 
+            onChange={(e) => setSelectedModel(models.find(m => m.id === e.target.value))}
+            className="bg-[#3c3c3c] border-none text-[10px] text-[#d4d4d4] rounded px-2 py-1 outline-none"
+          >
+            {models.map(model => (
+              <option key={model.id} value={model.id}>
+                {model.providerID} / {model.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="relative flex items-end gap-2 bg-[#3c3c3c] rounded-md p-2">
           <textarea
             value={inputValue}

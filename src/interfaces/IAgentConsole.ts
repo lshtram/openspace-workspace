@@ -14,10 +14,17 @@ export interface IToolCall {
   status: 'pending' | 'running' | 'completed' | 'error';
 }
 
+export interface IModel {
+  id: string;
+  name: string;
+  providerID: string;
+}
+
 export interface IAgentConsole {
   initialize(config: { sessionId?: string }): Promise<void>;
-  sendMessage(content: string): Promise<void>;
+  sendMessage(content: string, model?: IModel): Promise<void>;
   getHistory(): Promise<IMessage[]>;
+  getModels(): Promise<IModel[]>;
   on(event: 'message' | 'stream' | 'error', callback: (data: any) => void): void;
   dispose(): void;
 }

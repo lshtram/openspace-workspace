@@ -6,9 +6,10 @@ export class OpenCodeService {
   private static instance: OpenCodeService
   public client: OpencodeClient
   private _isConnected = false
+  public directory = '/Users/Shared/dev/openspace' // Default directory
 
   private constructor() {
-    this.client = createOpencodeClient({ baseUrl })
+    this.client = createOpencodeClient({ baseUrl, directory: this.directory })
   }
 
   public static getInstance(): OpenCodeService {

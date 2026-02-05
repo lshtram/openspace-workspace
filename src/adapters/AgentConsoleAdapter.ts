@@ -1,4 +1,4 @@
-import type { IAgentConsole, IMessage } from '../interfaces/IAgentConsole'
+import type { IAgentConsole, IMessage, IModel } from '../interfaces/IAgentConsole'
 import { openCodeService } from '../services/OpenCodeClient'
 
 export class AgentConsoleAdapter implements IAgentConsole {
@@ -25,13 +25,17 @@ export class AgentConsoleAdapter implements IAgentConsole {
     }
   }
 
-  async sendMessage(content: string): Promise<void> {
+  async sendMessage(content: string, model?: IModel): Promise<void> {
     if (!this.sessionId) throw new Error('Session not initialized')
 
     try {
       const response = await openCodeService.session.prompt({
         path: { id: this.sessionId },
         body: {
+          model: model ? {
+            providerID: model.providerID,
+            modelID: model.id
+          } : undefined,
           parts: [{
             type: 'text',
             text: content
@@ -65,6 +69,24 @@ export class AgentConsoleAdapter implements IAgentConsole {
       timestamp: msg.info.created_at,
       tools: msg.info.tools,
     }))
+  }
+
+  async getModels(): Promise<IModel[]> {
+    const response = await openCodeService.client.provider.list()
+    if (!response.data) return []
+
+    const models: IModel[] = []
+    response.data.all.forEach(provider => {
+      Object.entries(provider.models).forEach(([modelId, model]: [string, any]) => {
+        models.push({
+          id: modelId,
+          name: model.name,
+          providerID: provider.id,
+        })
+      })
+    })
+
+    return models
   }
 
   on(event: 'message' | 'stream' | 'error', callback: (data: any) => void): void {

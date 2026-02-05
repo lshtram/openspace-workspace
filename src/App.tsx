@@ -1,5 +1,6 @@
 import { ConnectionStatus } from './components/ConnectionStatus'
 import { AgentConsole } from './components/AgentConsole'
+import { Terminal } from './components/Terminal'
 import './App.css'
 
 function App() {
@@ -21,8 +22,13 @@ function App() {
         <div style={{ width: '400px', borderRight: '1px solid #333', height: '100%' }}>
           <AgentConsole />
         </div>
-        <div style={{ flex: 1, padding: '2rem', backgroundColor: '#1e1e1e', color: 'white' }}>
-          <p>Main Canvas - Other modalities will appear here.</p>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e', color: 'white' }}>
+          <div style={{ flex: 1, padding: '1rem', borderBottom: '1px solid #333' }}>
+            <p style={{ opacity: 0.5 }}>Main Canvas - Modalities will appear here.</p>
+          </div>
+          <div style={{ height: '300px' }}>
+            <Terminal />
+          </div>
         </div>
       </main>
     </div>

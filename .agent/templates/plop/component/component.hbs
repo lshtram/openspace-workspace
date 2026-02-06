@@ -1,0 +1,21 @@
+import React from 'react';
+import styles from './{{pascalCase name}}.module.css';
+
+interface {{pascalCase name}}Props {
+  /**
+   * Primary label for the component
+   */
+  label?: string;
+}
+
+/**
+ * @context UI Component
+ * @desc [Add description]
+ */
+export const {{pascalCase name}}: React.FC<{{pascalCase name}}Props> = ({ label = 'Default' }) => {
+  return (
+    <div className={styles.container}>
+      {label}
+    </div>
+  );
+};

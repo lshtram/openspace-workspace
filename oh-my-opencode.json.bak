@@ -1,0 +1,8 @@
+{
+  "lsp": {
+    "deno": {
+      "command": ["deno", "lsp"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs", ".json"]
+    }
+  }
+}

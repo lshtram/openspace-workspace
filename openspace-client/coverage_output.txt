@@ -1,0 +1,82 @@
+
+> openspace-client@0.0.0 test:coverage
+> vitest run --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/Shared/dev/openspace/openspace-client[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/components/ContextMeter.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 2096[2mms[22m[39m
+     [33m[2m✓[22m[39m should render with basic props [33m 779[2mms[22m[39m
+     [33m[2m✓[22m[39m should show tooltip on hover with all metrics [33m 338[2mms[22m[39m
+ [32m✓[39m src/context/DialogContext.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 2023[2mms[22m[39m
+     [33m[2m✓[22m[39m should show dialog when show is called [33m 666[2mms[22m[39m
+     [33m[2m✓[22m[39m should support replacing dialog content with new show call [33m 567[2mms[22m[39m
+ [32m✓[39m src/components/AgentSelector.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 2236[2mms[22m[39m
+     [33m[2m✓[22m[39m should capitalize the selected agent name [33m 469[2mms[22m[39m
+     [33m[2m✓[22m[39m should open popover when trigger button is clicked [33m 399[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onChange when an agent is selected [33m 301[2mms[22m[39m
+     [33m[2m✓[22m[39m should show check icon next to selected agent [33m 316[2mms[22m[39m
+     [33m[2m✓[22m[39m should render all provided agents in the dropdown [33m 357[2mms[22m[39m
+ [32m✓[39m src/App.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2020[2mms[22m[39m
+       [33m[2m✓[22m[39m should switch active project when clicking project button [33m 754[2mms[22m[39m
+       [33m[2m✓[22m[39m should add new project when dialog confirms [33m 363[2mms[22m[39m
+ [31m❯[39m src/components/MessageList.test.tsx [2m([22m[2m24 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 1972[2mms[22m[39m
+     [32m✓[39m should render empty message list[32m 274[2mms[22m[39m
+     [32m✓[39m should render user message with timestamp[32m 187[2mms[22m[39m
+     [32m✓[39m should render assistant message with different background[32m 52[2mms[22m[39m
+     [32m✓[39m should render messages in chronological order[32m 43[2mms[22m[39m
+     [32m✓[39m should render text part with markdown[32m 56[2mms[22m[39m
+     [32m✓[39m should render inline code correctly[32m 53[2mms[22m[39m
+     [32m✓[39m should render code blocks with syntax highlighting[32m 195[2mms[22m[39m
+     [32m✓[39m should render reasoning part with italic styling[32m 26[2mms[22m[39m
+[31m     [31m×[31m should render tool part with button[39m[32m 71[2mms[22m[39m
+[31m     [31m×[31m should render tool part with expandable button[39m[32m 37[2mms[22m[39m
+     [32m✓[39m should render multiple parts for a message[32m 66[2mms[22m[39m
+     [32m✓[39m should render error message for assistant message[32m 15[2mms[22m[39m
+     [32m✓[39m should render error name when message is not a string[32m 18[2mms[22m[39m
+     [33m[2m✓[22m[39m should render copy button for messages [33m 520[2mms[22m[39m
+     [32m✓[39m should show pending indicator when isPending is true[32m 23[2mms[22m[39m
+     [32m✓[39m should not show pending indicator when isPending is false[32m 19[2mms[22m[39m
+     [32m✓[39m should show elapsed time in pending indicator[32m 34[2mms[22m[39m
+     [32m✓[39m should reset elapsed time when isPending becomes false[32m 95[2mms[22m[39m
+     [32m✓[39m should handle messages with no parts[32m 37[2mms[22m[39m
+     [32m✓[39m should render ScrollArea with scrollbar[32m 17[2mms[22m[39m
+     [32m✓[39m should show tool count in StepsFlow summary[32m 36[2mms[22m[39m
+[31m     [31m×[31m should show combined summary when both reasoning and tools present[39m[32m 52[2mms[22m[39m
+     [32m✓[39m should render file part with filename[32m 16[2mms[22m[39m
+     [32m✓[39m should render file part with url when no filename[32m 20[2mms[22m[39m
+ [32m✓[39m src/components/ModelSelector.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3797[2mms[22m[39m
+     [33m[2m✓[22m[39m should render with models [33m 791[2mms[22m[39m
+     [33m[2m✓[22m[39m should open popover when trigger button is clicked [33m 440[2mms[22m[39m
+     [33m[2m✓[22m[39m should filter by provider name [33m 461[2mms[22m[39m
+     [33m[2m✓[22m[39m should filter by model ID [33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m should auto-focus search input when popover opens [33m 543[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onChange when model button is clicked [33m 735[2mms[22m[39m
+ [32m✓[39m src/components/AgentConsole.integration.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 5149[2mms[22m[39m
+     [33m[2m✓[22m[39m should render all console components [33m 490[2mms[22m[39m
+     [33m[2m✓[22m[39m should allow typing in prompt input [33m 2506[2mms[22m[39m
+     [33m[2m✓[22m[39m should handle prompt submission when session exists [33m 710[2mms[22m[39m
+     [33m[2m✓[22m[39m should enable submit button only when prompt has content [33m 491[2mms[22m[39m
+ [32m✓[39m src/hooks/useModels.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 928[2mms[22m[39m
+ [32m✓[39m src/components/PromptInput.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1962[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onChange when user types [33m 1095[2mms[22m[39m
+ [32m✓[39m src/hooks/useAdditionalHooks.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 871[2mms[22m[39m
+ [32m✓[39m src/components/TopBar.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1700[2mms[22m[39m
+     [33m[2m✓[22m[39m should render all basic elements [33m 422[2mms[22m[39m
+     [33m[2m✓[22m[39m should toggle left sidebar expanded state when clicked [33m 820[2mms[22m[39m
+ [32m✓[39m src/components/ConnectionStatus.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 807[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onRetry when retry button is clicked [33m 600[2mms[22m[39m
+ [32m✓[39m src/hooks/useMcp.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 740[2mms[22m[39m
+ [32m✓[39m src/utils/storage.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/utils.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/services/OpenCodeClient.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 241[2mms[22m[39m
+ [32m✓[39m src/test/example.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/components/FileTree.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 323[2mms[22m[39m
+ [32m✓[39m src/hooks/useSimpleHooks.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 594[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m18 passed[39m[22m[90m (19)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m217 passed[39m[22m[90m (220)[39m
+[2m   Start at [22m 21:47:12
+[2m   Duration [22m 16.09s[2m (transform 5.92s, setup 10.55s, import 15.94s, tests 27.52s, environment 27.26s)[22m
+

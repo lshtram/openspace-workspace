@@ -1,0 +1,136 @@
+
+> openspace-client@0.0.0 test:coverage
+> vitest run --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/Users/Shared/dev/openspace/openspace-client[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/components/ContextMeter.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1878[2mms[22m[39m
+     [33m[2m✓[22m[39m should render with basic props [33m 596[2mms[22m[39m
+     [33m[2m✓[22m[39m should display 0% when percentage is null in tooltip [33m 302[2mms[22m[39m
+ [32m✓[39m src/context/DialogContext.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1842[2mms[22m[39m
+     [33m[2m✓[22m[39m should show dialog when show is called [33m 571[2mms[22m[39m
+     [33m[2m✓[22m[39m should support replacing dialog content with new show call [33m 530[2mms[22m[39m
+ [32m✓[39m src/components/AgentSelector.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 2151[2mms[22m[39m
+     [33m[2m✓[22m[39m should capitalize the selected agent name [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m should open popover when trigger button is clicked [33m 393[2mms[22m[39m
+     [33m[2m✓[22m[39m should show check icon next to selected agent [33m 310[2mms[22m[39m
+     [33m[2m✓[22m[39m should render all provided agents in the dropdown [33m 440[2mms[22m[39m
+ [32m✓[39m src/App.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1978[2mms[22m[39m
+       [33m[2m✓[22m[39m should switch active project when clicking project button [33m 762[2mms[22m[39m
+       [33m[2m✓[22m[39m should add new project when dialog confirms [33m 348[2mms[22m[39m
+ [32m✓[39m src/components/StatusPopover.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 2725[2mms[22m[39m
+     [33m[2m✓[22m[39m should render trigger button with connected status [33m 851[2mms[22m[39m
+     [33m[2m✓[22m[39m should open popover and show tabs when clicked [33m 408[2mms[22m[39m
+     [33m[2m✓[22m[39m should show MCP servers and allow toggling [33m 345[2mms[22m[39m
+     [33m[2m✓[22m[39m should show empty states [33m 342[2mms[22m[39m
+ [32m✓[39m src/components/ModelSelector.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 2796[2mms[22m[39m
+     [33m[2m✓[22m[39m should render with models [33m 819[2mms[22m[39m
+     [33m[2m✓[22m[39m should open popover when trigger button is clicked [33m 443[2mms[22m[39m
+     [33m[2m✓[22m[39m should filter by provider name [33m 530[2mms[22m[39m
+ [32m✓[39m src/components/AgentConsole.integration.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 2865[2mms[22m[39m
+     [33m[2m✓[22m[39m should render all console components [33m 462[2mms[22m[39m
+     [33m[2m✓[22m[39m should allow typing in prompt input [33m 969[2mms[22m[39m
+     [33m[2m✓[22m[39m should handle prompt submission when session exists [33m 460[2mms[22m[39m
+ [32m✓[39m src/components/PromptInput.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1593[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onChange when user types [33m 783[2mms[22m[39m
+ [32m✓[39m src/components/TopBar.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1418[2mms[22m[39m
+     [33m[2m✓[22m[39m should toggle left sidebar expanded state when clicked [33m 797[2mms[22m[39m
+ [32m✓[39m src/components/ConnectionStatus.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 865[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onRetry when retry button is clicked [33m 688[2mms[22m[39m
+ [32m✓[39m src/components/sidebar/ProjectRail.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1475[2mms[22m[39m
+     [33m[2m✓[22m[39m should call onAddProject when plus button is clicked [33m 767[2mms[22m[39m
+     [33m[2m✓[22m[39m should open settings menu when settings button is clicked [33m 319[2mms[22m[39m
+ [32m✓[39m src/hooks/useAdditionalHooks.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 880[2mms[22m[39m
+ [32m✓[39m src/components/MessageList.test.tsx [2m([22m[2m24 tests[22m[2m)[22m[33m 1737[2mms[22m[39m
+     [33m[2m✓[22m[39m should render tool part with expandable button [33m 495[2mms[22m[39m
+ [32m✓[39m src/hooks/useModels.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1048[2mms[22m[39m
+ [32m✓[39m src/hooks/useMcp.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 970[2mms[22m[39m
+ [32m✓[39m src/services/OpenCodeClient.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m src/components/FileTree.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 781[2mms[22m[39m
+ [32m✓[39m src/hooks/useSessionEvents.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [32m✓[39m src/components/sidebar/SessionSidebar.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 519[2mms[22m[39m
+ [32m✓[39m src/hooks/useSimpleHooks.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 659[2mms[22m[39m
+ [32m✓[39m src/utils/storage.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/lib/utils.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m src/test/example.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m      Tests [22m [1m[32m245 passed[39m[22m[90m (245)[39m
+[2m   Start at [22m 21:53:15
+[2m   Duration [22m 15.68s[2m (transform 5.96s, setup 10.52s, import 17.42s, tests 28.56s, environment 23.56s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   61.74 |     55.4 |   65.79 |   63.95 |                   
+ src               |   81.08 |    63.15 |   66.66 |   79.71 |                   
+  App.tsx          |   81.08 |    63.15 |   66.66 |   79.71 | ...33,142-143,183 
+ src/components    |   61.06 |    57.61 |   61.18 |   63.37 |                   
+  AgentConsole.tsx |   65.42 |    48.61 |   53.12 |   72.41 | ...72,185,210,217 
+  ...tSelector.tsx |     100 |      100 |     100 |     100 |                   
+  ...ionStatus.tsx |     100 |      100 |     100 |     100 |                   
+  ContextMeter.tsx |     100 |      100 |     100 |     100 |                   
+  ...tProvider.tsx |       0 |        0 |       0 |       0 | 16-81             
+  ...Directory.tsx |       0 |        0 |       0 |       0 | 13-144            
+  ...tProvider.tsx |       0 |        0 |       0 |       0 | 7-30              
+  FileTree.tsx     |      88 |    86.79 |   93.75 |    91.3 | 54-57             
+  MessageList.tsx  |   62.14 |    46.62 |   71.05 |   62.72 | ...04-340,347-349 
+  ...lSelector.tsx |      96 |      100 |   88.88 |   95.45 | 76                
+  PromptInput.tsx  |   86.66 |      100 |      75 |   86.66 | 100-132           
+  ...usPopover.tsx |     100 |    82.22 |     100 |     100 | ...26-134,157-158 
+  Terminal.tsx     |       0 |        0 |       0 |       0 | 9-11              
+  TopBar.tsx       |     100 |      100 |     100 |     100 |                   
+ ...onents/sidebar |     100 |       90 |     100 |     100 |                   
+  ProjectRail.tsx  |     100 |    83.33 |     100 |     100 | 48                
+  ...onSidebar.tsx |     100 |    92.85 |     100 |     100 | 65                
+ src/context       |    91.3 |       75 |   83.33 |   95.23 |                   
+  ...ogContext.tsx |    92.3 |      100 |      75 |   91.66 | 22                
+  ...utContext.tsx |      90 |       50 |     100 |     100 | 42                
+ src/hooks         |   46.63 |    37.37 |      65 |   49.17 |                   
+  useAgents.ts     |     100 |       50 |     100 |     100 | 14                
+  useConfig.ts     |     100 |      100 |     100 |     100 |                   
+  useFileStatus.ts |     100 |       50 |     100 |     100 | 14                
+  useLsp.ts        |     100 |       50 |     100 |     100 | 13                
+  useMcp.ts        |     100 |    66.66 |     100 |     100 | 13,38             
+  useMessages.ts   |   85.71 |       50 |     100 |     100 | 12-17             
+  useModels.ts     |     100 |      100 |     100 |     100 |                   
+  usePath.ts       |     100 |      100 |     100 |     100 |                   
+  ...oviderAuth.ts |     100 |       50 |     100 |     100 | 13                
+  useProviders.ts  |     100 |      100 |     100 |     100 |                   
+  ...sionEvents.ts |   37.87 |    30.76 |   53.84 |    42.3 | 21-22,33-67,89    
+  useSessions.ts   |     100 |       50 |     100 |     100 | 14                
+  useTerminal.ts   |       0 |        0 |       0 |       0 | 12-121            
+ src/interfaces    |       0 |        0 |       0 |       0 |                   
+  IAgentConsole.ts |       0 |        0 |       0 |       0 |                   
+  ...tDelegator.ts |       0 |        0 |       0 |       0 |                   
+  ...ationLayer.ts |       0 |        0 |       0 |       0 |                   
+  ...ifactIndex.ts |       0 |        0 |       0 |       0 |                   
+  ICodeEditor.ts   |       0 |        0 |       0 |       0 |                   
+  ...entPreview.ts |       0 |        0 |       0 |       0 |                   
+  IFileTree.ts     |       0 |        0 |       0 |       0 |                   
+  IGeometry.ts     |       0 |        0 |       0 |       0 |                   
+  IModality.ts     |       0 |        0 |       0 |       0 |                   
+  IPresentation.ts |       0 |        0 |       0 |       0 |                   
+  ...ionManager.ts |       0 |        0 |       0 |       0 |                   
+  ITerminal.ts     |       0 |        0 |       0 |       0 |                   
+  ITextInput.ts    |       0 |        0 |       0 |       0 |                   
+  ITextOutput.ts   |       0 |        0 |       0 |       0 |                   
+  IVoiceInput.ts   |       0 |        0 |       0 |       0 |                   
+  IVoiceOutput.ts  |       0 |        0 |       0 |       0 |                   
+  IWhiteboard.ts   |       0 |        0 |       0 |       0 |                   
+ src/lib           |     100 |      100 |     100 |     100 |                   
+  utils.ts         |     100 |      100 |     100 |     100 |                   
+ src/lib/opencode  |       0 |        0 |       0 |       0 |                   
+  client.ts        |       0 |        0 |       0 |       0 | 9-29              
+  index.ts         |       0 |        0 |       0 |       0 | 6-10              
+ ...ib/opencode/v2 |   85.71 |     37.5 |      75 |   84.61 |                   
+  client.ts        |     100 |       50 |     100 |     100 | 9-23              
+  index.ts         |       0 |        0 |       0 |       0 | 6-10              
+ src/services      |     100 |    83.33 |     100 |     100 |                   
+  ...CodeClient.ts |     100 |    83.33 |     100 |     100 | 3                 
+ src/utils         |     100 |      100 |     100 |     100 |                   
+  storage.ts       |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

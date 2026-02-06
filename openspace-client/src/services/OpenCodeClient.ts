@@ -7,7 +7,7 @@ export class OpenCodeService {
   public client: OpencodeClient
   public baseUrl = baseUrl
   private _isConnected = false
-  public directory = import.meta.env.VITE_OPENCODE_DIRECTORY || "/Users/Shared/dev/openspace"
+  public directory = import.meta.env.VITE_OPENCODE_DIRECTORY ?? ""
 
   private constructor() {
     this.client = createOpencodeClient({ baseUrl, directory: this.directory })

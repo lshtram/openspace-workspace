@@ -64,7 +64,7 @@ describe('useAgents', () => {
   })
 
   it('should use correct query key', () => {
-    expect(agentsQueryKey).toEqual(['agents', '/Users/Shared/dev/openspace'])
+    expect(agentsQueryKey("")).toEqual(['agents', ""])
   })
 
   it('should handle empty response', async () => {
@@ -106,7 +106,7 @@ describe('useConfig', () => {
   })
 
   it('should use correct query key', () => {
-    expect(configQueryKey).toEqual(['config', '/Users/Shared/dev/openspace'])
+    expect(configQueryKey("")).toEqual(['config', ""])
   })
 
   it('should be able to refetch', async () => {
@@ -150,7 +150,7 @@ describe('useProviders', () => {
   })
 
   it('should use correct query key', () => {
-    expect(providersQueryKey).toEqual(['providers', '/Users/Shared/dev/openspace'])
+    expect(providersQueryKey("")).toEqual(['providers', ""])
   })
 
   it('should handle empty providers', async () => {
@@ -229,6 +229,6 @@ describe('useMessages', () => {
   it('should use correct query key with sessionId', () => {
     const sessionId = 'ses_test123'
     const queryKey = messagesQueryKey(sessionId)
-    expect(queryKey).toEqual(['messages', sessionId, '/Users/Shared/dev/openspace'])
+    expect(queryKey).toEqual(['messages', sessionId, ''])
   })
 })

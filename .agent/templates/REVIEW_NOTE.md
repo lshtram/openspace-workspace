@@ -8,7 +8,7 @@ Implemented [Feature Name] to allow [Goal].
 - **API**: Added `POST /api/export`.
 
 ## 3. Verification
-- **Unit Tests**: 100% pass (`npm run test` from `app/`).
+- **Unit Tests**: 100% pass (`npm run test` from `openspace-client/`).
 - **E2E**: Verified flow `tests/e2e/export.spec.ts`.
 - **Manual**:
     1. Clicked export.

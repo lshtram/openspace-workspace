@@ -48,7 +48,7 @@ Read core framework documentation:
    - Commands and skills reference
 
 3. **`docs/PROJECT_CONTEXT.md`** - Project overview
-   - What is Fermata
+   - What is OpenSpace
    - Tech stack
    - Current phase
    - Architecture summary

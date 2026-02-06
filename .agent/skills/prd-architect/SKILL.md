@@ -56,7 +56,7 @@ Every PRD must be reviewed from User, Backend, Frontend, Quality, Testing, and S
 
 1.1 **Gather Context**:
    - Read related PRDs in `docs/prd/` to understand dependencies
-   - Review existing code in `app/src/` for implementation patterns
+   - Review existing code in `openspace-client/src/` for implementation patterns
    - Check `docs/ARCHITECTURE.md` for system-wide constraints
 
 1.2 **Load Supporting Skills** (as needed):

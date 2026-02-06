@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 
-export const configQueryKey = ["config", openCodeService.directory]
+export const configQueryKey = (directory?: string) => ["config", directory]
 
 export function useConfig() {
+  const directory = openCodeService.directory
   return useQuery({
-    queryKey: configQueryKey,
+    queryKey: configQueryKey(directory),
     queryFn: async () => {
       const response = await openCodeService.client.config.get({
-        directory: openCodeService.directory,
+        directory,
       })
       return response.data
     },

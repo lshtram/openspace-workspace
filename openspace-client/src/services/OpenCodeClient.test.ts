@@ -45,8 +45,8 @@ describe('OpenCodeService', () => {
       expect(service.baseUrl).toBe('http://localhost:3000')
     })
 
-    it('should have default directory', () => {
-      expect(service.directory).toBe('/Users/Shared/dev/openspace')
+    it('should have default directory from environment', () => {
+      expect(service.directory).toBe(import.meta.env.VITE_OPENCODE_DIRECTORY ?? '')
     })
 
     it('should initialize client on instantiation', () => {

@@ -160,10 +160,6 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
   const sendMessage = async () => {
     const text = prompt.trim()
     if (!text && attachments.length === 0) return
-
-    setPrompt("")
-    setAttachments([])
-
     if (!selectedModel || !activeAgent) return
 
     let activeSessionId = sessionId
@@ -172,6 +168,9 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
       activeSessionId = created?.id
     }
     if (!activeSessionId) return
+
+    setPrompt("")
+    setAttachments([])
 
     const partsInput = [
       ...(text

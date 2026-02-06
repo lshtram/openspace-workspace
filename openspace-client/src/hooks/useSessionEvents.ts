@@ -69,13 +69,14 @@ const updateMessageEntries = (
 
 export function useSessionEvents(sessionId?: string) {
   const queryClient = useQueryClient()
+  const directory = openCodeService.directory
 
   useEffect(() => {
     if (!sessionId) return
     const controller = new AbortController()
     
     void openCodeService.client.event.subscribe(
-      { directory: openCodeService.directory },
+      { directory },
       {
         signal: controller.signal,
         onSseEvent: (event: StreamEvent<unknown>) => {
@@ -92,5 +93,5 @@ export function useSessionEvents(sessionId?: string) {
     )
 
     return () => controller.abort()
-  }, [queryClient, sessionId])
+  }, [queryClient, sessionId, directory])
 }

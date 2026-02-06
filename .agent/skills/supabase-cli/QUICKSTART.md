@@ -4,6 +4,8 @@
 
 The Supabase CLI skill has been created and tested. The CLI is available via `npx` (no global installation needed).
 
+**OpenSpace Note**: The OpenSpace client does not use Supabase. This skill should remain idle unless a Supabase-backed service is explicitly in scope.
+
 ## 📁 Skill Location
 
 **File**: `.agent/skills/supabase-cli/SKILL.md`

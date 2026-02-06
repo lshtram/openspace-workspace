@@ -19,7 +19,7 @@ Run automated context generation:
 
 ```bash
 git log --since='7 days ago' --name-only --pretty=format: | sort | uniq -c | sort -rn | head -20 > .agent/hot-files.txt && \
-find app/src -maxdepth 2 -type d | sort > .agent/structure-snapshot.txt
+find openspace-client/src -maxdepth 2 -type d | sort > .agent/structure-snapshot.txt
 ```
 
 **Generates**:
@@ -73,7 +73,7 @@ Manually update `.agent/SESSION_START.md`:
 If you haven't already run `/verify` or `/ship`:
 
 ```bash
-cd app && npm run lint && npm run typecheck && npm test && cd ..
+cd openspace-client && npm run lint && npm run typecheck && npm test && cd ..
 ```
 
 Leave codebase in clean state for next session.

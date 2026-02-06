@@ -8,14 +8,15 @@ type ModelsResult = {
   defaultModelId?: string
 }
 
-export const modelsQueryKey = ["models", openCodeService.directory]
+export const modelsQueryKey = (directory?: string) => ["models", directory]
 
 export function useModels() {
+  const directory = openCodeService.directory
   return useQuery<ModelsResult>({
-    queryKey: modelsQueryKey,
+    queryKey: modelsQueryKey(directory),
     queryFn: async () => {
       const response = await openCodeService.client.provider.list({
-        directory: openCodeService.directory,
+        directory,
       })
       const data = response.data
       const connectedProviders = data?.connected ?? []

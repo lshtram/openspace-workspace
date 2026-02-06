@@ -92,9 +92,12 @@ vi.mock('./utils/storage', () => ({
 vi.mock('./services/OpenCodeClient', () => ({
   openCodeService: {
     baseUrl: 'http://localhost:3000',
-    directory: '/default/path',
+    directory: '',
     checkConnection: vi.fn(() => Promise.resolve(true)),
     client: {
+      project: {
+        current: vi.fn(() => Promise.resolve({ data: { worktree: '/default/path', name: 'openspace' } })),
+      },
       session: {
         create: vi.fn(() => Promise.resolve({ data: { id: 'new-session-123' } })),
       },
@@ -167,9 +170,9 @@ describe('App', () => {
       })
       
       expect(storage.saveProjects).toHaveBeenCalledWith([
-        { path: '/Users/Shared/dev/openspace', name: 'openspace', color: 'bg-[#fce7f3]' }
+        { path: '/default/path', name: 'openspace', color: 'bg-[#fce7f3]' }
       ])
-      expect(openCodeService.directory).toBe('/Users/Shared/dev/openspace')
+      expect(openCodeService.directory).toBe('/default/path')
     })
 
     it('should load projects from storage', async () => {

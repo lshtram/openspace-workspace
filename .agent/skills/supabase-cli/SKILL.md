@@ -5,6 +5,8 @@ description: Execute Supabase CLI commands to manage database migrations, apply 
 
 # SUPABASE-CLI: Command Line Interface for Supabase
 
+> **OpenSpace Note**: This skill is not used in the OpenSpace client repo. Only use if a Supabase-backed service is explicitly in scope.
+
 > **Identity**: You are a Database Operations Engineer with direct Supabase CLI access.
 > **Goal**: Execute SQL, manage migrations, and perform database operations via CLI commands.
 

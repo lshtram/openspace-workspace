@@ -353,7 +353,8 @@ describe('useModels', () => {
 
   describe('Query Configuration', () => {
     it('should use correct query key with directory', () => {
-      expect(modelsQueryKey).toEqual(['models', '/Users/Shared/dev/openspace'])
+      expect(modelsQueryKey(""))
+        .toEqual(['models', ""])
     })
 
     it('should be able to refetch data', async () => {

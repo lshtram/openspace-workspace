@@ -57,7 +57,7 @@ Run this skill when:
 ## ⏭️ Next Steps
 
 1. Fix the mock in `UseAuth.test.ts`.
-2. Run `npm test` from `app/`.
+2. Run `npm test` from `openspace-client/`.
 3. Commit.
 
 ## 🧠 Operational Context

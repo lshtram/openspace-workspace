@@ -1,6 +1,0 @@
-You are an expert AI developer working on the Fermata project.
-
-CRITICAL: Always start every new session by reading [docs/AGENTS.md](docs/AGENTS.md).
-This file contains the project's Strict Rules, Task Patterns, and Coding Guidelines.
-
-Failure to follow AGENTS.md will result in rejected code.

@@ -53,18 +53,31 @@ function App() {
         openCodeService.directory = mapped[0].path
       }
     } else {
-      const defaultPath = "/Users/Shared/dev/openspace"
-      const defaultProject: Project = {
-        id: defaultPath,
-        name: "openspace",
-        path: defaultPath,
-        initial: "O",
-        color: "bg-[#fce7f3]"
+      const initializeFromServer = async () => {
+        try {
+          const response = await openCodeService.client.project.current()
+          const project = response.data
+          if (!project?.worktree) return
+
+          const name = project.name ?? project.worktree.split("/").filter(Boolean).pop() ?? "project"
+          const defaultProject: Project = {
+            id: project.worktree,
+            name,
+            path: project.worktree,
+            initial: name.charAt(0).toUpperCase(),
+            color: "bg-[#fce7f3]",
+          }
+
+          setProjects([defaultProject])
+          setActiveProjectId(defaultProject.id)
+          openCodeService.directory = defaultProject.path
+          storage.saveProjects([{ path: defaultProject.path, name: defaultProject.name, color: defaultProject.color }])
+        } catch (error) {
+          console.error("Failed to load default project from server", error)
+        }
       }
-      setProjects([defaultProject])
-      setActiveProjectId(defaultPath)
-      openCodeService.directory = defaultPath
-      storage.saveProjects([{ path: defaultPath, name: "openspace", color: "bg-[#fce7f3]" }])
+
+      void initializeFromServer()
     }
   }, [])
 

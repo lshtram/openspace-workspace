@@ -31,8 +31,8 @@ export function DialogConnectProvider({ providerId }: DialogConnectProviderProps
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: providersQueryKey })
-      queryClient.invalidateQueries({ queryKey: modelsQueryKey })
+      queryClient.invalidateQueries({ queryKey: providersQueryKey(openCodeService.directory) })
+      queryClient.invalidateQueries({ queryKey: modelsQueryKey(openCodeService.directory) })
       close()
     },
   })

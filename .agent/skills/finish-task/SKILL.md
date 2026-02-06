@@ -16,7 +16,7 @@ Run this skill when the implementation is complete and you are ready to finalize
 
 1. **Verify**: Run the FULL project verification suite.
    ```bash
-   npm run lint && npm run typecheck && npm test && npm run test:e2e (from `app/`)
+   npm run lint && npm run typecheck && npm test && npm run test:e2e (from `openspace-client/`)
    ```
    > [!IMPORTANT]
    > ANY failure (even a single lint warning or one failing E2E test) MUST block completion. You must fix the issue or document why it's a known, out-of-scope pre-existing condition before proceeding.

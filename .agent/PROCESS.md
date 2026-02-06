@@ -85,14 +85,14 @@ You MUST follow these gates in sequence on the `main` branch.
 
 **Step 5 - Static Analysis**:
 ```bash
-cd app && npm run lint && npm run typecheck && cd ..
+cd openspace-client && npm run lint && npm run typecheck && cd ..
 ```
 - **0 TypeScript errors** (strict mode)
 - **0 ESLint errors** (warnings OK if pre-existing)
 
 **Step 6 - Unit Testing**:
 ```bash
-cd app && npm run test:run && cd ..
+cd openspace-client && npm run test:run && cd ..
 ```
 - All tests passing
 - TDD loop complete
@@ -100,20 +100,20 @@ cd app && npm run test:run && cd ..
 
 **Step 7 - E2E Testing**:
 ```bash
-cd app && npm run test:e2e && cd ..
+cd openspace-client && npm run test:e2e && cd ..
 ```
 - Chromium only (38 tests, ~3 minutes)
 - 2 tests may skip gracefully on rate limits (expected behavior)
 
 **Full browser coverage** (only on user request):
 ```bash
-cd app && npm run test:e2e:all && cd ..
+cd openspace-client && npm run test:e2e:all && cd ..
 ```
 - All browsers: Chromium, Firefox, WebKit (114 tests, ~10 minutes)
 
 **Quick Command** (all gates):
 ```bash
-cd app && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e && cd ..
+cd openspace-client && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e && cd ..
 ```
 
 ---
@@ -206,7 +206,7 @@ git push origin main
 **Auto-generation**:
 ```bash
 git log --since='7 days ago' --name-only --pretty=format: | sort | uniq -c | sort -rn | head -20 > .agent/hot-files.txt && \
-find app/src -maxdepth 2 -type d | sort > .agent/structure-snapshot.txt
+find openspace-client/src -maxdepth 2 -type d | sort > .agent/structure-snapshot.txt
 ```
 
 **Manual Updates**:
@@ -244,10 +244,10 @@ handoff
 
 | Phase | Who Runs | Command | Purpose |
 |-------|----------|---------|---------|
-| **Verification** | Agent | `cd app && npm run lint && npm run typecheck` | Static analysis |
-| **Verification** | Agent | `cd app && npm run test:run` | Unit tests |
-| **Verification** | Agent | `cd app && npm run test:e2e` | E2E tests (Chromium) |
-| **All Gates** | Agent | `cd app && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e` | Full verification suite |
+| **Verification** | Agent | `cd openspace-client && npm run lint && npm run typecheck` | Static analysis |
+| **Verification** | Agent | `cd openspace-client && npm run test:run` | Unit tests |
+| **Verification** | Agent | `cd openspace-client && npm run test:e2e` | E2E tests (Chromium) |
+| **All Gates** | Agent | `cd openspace-client && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e` | Full verification suite |
 | **Learning** | Agent | `learnings` skill | Capture session insights |
 | **Context** | Agent | `handoff` skill | Compress context when full |
 
@@ -257,7 +257,7 @@ handoff
 - **Built-in quality gates** prevent skipping verification
 - **Automatic documentation** prompts ensure consistency
 - **Error handling** provides clear guidance on failures
-- **Project-specific** workflows tailored to Fermata
+- **Project-specific** workflows tailored to OpenSpace
 
 ---
 
@@ -270,15 +270,15 @@ User: Approved, proceed
 
 Agent: [Implements feature in chunks]
 Agent: Running static analysis...
-       cd app && npm run lint && npm run typecheck && cd ..
+       cd openspace-client && npm run lint && npm run typecheck && cd ..
        ✅ 0 errors
 
 Agent: Running unit tests...
-       cd app && npm run test:run && cd ..
+       cd openspace-client && npm run test:run && cd ..
        ✅ 241 tests passing
 
 Agent: Running E2E tests...
-       cd app && npm run test:e2e && cd ..
+       cd openspace-client && npm run test:e2e && cd ..
        ✅ 36/38 tests passing (2 skipped on rate limits - expected)
 
 Agent: Documentation updated:

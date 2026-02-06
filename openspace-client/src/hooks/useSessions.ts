@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 
-export const sessionsQueryKey = (directory: string) => ["sessions", directory]
+export const sessionsQueryKey = (directory?: string) => ["sessions", directory]
 
 export function useSessions() {
   return useQuery({

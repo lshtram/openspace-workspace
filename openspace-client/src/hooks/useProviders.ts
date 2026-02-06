@@ -1,14 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 
-export const providersQueryKey = ["providers", openCodeService.directory]
+export const providersQueryKey = (directory?: string) => ["providers", directory]
 
 export function useProviders() {
+  const directory = openCodeService.directory
   return useQuery({
-    queryKey: providersQueryKey,
+    queryKey: providersQueryKey(directory),
     queryFn: async () => {
       const response = await openCodeService.client.provider.list({
-        directory: openCodeService.directory,
+        directory,
       })
       return response.data
     },

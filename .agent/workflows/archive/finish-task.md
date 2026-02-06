@@ -4,7 +4,7 @@ description: Merge, audit, and cleanup. Usage: /finish-task
 
 1.  **Verify**:
     - // turbo
-    - Execute: `npm test && npm run lint && npm run typecheck` from `app/`
+    - Execute: `npm test && npm run lint && npm run typecheck` from `openspace-client/`
     - If fails -> STOP. Fix errors first.
 
 2.  **Doc Sync Check**:

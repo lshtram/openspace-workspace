@@ -65,10 +65,9 @@ These standards prioritize portability, testability, and AI-interpretability.
 - **Navigation**: For critical transitions, assert URL changes (`toHaveURL`) and wait for the target container (`data-testid="page-root"`) to be visible.
 - **Cross-Browser**: If clicks fail on WebKit/Firefox but work on Chromium, use `.click({ force: true })` sparingly as a fallback for layout-edge cases, but prefer debugging the occlusion source first.
 
-## 6. Fermata Specifics (from docs/GUIDELINES.md)
+## 6. OpenSpace Specifics (from docs/GUIDELINES.md)
 
-- **Hierarchy**: UI (Components) → State (Hooks) → Domain (Models) → Data (Providers).
-- **No Direct Supabase**: Components **NEVER** call Supabase directly. Use `src/data` or module hooks.
+- **Hierarchy**: UI (Components) → State (Hooks) → Services (OpenCode client) → API.
+- **No Direct OpenCode Calls**: Components **NEVER** call the OpenCode client directly. Use `openspace-client/src/services` + hooks.
 - **Strict TypeScript**: No `any`. Explicit null checks (`??`, `?.`).
-- **CSS Modules**: Use `.module.css` with `camelCase` classes.
-- **Markdown SSoT**: Standardize on Markdown for rich text storage.
+- **Styling**: Prefer Tailwind utilities; use CSS modules only when needed.

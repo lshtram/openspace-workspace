@@ -19,12 +19,11 @@
 6. **Self-Correction**: If a tool fails, enter a "Thinking Loop" to investigate why before retrying.
 7. **Single Source of Truth**: Requirements must live in ONE document (the modular PRDs in `docs/prd/`). Reference them via links.
 
-## Operational Discipline (Fermata Specific)
+## Operational Discipline (OpenSpace Specific)
 
-1. **Main-Branch Integrity**: Since we work on `main`, NEVER skip the verification gate (`npm run lint && npm run typecheck && npm test` from `app/`).
-2. **Supabase RLS**: Remember that Postgres RLS policies often return **Zero Rows** rather than throwing errors. Design tests to assert `data.length === 0` for unauthorized access.
-3. **Supabase MCP**: Usage of Supabase MCP requires STRICT user approval. Confirm the target Project Name before running any write/delete operations.
-4. **Design SSoT**: `src/styles/tokens.css` is the source of truth for all styling. Refer to [DESIGN_GUIDELINES.md](file:///Users/liorshtram/dev/fermata/.agent/archive/guidelines/DESIGN_GUIDELINES.md) (Archived) for logic until fully integrated.
+1. **Main-Branch Integrity**: Since we work on `main`, NEVER skip the verification gate (`npm run lint && npm run typecheck && npm run test` from `openspace-client/`).
+2. **OpenCode Scope**: Prefer hooks and services over direct OpenCode client calls in components.
+3. **Design SSoT**: Use Tailwind + the global styles in `openspace-client/src/index.css` and `openspace-client/src/App.css` as the styling baseline.
 
 ## Documentation Standards
 

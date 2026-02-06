@@ -1,0 +1,7 @@
+export const promptSelector = '[data-component="prompt-input-textarea"]'
+export const terminalSelector = '[data-component="terminal"]'
+export const statusButtonSelector = 'button:has-text("Connected"), button:has-text("Offline")'
+export const modelPickerSelector = 'button:has-text("model")'
+export const agentPickerSelector = 'button:has-text("build"), button:has-text("plan")'
+export const sendButtonSelector = 'button:has-text("SEND")'
+export const fileTreeSelector = 'div:has-text("Workspace")'

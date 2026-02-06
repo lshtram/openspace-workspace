@@ -7,19 +7,19 @@ export { type Config as OpencodeClientConfig, OpencodeClient }
 
 export function createOpencodeClient(config?: Config & { directory?: string }) {
   if (!config?.fetch) {
-    const customFetch: any = (req: any) => {
-      // @ts-ignore
+    const customFetch = (req: Request & { timeout?: boolean }) => {
       req.timeout = false
       return fetch(req)
     }
     config = {
       ...config,
-      fetch: customFetch,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fetch: customFetch as any,
     }
   }
 
   if (config?.directory) {
-    const isNonASCII = /[^\x00-\x7F]/.test(config.directory)
+    const isNonASCII = Array.from(config.directory).some((char) => char.charCodeAt(0) > 127)
     const encodedDirectory = isNonASCII ? encodeURIComponent(config.directory) : config.directory
     config.headers = {
       ...config.headers,

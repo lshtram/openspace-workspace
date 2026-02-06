@@ -1,33 +1,37 @@
-import React from 'react'
-import { useOpenCodeConnection } from '../hooks/useOpenCodeConnection'
+import clsx from "clsx"
 
-export const ConnectionStatus: React.FC = () => {
-  const { isConnected, isChecking } = useOpenCodeConnection()
+type ConnectionStatusProps = {
+  connected: boolean
+  checking: boolean
+  onRetry: () => void
+}
 
+export function ConnectionStatus({ connected, checking, onRetry }: ConnectionStatusProps) {
   return (
-    <div 
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '8px 12px',
-        borderRadius: '4px',
-        backgroundColor: isConnected ? '#e6fffa' : '#fff5f5',
-        color: isConnected ? '#2c7a7b' : '#c53030',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        border: `1px solid ${isConnected ? '#b2f5ea' : '#feb2b2'}`,
-      }}
-    >
-      <div 
-        style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: isConnected ? '#38a169' : '#e53e3e',
-          marginRight: '8px',
-        }}
-      />
-      {isChecking ? 'Checking connection...' : isConnected ? 'OpenCode Connected' : 'OpenCode Disconnected'}
+    <div className="flex items-center gap-3">
+      <div
+        className={clsx(
+          "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em]",
+          connected ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700",
+        )}
+      >
+        <span
+          className={clsx(
+            "h-2 w-2 rounded-full",
+            connected ? "bg-emerald-500" : "bg-amber-500",
+          )}
+        />
+        {checking ? "checking" : connected ? "connected" : "offline"}
+      </div>
+      {!connected && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="text-xs font-semibold uppercase tracking-[0.2em] text-accent hover:text-accent"
+        >
+          retry
+        </button>
+      )}
     </div>
   )
 }

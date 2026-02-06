@@ -1,289 +1,276 @@
-import React, { useState, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
-import { Send, User, Bot, Terminal, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
-import { format } from 'date-fns'
-import { AgentConsoleAdapter } from '../adapters/AgentConsoleAdapter'
-import type { IMessage, IToolCall, IModel } from '../interfaces/IAgentConsole'
-import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { useMemo, useState } from "react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import type { Message, Part } from "../lib/opencode/v2/gen/types.gen"
+import { openCodeService } from "../services/OpenCodeClient"
+import { useAgents } from "../hooks/useAgents"
+import { useMessages, messagesQueryKey } from "../hooks/useMessages"
+import { useModels } from "../hooks/useModels"
+import { useSessionEvents } from "../hooks/useSessionEvents"
+import type { MessageEntry, ModelOption, PromptAttachment } from "../types/opencode"
+import { AgentSelector } from "./AgentSelector"
+import { ContextMeter } from "./ContextMeter"
+import { MessageList } from "./MessageList"
+import { ModelSelector } from "./ModelSelector"
+import { PromptInput } from "./PromptInput"
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error("Failed to read file"))
+    reader.readAsDataURL(file)
+  })
+
+type AgentConsoleProps = {
+  sessionId?: string
+  onSessionCreated?: (id: string) => void
 }
 
-export const AgentConsole: React.FC = () => {
-  const [messages, setMessages] = useState<IMessage[]>([])
-  const [models, setModels] = useState<IModel[]>([])
-  const [selectedModel, setSelectedModel] = useState<IModel | undefined>()
-  const [inputValue, setInputValue] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const adapterRef = useRef<AgentConsoleAdapter>(new AgentConsoleAdapter())
-  const virtuosoRef = useRef<VirtuosoHandle>(null)
+export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps) {
+  const queryClient = useQueryClient()
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
+  const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
+  const [prompt, setPrompt] = useState("")
+  const [attachments, setAttachments] = useState<PromptAttachment[]>([])
+  const agentsQuery = useAgents()
+  const modelsQuery = useModels()
+  const messagesQuery = useMessages(sessionId)
+  useSessionEvents(sessionId)
 
-  useEffect(() => {
-    const init = async () => {
-      await adapterRef.current.initialize({})
-      const [history, availableModels] = await Promise.all([
-        adapterRef.current.getHistory(),
-        adapterRef.current.getModels()
-      ])
-      setMessages(history)
-      setModels(availableModels)
-      if (availableModels.length > 0) {
-        setSelectedModel(availableModels[0])
-      }
+  const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data])
+  const defaultModelId = modelsQuery.data?.defaultModelId
+  const activeModelId = selectedModelId ?? defaultModelId
+  const selectedModel = models.find((model) => model.id === activeModelId)
+
+  const agentNames = useMemo(
+    () => (Array.isArray(agentsQuery.data) ? agentsQuery.data.map((agent) => agent.name) : []),
+    [agentsQuery.data],
+  )
+  const defaultAgent = agentNames.includes("build") ? "build" : agentNames[0]
+  const activeAgent = selectedAgent ?? defaultAgent
+
+  const onAddAttachment = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const next: PromptAttachment[] = []
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/") && file.type !== "application/pdf") continue
+      const dataUrl = await readAsDataUrl(file)
+      next.push({ id: crypto.randomUUID(), name: file.name, mime: file.type, dataUrl })
     }
+    if (next.length > 0) setAttachments((prev) => [...prev, ...next])
+  }
 
-    init()
+  const onRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((item) => item.id !== id))
+  }
 
-    adapterRef.current.on('message', (msg) => {
-      setMessages(prev => [...prev, {
-        id: msg.info.id,
-        role: msg.info.role,
-        content: msg.parts.map((p: any) => p.text).join('\n'),
-        timestamp: msg.info.created_at,
-        tools: msg.info.tools,
-      }])
-    })
-
-    return () => adapterRef.current.dispose()
-  }, [])
-
-  useEffect(() => {
-    if (virtuosoRef.current) {
-      virtuosoRef.current.scrollToIndex({
-        index: messages.length - 1,
-        behavior: 'smooth',
+  const createSession = useMutation({
+    mutationFn: async () => {
+      const response = await openCodeService.client.session.create({
+        directory: openCodeService.directory,
       })
-    }
-  }, [messages])
+      return response.data ?? null
+    },
+    onSuccess: (data) => {
+      if (data?.id) onSessionCreated?.(data.id)
+    },
+  })
 
-  const handleSend = async () => {
-    if (!inputValue.trim() || isSending) return
-
-    const userMessage: IMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue,
-      timestamp: Date.now(),
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInputValue('')
-    setIsSending(true)
-
-    try {
-      await adapterRef.current.sendMessage(inputValue, selectedModel)
-    } catch (error) {
-      console.error('Failed to send message:', error)
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-[#d4d4d4] font-sans">
-      <div className="flex-1 overflow-hidden">
-        <Virtuoso
-          ref={virtuosoRef}
-          data={messages}
-          itemContent={(_, message) => (
-            <MessageItem key={message.id} message={message} />
-          )}
-          style={{ height: '100%' }}
-        />
-      </div>
-      
-      <div className="p-4 border-t border-[#333] bg-[#252526]">
-        <div className="mb-2 flex items-center gap-2">
-          <select 
-            value={selectedModel?.id} 
-            onChange={(e) => setSelectedModel(models.find(m => m.id === e.target.value))}
-            className="bg-[#3c3c3c] border-none text-[10px] text-[#d4d4d4] rounded px-2 py-1 outline-none"
-          >
-            {models.map(model => (
-              <option key={model.id} value={model.id}>
-                {model.providerID} / {model.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="relative flex items-end gap-2 bg-[#3c3c3c] rounded-md p-2">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            placeholder="Type a message..."
-            className="flex-1 bg-transparent border-none outline-none resize-none min-h-[24px] max-h-[200px] py-1 px-2 text-sm"
-            rows={1}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isSending}
-            className={cn(
-              "p-1.5 rounded-md transition-colors",
-              inputValue.trim() && !isSending ? "bg-[#0e639c] hover:bg-[#1177bb]" : "text-[#666]"
-            )}
-          >
-            <Send size={16} className="text-white" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const MessageItem: React.FC<{ message: IMessage }> = ({ message }) => {
-  const isAssistant = message.role === 'assistant'
-  
-  return (
-    <div className={cn(
-      "px-6 py-4 flex gap-4 transition-colors",
-      isAssistant ? "bg-[#2d2d2d]" : "bg-transparent"
-    )}>
-      <div className="flex-shrink-0 mt-1">
-        {message.role === 'user' ? (
-          <div className="w-6 h-6 bg-[#007acc] rounded flex items-center justify-center">
-            <User size={14} className="text-white" />
-          </div>
-        ) : (
-          <div className="w-6 h-6 bg-[#388e3c] rounded flex items-center justify-center">
-            <Bot size={14} className="text-white" />
-          </div>
-        )}
-      </div>
-      
-      <div className="flex-1 overflow-hidden">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wider opacity-60">
-            {message.role}
-          </span>
-          <span className="text-[10px] opacity-40">
-            {format(message.timestamp, 'HH:mm:ss')}
-          </span>
-        </div>
-        
-        <div className="prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown
-            components={{
-              code({ node, inline, className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || '')
-                return !inline && match ? (
-                  <CodeBlock
-                    language={match[1]}
-                    value={String(children).replace(/\n$/, '')}
-                    {...props}
-                  />
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                )
-              }
-            }}
-          >
-            {message.content}
-          </ReactMarkdown>
-        </div>
-
-        {message.tools && message.tools.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {message.tools.map(tool => (
-              <ToolLog key={tool.id} tool={tool} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const CodeBlock: React.FC<{ language: string; value: string }> = ({ language, value }) => {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="group relative my-2 rounded-md overflow-hidden bg-[#0d0d0d] border border-[#333]">
-      <div className="flex items-center justify-between px-4 py-1 bg-[#1e1e1e] border-b border-[#333]">
-        <span className="text-[10px] uppercase font-bold opacity-60">{language}</span>
-        <button 
-          onClick={handleCopy}
-          className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#333] rounded"
-        >
-          {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-        </button>
-      </div>
-      <SyntaxHighlighter
-        language={language}
-        style={vscDarkPlus}
-        customStyle={{
-          margin: 0,
-          padding: '1rem',
-          fontSize: '12px',
-          backgroundColor: 'transparent',
-        }}
+  const promptMutation = useMutation({
+    mutationFn: async ({
+      id,
+      model,
+      agent,
+      parts,
+    }: {
+      id: string
+      model: ModelOption
+      agent: string
+      parts: Array<
+        | { type: "text"; text: string }
+        | { type: "file"; mime: string; filename?: string; url: string }
       >
-        {value}
-      </SyntaxHighlighter>
-    </div>
-  )
-}
+    }) =>
+      openCodeService.client.session.prompt({
+        sessionID: id,
+        directory: openCodeService.directory,
+        agent,
+        model: {
+          providerID: model.providerID,
+          modelID: model.id,
+        },
+        parts,
+      }),
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: messagesQueryKey(variables.id) })
+      const previousMessages = queryClient.getQueryData<MessageEntry[]>(messagesQueryKey(variables.id))
+      
+      const userParts: Part[] = variables.parts.map(p => {
+        if (p.type === "text") {
+          return {
+            id: crypto.randomUUID(),
+            type: "text",
+            text: p.text,
+            messageID: "pending",
+            sessionID: variables.id,
+            time: { start: Date.now() }
+          }
+        }
+        return {
+          id: crypto.randomUUID(),
+          type: "file",
+          url: p.url,
+          filename: p.filename,
+          mime: p.mime,
+          messageID: "pending",
+          sessionID: variables.id,
+          time: { start: Date.now() }
+        }
+      })
 
-const ToolLog: React.FC<{ tool: IToolCall }> = ({ tool }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  
-  const getStatusColor = () => {
-    switch (tool.status) {
-      case 'completed': return 'text-green-500'
-      case 'error': return 'text-red-500'
-      case 'running': return 'text-blue-500 animate-pulse'
-      default: return 'text-gray-500'
+      const optimisticMsg: MessageEntry = {
+        info: {
+          id: "pending-" + Date.now(),
+          sessionID: variables.id,
+          role: "user",
+          agent: variables.agent,
+          model: {
+            modelID: variables.model.id,
+            providerID: variables.model.providerID
+          },
+          time: { created: Date.now() }
+        },
+        parts: userParts
+      }
+
+      queryClient.setQueryData<MessageEntry[]>(messagesQueryKey(variables.id), (prev) => [...(prev ?? []), optimisticMsg])
+      
+      return { previousMessages }
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousMessages) {
+        queryClient.setQueryData(messagesQueryKey(variables.id), context.previousMessages)
+      }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: messagesQueryKey(variables.id) })
+    },
+  })
+
+  const sendMessage = async () => {
+    const text = prompt.trim()
+    if (!text && attachments.length === 0) return
+
+    setPrompt("")
+    setAttachments([])
+
+    if (!selectedModel || !activeAgent) return
+
+    let activeSessionId = sessionId
+    if (!activeSessionId) {
+      const created = await createSession.mutateAsync()
+      activeSessionId = created?.id
     }
+    if (!activeSessionId) return
+
+    const partsInput = [
+      ...(text
+        ? [
+            {
+              type: "text" as const,
+              text,
+            },
+          ]
+        : []),
+      ...attachments.map((file) => ({
+        type: "file" as const,
+        mime: file.mime,
+        filename: file.name,
+        url: file.dataUrl,
+      })),
+    ]
+
+    promptMutation.mutate({
+      id: activeSessionId,
+      model: selectedModel,
+      agent: activeAgent,
+      parts: partsInput,
+    })
   }
 
+  const usage = useMemo(() => {
+    const formatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
+    const entries = Array.isArray(messagesQuery.data) ? messagesQuery.data : []
+    const assistantMessages = entries.map((entry) => entry.info).filter((item) => item.role === "assistant")
+    const totalCost = assistantMessages.reduce((sum, item) => sum + (Number(item.cost) || 0), 0)
+    const last = assistantMessages.at(-1)
+    if (!last) {
+      return { tokens: "0", percentage: 0, cost: formatter.format(totalCost) }
+    }
+    const totalTokens =
+      (Number(last.tokens?.input) || 0) +
+      (Number(last.tokens?.output) || 0) +
+      (Number(last.tokens?.reasoning) || 0) +
+      (Number(last.tokens?.cache?.read) || 0) +
+      (Number(last.tokens?.cache?.write) || 0)
+    const model = models.find(
+      (item) => item.providerID === last.providerID && item.id === last.modelID,
+    )
+    const percentage = model?.contextLimit ? Math.round((totalTokens / model.contextLimit) * 100) : 0
+    return {
+      tokens: totalTokens.toLocaleString(),
+      percentage,
+      cost: formatter.format(totalCost),
+    }
+  }, [messagesQuery.data, models])
+
+  const messages = useMemo<Message[]>(
+    () => (Array.isArray(messagesQuery.data) ? messagesQuery.data.map((entry) => entry.info) : []),
+    [messagesQuery.data],
+  )
+
+  const parts = useMemo<Record<string, Part[]>>(() => {
+    const map: Record<string, Part[]> = {}
+    const entries = Array.isArray(messagesQuery.data) ? messagesQuery.data : []
+    for (const entry of entries) {
+      map[entry.info.id] = entry.parts
+    }
+    return map
+  }, [messagesQuery.data])
+
   return (
-    <div className="border border-[#333] rounded bg-[#1a1a1a] overflow-hidden">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#252526] transition-colors text-left"
-      >
-        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <Terminal size={14} className={getStatusColor()} />
-        <span className="text-xs font-mono flex-1 truncate">
-          {tool.name}({JSON.stringify(tool.args).slice(0, 50)}...)
-        </span>
-        <span className={cn("text-[10px] uppercase font-bold", getStatusColor())}>
-          {tool.status}
-        </span>
-      </button>
-      
-      {isOpen && (
-        <div className="p-3 border-t border-[#333] bg-[#0d0d0d] font-mono text-[11px] overflow-x-auto">
-          <div className="mb-2">
-            <span className="opacity-40">Arguments:</span>
-            <pre className="mt-1 text-[#9cdcfe]">{JSON.stringify(tool.args, null, 2)}</pre>
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <MessageList messages={messages} parts={parts} isPending={promptMutation.isPending} />
+      </div>
+      <PromptInput
+        value={prompt}
+        attachments={attachments}
+        onChange={setPrompt}
+        onSubmit={sendMessage}
+        onAddAttachment={onAddAttachment}
+        onRemoveAttachment={onRemoveAttachment}
+        disabled={promptMutation.isPending || createSession.isPending}
+        isPending={promptMutation.isPending}
+        leftSection={
+          <div className="flex items-center gap-1">
+            <AgentSelector
+              agents={agentNames}
+              value={activeAgent ?? ""}
+              onChange={setSelectedAgent}
+            />
+            <ModelSelector
+              models={models}
+              value={activeModelId}
+              onChange={setSelectedModelId}
+            />
+            <span className="ml-1 text-[13px] font-medium text-[#a0a0a0]">Default</span>
           </div>
-          {tool.result && (
-            <div>
-              <span className="opacity-40">Result:</span>
-              <pre className="mt-1 text-[#ce9178]">{JSON.stringify(tool.result, null, 2)}</pre>
-            </div>
-          )}
-        </div>
-      )}
+        }
+        rightSection={
+          <ContextMeter percentage={usage.percentage} tokens={usage.tokens} cost={usage.cost} />
+        }
+      />
     </div>
   )
 }

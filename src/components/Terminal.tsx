@@ -1,32 +1,23 @@
-import React, { useEffect, useRef } from 'react'
-import { XtermAdapter } from '../adapters/XtermAdapter'
+import "xterm/css/xterm.css"
+import { useTerminal } from "../hooks/useTerminal"
 
-export const Terminal: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const adapterRef = useRef<XtermAdapter | null>(null)
+type TerminalProps = {
+  resizeTrigger?: number
+}
 
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    const adapter = new XtermAdapter()
-    adapterRef.current = adapter
-    adapter.initialize(containerRef.current)
-
-    return () => {
-      adapter.dispose()
-      adapterRef.current = null
-    }
-  }, [])
+export function Terminal({ resizeTrigger }: TerminalProps) {
+  const { containerRef, state } = useTerminal(resizeTrigger)
 
   return (
-    <div 
-      ref={containerRef} 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        backgroundColor: '#1e1e1e',
-        padding: '4px'
-      }} 
-    />
+    <div data-component="terminal" className="panel-muted h-full w-full rounded-3xl p-3">
+      <div className="relative h-full w-full rounded-2xl bg-[var(--terminal-bg)] text-[var(--terminal-fg)]">
+        <div ref={containerRef} className="h-full w-full" />
+        {!state.ready && (
+          <div className="absolute inset-x-0 bottom-4 text-center text-xs text-white/70">
+            {state.error ?? "starting terminal..."}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

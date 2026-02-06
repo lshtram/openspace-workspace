@@ -1,12 +1,13 @@
-import { createOpencodeClient, OpencodeClient } from '../lib/opencode/client'
+import { createOpencodeClient, OpencodeClient } from '../lib/opencode/v2/client'
 
-const baseUrl = import.meta.env.VITE_OPENCODE_URL || 'http://localhost:3000'
+const baseUrl = import.meta.env.VITE_OPENCODE_URL || "http://localhost:3000"
 
 export class OpenCodeService {
   private static instance: OpenCodeService
   public client: OpencodeClient
+  public baseUrl = baseUrl
   private _isConnected = false
-  public directory = '/Users/Shared/dev/openspace' // Default directory
+  public directory = import.meta.env.VITE_OPENCODE_DIRECTORY || "/Users/Shared/dev/openspace"
 
   private constructor() {
     this.client = createOpencodeClient({ baseUrl, directory: this.directory })
@@ -21,7 +22,6 @@ export class OpenCodeService {
 
   public async checkConnection(): Promise<boolean> {
     try {
-      // Use config.get() as a health check
       await this.client.config.get()
       this._isConnected = true
       return true
@@ -36,7 +36,6 @@ export class OpenCodeService {
     return this._isConnected
   }
 
-  // Helper getters for specific services
   public get session() { return this.client.session }
   public get file() { return this.client.file }
   public get pty() { return this.client.pty }

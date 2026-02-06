@@ -1,61 +1,46 @@
-#root {
-  width: 100%;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
+.message-bubble {
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
+.message-bubble.user {
+  background: white;
 }
 
-.app-container {
-  width: 100%;
-  height: 100%;
+.message-bubble.assistant {
+  background: rgba(0, 0, 0, 0.01);
 }
 
-/* Scrollbar styling for a darker theme */
-::-webkit-scrollbar {
-  width: 10px;
+.message-meta {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(0, 0, 0, 0.2);
 }
 
-::-webkit-scrollbar-track {
-  background: #1e1e1e;
+.code-inline {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #333;
+.prose-content p {
+  margin-bottom: 0.75rem;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #444;
+.prose-content p:last-child {
+  margin-bottom: 0;
 }
 
-/* Prose overrides for better dark mode appearance */
-.prose pre {
-  background-color: transparent !important;
-  margin: 0 !important;
-  padding: 0 !important;
+.prose-content ul, .prose-content ol {
+  margin-bottom: 0.75rem;
 }
 
-.prose code {
-  color: #ce9178 !important;
-  background-color: #252526 !important;
-  padding: 0.2rem 0.4rem !important;
-  border-radius: 4px !important;
-  font-weight: 400 !important;
-}
-
-.prose code::before,
-.terminal-container {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: #1e1e1e;
-}
-
-.xterm-viewport::-webkit-scrollbar {
-  width: 10px;
+.prose-content li {
+  margin-bottom: 0.25rem;
 }

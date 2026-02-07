@@ -42,6 +42,30 @@ export function PromptInput({
     const normalizePath = (input: string) =>
       input.replace(/\\/g, "/").replace(/^\.?\//, "").trim()
 
+    const toSearchKey = (input: string) => input.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+    const isSubsequence = (query: string, target: string) => {
+      if (!query) return true
+      let cursor = 0
+      for (const char of target) {
+        if (char === query[cursor]) cursor += 1
+        if (cursor === query.length) return true
+      }
+      return false
+    }
+
+    const matchScore = (query: string, target: string) => {
+      if (!query) return 0
+      const queryKey = toSearchKey(query)
+      const targetKey = toSearchKey(target)
+
+      if (target.includes(query)) return 0
+      if (isSubsequence(query, target)) return 1
+      if (queryKey && targetKey.includes(queryKey)) return 2
+      if (queryKey && isSubsequence(queryKey, targetKey)) return 3
+      return null
+    }
+
     const getFiltered = (rawQuery: string) => {
       const normalizedQuery = normalizePath(rawQuery).toLowerCase()
       const rootPrefix = projectRootName ? `${projectRootName.toLowerCase()}/` : ""
@@ -49,19 +73,33 @@ export function PromptInput({
         rootPrefix && normalizedQuery.startsWith(rootPrefix)
           ? normalizedQuery.slice(rootPrefix.length)
           : normalizedQuery
+      const queryVariants = Array.from(
+        new Set([normalizedQuery, withoutRoot].filter((value) => value.length > 0)),
+      )
 
       return fileSuggestions
-        .filter((item) => {
+        .map((item, index) => {
           const normalizedItem = normalizePath(item).toLowerCase()
           const rootPrefixedItem = rootPrefix ? `${rootPrefix}${normalizedItem}` : normalizedItem
+          if (queryVariants.length === 0) {
+            return { item, index, score: 0 }
+          }
 
-          if (!normalizedQuery) return true
-          return (
-            normalizedItem.includes(normalizedQuery) ||
-            normalizedItem.includes(withoutRoot) ||
-            rootPrefixedItem.includes(normalizedQuery)
-          )
+          let bestScore: number | null = null
+          for (const query of queryVariants) {
+            for (const target of [normalizedItem, rootPrefixedItem]) {
+              const score = matchScore(query, target)
+              if (score === null) continue
+              if (bestScore === null || score < bestScore) bestScore = score
+            }
+          }
+
+          if (bestScore === null) return null
+          return { item, index, score: bestScore }
         })
+        .filter((entry): entry is { item: string; index: number; score: number } => entry !== null)
+        .sort((a, b) => (a.score === b.score ? a.index - b.index : a.score - b.score))
+        .map((entry) => entry.item)
         .slice(0, 8)
     }
 

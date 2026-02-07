@@ -78,3 +78,20 @@ test("at mention shows file suggestions and inserts selection", async ({ page, g
   await input.press("Tab")
   await expect(input).toHaveValue(/@src\/index\.ts\s?/)
 })
+
+test("subsequence path query matches file for slash open", async ({ page, gotoHome, seedProject }) => {
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
+  await ensureInSession(page)
+
+  const input = page.locator(promptSelector).first()
+  await expect(input).toBeVisible({ timeout: 10000 })
+  await input.fill("/open docsTECH")
+
+  const suggestionList = page.locator('[data-testid="prompt-suggestion-list"]').first()
+  await expect(suggestionList).toBeVisible()
+  await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
+
+  await input.press("Enter")
+  await expect(input).toHaveValue(/@\.opencode\/docs\/TECHDOC1\.md\s?/)
+})

@@ -97,6 +97,29 @@ describe('PromptInput', () => {
     expect(onChange).toHaveBeenCalledWith('@src/types/index.ts ')
   })
 
+  it('should match /open suggestion with subsequence query across separators', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="/open docsTECH"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['.opencode/docs/TECHDOC1.md', 'src/index.ts']}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Enter}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@.opencode/docs/TECHDOC1.md ')
+  })
+
   it('should not call onSubmit when Shift+Enter is pressed', async () => {
     const onSubmit = vi.fn()
     const user = userEvent.setup()
@@ -168,6 +191,29 @@ describe('PromptInput', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(onChange).toHaveBeenCalledWith('@src/types/index.ts ')
+  })
+
+  it('should match @mention suggestion with subsequence query in filename token', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="@REQFEA"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['docs/REQ-002-FEATUREX.md', 'src/index.ts']}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Tab}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@docs/REQ-002-FEATUREX.md ')
   })
 
   it('should call onSubmit when submit button is clicked', async () => {

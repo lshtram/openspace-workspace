@@ -17,9 +17,13 @@ async function ensureTestProject(dir: string) {
   await fs.mkdir(dir, { recursive: true })
   await fs.mkdir(path.join(dir, "src"), { recursive: true })
   await fs.mkdir(path.join(dir, "src", "types"), { recursive: true })
+  await fs.mkdir(path.join(dir, ".opencode", "docs"), { recursive: true })
+  await fs.mkdir(path.join(dir, "docs"), { recursive: true })
   const readmePath = path.join(dir, "README.md")
   const indexPath = path.join(dir, "src", "index.ts")
   const typesIndexPath = path.join(dir, "src", "types", "index.ts")
+  const techDocPath = path.join(dir, ".opencode", "docs", "TECHDOC1.md")
+  const reqDocPath = path.join(dir, "docs", "REQ-002-FEATUREX.md")
   try {
     await fs.access(readmePath)
   } catch {
@@ -34,6 +38,16 @@ async function ensureTestProject(dir: string) {
     await fs.access(typesIndexPath)
   } catch {
     await fs.writeFile(typesIndexPath, "export type E2EType = { ok: boolean }\n")
+  }
+  try {
+    await fs.access(techDocPath)
+  } catch {
+    await fs.writeFile(techDocPath, "# TECHDOC1\n")
+  }
+  try {
+    await fs.access(reqDocPath)
+  } catch {
+    await fs.writeFile(reqDocPath, "# REQ-002-FEATUREX\n")
   }
 }
 

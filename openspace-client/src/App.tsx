@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { AgentConsole } from "./components/AgentConsole"
 import { FileTree } from "./components/FileTree"
@@ -6,17 +6,22 @@ import { Terminal } from "./components/Terminal"
 import { ProjectRail, type Project } from "./components/sidebar/ProjectRail"
 import { SessionSidebar } from "./components/sidebar/SessionSidebar"
 import { TopBar } from "./components/TopBar"
+import { ToastHost } from "./components/ToastHost"
 import { openCodeService } from "./services/OpenCodeClient"
 import { useSessions, sessionsQueryKey } from "./hooks/useSessions"
+import { DEFAULT_MESSAGE_LIMIT, fetchMessages, messagesQueryKey } from "./hooks/useMessages"
+import { useUpdateSession, useDeleteSession } from "./hooks/useSessionActions"
 import { storage } from "./utils/storage"
 import { useLayout } from "./context/LayoutContext"
 import { useDialog } from "./context/DialogContext"
 import { DialogSelectDirectory } from "./components/DialogSelectDirectory"
+import { useServer } from "./context/ServerContext"
 import "./App.css"
 
 function App() {
   const queryClient = useQueryClient()
   const { show } = useDialog()
+  const server = useServer()
   const {
     leftSidebarExpanded,
     rightSidebarExpanded,
@@ -29,6 +34,16 @@ function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>()
   const [projects, setProjects] = useState<Project[]>([])
   const [isResizingTerminal, setIsResizingTerminal] = useState(false)
+  const [seenVersion, setSeenVersion] = useState(0)
+  const sessionSeenEvent = "openspace:session-seen"
+
+  const setActiveSession = useCallback((id?: string) => {
+    setActiveSessionId(id)
+    if (id) {
+      storage.markSessionSeen(id)
+      setSeenVersion((prev) => prev + 1)
+    }
+  }, [])
 
   // Initialize projects from storage or current directory
   useEffect(() => {
@@ -47,10 +62,10 @@ function App() {
       const lastPath = storage.getLastProjectPath()
       if (lastPath && mapped.find(p => p.path === lastPath)) {
         setActiveProjectId(lastPath)
-        openCodeService.directory = lastPath
+        openCodeService.setDirectory(lastPath)
       } else {
         setActiveProjectId(mapped[0].path)
-        openCodeService.directory = mapped[0].path
+        openCodeService.setDirectory(mapped[0].path)
       }
     } else {
       const initializeFromServer = async () => {
@@ -70,7 +85,7 @@ function App() {
 
           setProjects([defaultProject])
           setActiveProjectId(defaultProject.id)
-          openCodeService.directory = defaultProject.path
+          openCodeService.setDirectory(defaultProject.path)
           storage.saveProjects([{ path: defaultProject.path, name: defaultProject.name, color: defaultProject.color }])
         } catch (error) {
           console.error("Failed to load default project from server", error)
@@ -83,11 +98,12 @@ function App() {
 
   const handleSelectProject = (id: string) => {
     setActiveProjectId(id)
+    setActiveSession(undefined)
     const project = projects.find(p => p.id === id)
     if (project) {
-      openCodeService.directory = project.path
+      openCodeService.setDirectory(project.path)
       storage.saveLastProjectPath(project.path)
-      queryClient.invalidateQueries({ queryKey: sessionsQueryKey(project.path) })
+      queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, project.path) })
     }
   }
 
@@ -109,12 +125,15 @@ function App() {
   const activeProject = projects.find(p => p.id === activeProjectId)
 
   const connectionQuery = useQuery({
-    queryKey: ["connection", openCodeService.baseUrl],
+    queryKey: ["connection", server.activeUrl],
     queryFn: () => openCodeService.checkConnection(),
     refetchInterval: (data) => (data ? false : 3000),
   })
 
-  const { data: sessions = [] } = useSessions()
+  const sessionsQuery = useSessions()
+  const sessions = sessionsQuery.sessions
+  const updateSession = useUpdateSession()
+  const deleteSession = useDeleteSession()
 
   const createSession = useMutation({
     mutationFn: async () => {
@@ -125,11 +144,27 @@ function App() {
     },
     onSuccess: (data) => {
       if (data?.id) {
-        setActiveSessionId(data.id)
-        queryClient.invalidateQueries({ queryKey: sessionsQueryKey(openCodeService.directory) })
+        setActiveSession(data.id)
+        queryClient.invalidateQueries({
+          queryKey: sessionsQueryKey(server.activeUrl, openCodeService.directory),
+        })
       }
     },
   })
+
+  const handleDeleteSession = useCallback(
+    (id: string) => {
+      const remaining = sessions.filter((session) => session.id !== id)
+      deleteSession.mutate(id, {
+        onSuccess: () => {
+          if (activeSessionId === id) {
+            setActiveSession(remaining[0]?.id)
+          }
+        },
+      })
+    },
+    [activeSessionId, deleteSession, sessions, setActiveSession],
+  )
 
   const startResizing = useCallback(() => {
     setIsResizingTerminal(true)
@@ -164,8 +199,59 @@ function App() {
 
   const connected = Boolean(connectionQuery.data)
 
+  useEffect(() => {
+    const handleSeen = () => {
+      setSeenVersion((prev) => prev + 1)
+    }
+    window.addEventListener(sessionSeenEvent, handleSeen)
+    return () => window.removeEventListener(sessionSeenEvent, handleSeen)
+  }, [sessionSeenEvent])
+
+  const unseenSessionIds = useMemo(() => {
+    const seenTick = seenVersion
+    const seenMap = storage.getSessionSeenMap()
+    const unseen = new Set<string>()
+    if (seenTick < 0) return unseen
+    for (const session of sessions) {
+      const seenAt = seenMap[session.id] ?? 0
+      if (session.time?.updated > seenAt) {
+        unseen.add(session.id)
+      }
+    }
+    return unseen
+  }, [sessions, seenVersion])
+
+  const nextUnseenSessionId = useMemo(() => {
+    if (sessions.length === 0) return undefined
+    const startIndex = activeSessionId
+      ? sessions.findIndex((s) => s.id === activeSessionId)
+      : -1
+    const ordered = startIndex >= 0
+      ? [...sessions.slice(startIndex + 1), ...sessions.slice(0, startIndex + 1)]
+      : sessions
+    return ordered.find((s) => unseenSessionIds.has(s.id))?.id
+  }, [sessions, activeSessionId, unseenSessionIds])
+
+  useEffect(() => {
+    if (!activeSessionId || sessions.length === 0) return
+    const index = sessions.findIndex((s) => s.id === activeSessionId)
+    const neighbors = [sessions[index - 1], sessions[index + 1]].filter(Boolean)
+    neighbors.forEach((session) => {
+      queryClient.prefetchQuery({
+        queryKey: messagesQueryKey(server.activeUrl, openCodeService.directory, session.id, DEFAULT_MESSAGE_LIMIT),
+        queryFn: () =>
+          fetchMessages({
+            sessionId: session.id,
+            directory: openCodeService.directory,
+            limit: DEFAULT_MESSAGE_LIMIT,
+          }),
+      })
+    })
+  }, [activeSessionId, sessions, server.activeUrl, queryClient])
+
   return (
     <div className="flex h-full flex-col bg-[#f7f5f1]">
+      <ToastHost />
       {connected && <TopBar connected={connected} />}
       
       {!connected ? (
@@ -173,10 +259,10 @@ function App() {
           <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-3xl p-8 text-center border-black/10 shadow-2xl bg-white">
             <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
             <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
-            <div className="text-sm text-muted">
-              Make sure the OpenCode backend is running at <span className="code-inline">{openCodeService.baseUrl}</span>
+              <div className="text-sm text-muted">
+              Make sure the OpenCode backend is running at <span className="code-inline">{server.activeUrl}</span>
+              </div>
             </div>
-          </div>
         </div>
       ) : (
         <div className="flex h-full min-h-0">
@@ -193,9 +279,18 @@ function App() {
               projectPath={activeProject.path}
               sessions={sessions}
               activeSessionId={activeSessionId}
-              onSelectSession={setActiveSessionId}
+              onSelectSession={setActiveSession}
               onNewSession={() => createSession.mutate()}
-              onLoadMore={() => {}}
+              onLoadMore={sessionsQuery.loadMore}
+              hasMore={sessionsQuery.hasMore}
+              onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
+              onDeleteSession={handleDeleteSession}
+              onArchiveSession={(id, archived) => updateSession.mutate({ sessionID: id, archived })}
+              unseenSessionIds={unseenSessionIds}
+              unseenCount={unseenSessionIds.size}
+              onSelectNextUnseen={() => {
+                if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
+              }}
             />
           )}
 
@@ -205,7 +300,7 @@ function App() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AgentConsole 
                     sessionId={activeSessionId} 
-                    onSessionCreated={setActiveSessionId} 
+                    onSessionCreated={setActiveSession} 
                   />
                 </div>
 

@@ -3,22 +3,31 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import type { Message, Part, AssistantMessage, ToolPart } from "../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
-import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon } from "lucide-react"
-import { useState, useEffect, useMemo } from "react"
+import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { cn } from "../lib/utils"
 
 type MessageListProps = {
   messages: Message[]
   parts: Record<string, Part[]>
   isPending?: boolean
+  hasMore?: boolean
+  onLoadMore?: () => void
+  isFetching?: boolean
 }
 
 const isAssistantMessage = (message: Message): message is AssistantMessage => message.role === "assistant"
+const messageAnchor = (id: string) => `message-${id}`
 
-export function MessageList({ messages, parts, isPending }: MessageListProps) {
+export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, isFetching }: MessageListProps) {
   const ordered = useMemo(() => [...messages].sort((a, b) => a.time.created - b.time.created), [messages])
   const [startTime, setStartTime] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const [activeTurnId, setActiveTurnId] = useState<string | undefined>(undefined)
+  const [hashFocusedId, setHashFocusedId] = useState<string | undefined>(undefined)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const turnRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const turns = useMemo(() => {
     const result: { user?: Message; assistants: Message[]; id: string }[] = []
@@ -60,10 +69,115 @@ export function MessageList({ messages, parts, isPending }: MessageListProps) {
     return () => clearInterval(interval)
   }, [startTime])
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    if (typeof viewport.scrollTo === "function") {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior })
+      return
+    }
+    viewport.scrollTop = viewport.scrollHeight
+  }, [])
+
+  const applyHashFocus = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      const hash = window.location.hash
+      if (!hash) return
+      const match = hash.match(/^#message-(.+)$/)
+      if (!match) return
+      const targetId = match[1]
+      const target = document.getElementById(messageAnchor(targetId))
+      if (!target) return
+      target.scrollIntoView({ behavior, block: "start" })
+      setHashFocusedId(targetId)
+      setActiveTurnId(targetId)
+    },
+    [],
+  )
+
+  const updateScrollSpy = useCallback(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const viewportRect = viewport.getBoundingClientRect()
+    const thresholdY = viewportRect.top + 120
+
+    let bestId: string | undefined
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (const [id, node] of Object.entries(turnRefs.current)) {
+      if (!node) continue
+      const rect = node.getBoundingClientRect()
+      const distance = Math.abs(rect.top - thresholdY)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestId = id
+      }
+    }
+    if (bestId) setActiveTurnId(bestId)
+  }, [])
+
+  const isNestedScrollableBoundary = (target: EventTarget | null, deltaY: number) => {
+    if (!(target instanceof Element)) return true
+    const nested = target.closest("[data-scrollable]")
+    const root = viewportRef.current
+    if (!nested || !root || nested === root) return true
+    if (!(nested instanceof HTMLElement)) return true
+
+    if (nested.scrollHeight <= nested.clientHeight) return true
+    if (deltaY < 0) return nested.scrollTop <= 0
+    if (deltaY > 0) return nested.scrollTop + nested.clientHeight >= nested.scrollHeight
+    return false
+  }
+
+  const handleScroll = useCallback(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const nearBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 40
+    setIsAtBottom(nearBottom)
+    updateScrollSpy()
+  }, [updateScrollSpy])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    if (isAtBottom) scrollToBottom("auto")
+  }, [turns.length, isPending, isAtBottom, scrollToBottom])
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => applyHashFocus("auto"))
+    const onHashChange = () => applyHashFocus("smooth")
+    window.addEventListener("hashchange", onHashChange)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener("hashchange", onHashChange)
+    }
+  }, [applyHashFocus, turns.length])
+
   return (
     <ScrollArea.Root className="h-full w-full overflow-hidden bg-white">
-      <ScrollArea.Viewport className="h-full w-full">
+      <ScrollArea.Viewport
+        ref={viewportRef}
+        className="h-full w-full"
+        onScroll={handleScroll}
+        onWheelCapture={(event) => {
+          if (!isNestedScrollableBoundary(event.target, event.deltaY)) {
+            event.stopPropagation()
+          }
+        }}
+      >
         <div className="flex flex-col max-w-[840px] mx-auto pb-40">
+          {hasMore && onLoadMore && (
+            <div className="px-6 pt-4">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={isFetching}
+                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[12px] font-medium text-black/60 shadow-sm transition hover:bg-black/[0.02] disabled:opacity-50"
+              >
+                {isFetching ? "Loading..." : "Load earlier messages"}
+              </button>
+            </div>
+          )}
           {turns.map((turn) => {
             const allAssistantParts = turn.assistants.flatMap(a => parts[a.id] ?? [])
             const stepParts = allAssistantParts.filter(p => p.type === "reasoning" || p.type === "tool")
@@ -72,7 +186,18 @@ export function MessageList({ messages, parts, isPending }: MessageListProps) {
             const error = lastAssistant && isAssistantMessage(lastAssistant) ? lastAssistant.error : undefined
 
             return (
-              <div key={turn.id} className="flex flex-col relative">
+              <div
+                key={turn.id}
+                id={messageAnchor(turn.id)}
+                ref={(node) => {
+                  turnRefs.current[turn.id] = node
+                }}
+                className={cn(
+                  "flex flex-col relative transition-colors",
+                  activeTurnId === turn.id && "bg-black/[0.01]",
+                  hashFocusedId === turn.id && "ring-1 ring-blue-200 ring-inset",
+                )}
+              >
                 {turn.user && (
                   <UserMessageItem 
                     message={turn.user} 
@@ -118,6 +243,21 @@ export function MessageList({ messages, parts, isPending }: MessageListProps) {
           )}
         </div>
       </ScrollArea.Viewport>
+      {!isAtBottom && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              scrollToBottom("smooth")
+              setIsAtBottom(true)
+            }}
+            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white text-black/60 shadow-sm transition hover:bg-black/[0.02]"
+            aria-label="Resume auto-scroll"
+          >
+            <ArrowDownToLine size={16} />
+          </button>
+        </div>
+      )}
       <ScrollArea.Scrollbar orientation="vertical" className="w-1.5 p-0.5">
         <ScrollArea.Thumb className="rounded-full bg-black/10" />
       </ScrollArea.Scrollbar>

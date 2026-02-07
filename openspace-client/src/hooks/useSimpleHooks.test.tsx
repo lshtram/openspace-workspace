@@ -5,7 +5,7 @@
  * Tests verify basic fetching, loading states, and error handling.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -15,6 +15,19 @@ import { useAgents, agentsQueryKey } from './useAgents'
 import { useConfig, configQueryKey } from './useConfig'
 import { useProviders, providersQueryKey } from './useProviders'
 import { useMessages, messagesQueryKey } from './useMessages'
+
+vi.mock('../context/ServerContext', () => ({
+  useServer: () => ({
+    activeUrl: 'http://localhost:3000',
+    defaultUrl: null,
+    servers: [],
+    addServer: vi.fn(),
+    setActive: vi.fn(),
+    removeServer: vi.fn(),
+    replaceServer: vi.fn(),
+    setDefault: vi.fn(),
+  }),
+}))
 
 // Wrapper component for hook testing
 function createWrapper(queryClient?: QueryClient) {
@@ -64,7 +77,7 @@ describe('useAgents', () => {
   })
 
   it('should use correct query key', () => {
-    expect(agentsQueryKey("")).toEqual(['agents', ""])
+    expect(agentsQueryKey("http://localhost:3000", "")).toEqual(['agents', "http://localhost:3000", ""])
   })
 
   it('should handle empty response', async () => {
@@ -106,7 +119,7 @@ describe('useConfig', () => {
   })
 
   it('should use correct query key', () => {
-    expect(configQueryKey("")).toEqual(['config', ""])
+    expect(configQueryKey("http://localhost:3000", "")).toEqual(['config', "http://localhost:3000", ""])
   })
 
   it('should be able to refetch', async () => {
@@ -150,7 +163,7 @@ describe('useProviders', () => {
   })
 
   it('should use correct query key', () => {
-    expect(providersQueryKey("")).toEqual(['providers', ""])
+    expect(providersQueryKey("http://localhost:3000", "")).toEqual(['providers', "http://localhost:3000", ""])
   })
 
   it('should handle empty providers', async () => {
@@ -228,7 +241,7 @@ describe('useMessages', () => {
 
   it('should use correct query key with sessionId', () => {
     const sessionId = 'ses_test123'
-    const queryKey = messagesQueryKey(sessionId)
-    expect(queryKey).toEqual(['messages', sessionId, ''])
+    const queryKey = messagesQueryKey('http://localhost:3000', '', sessionId)
+    expect(queryKey).toEqual(['messages', 'http://localhost:3000', '', sessionId, undefined])
   })
 })

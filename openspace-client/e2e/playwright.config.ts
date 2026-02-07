@@ -1,15 +1,32 @@
 import { defineConfig, devices } from "@playwright/test"
 
+const host = process.env.PLAYWRIGHT_HOST || "127.0.0.1"
+const port = process.env.PLAYWRIGHT_PORT || "5173"
+const baseURL = `http://${host}:${port}`
+const useExistingServer = process.env.PLAYWRIGHT_USE_EXISTING_SERVER === "1"
+const testMatch = process.env.PLAYWRIGHT_TEST_MATCH
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1"
+
 export default defineConfig({
   testDir: ".",
+  testMatch: testMatch ?? undefined,
   timeout: 60 * 1000,
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  workers: 1,
+  reporter: [
+    [
+      "html",
+      {
+        outputFolder:
+          process.env.PLAYWRIGHT_REPORT_DIR || "playwright-report",
+      },
+    ],
+  ],
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "test-results",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
@@ -18,9 +35,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:5173",
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: useExistingServer
+    ? undefined
+    : {
+        command: `npm run dev -- --host ${host} --port ${port} --strictPort`,
+        url: baseURL,
+        reuseExistingServer,
+      },
 })

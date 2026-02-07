@@ -157,4 +157,25 @@ describe('storage utility', () => {
       expect(storage.getLastProjectPath()).toBe('/p2')
     })
   })
+
+  describe('session seen map', () => {
+    it('should return empty map when no data stored', () => {
+      expect(storage.getSessionSeenMap()).toEqual({})
+    })
+
+    it('should store and retrieve seen map', () => {
+      const map = { 's1': 100, 's2': 200 }
+      storage.saveSessionSeenMap(map)
+      expect(storage.getSessionSeenMap()).toEqual(map)
+    })
+
+    it('should mark a session as seen', () => {
+      storage.markSessionSeen('s1', 12345)
+      expect(storage.getSessionSeen('s1')).toBe(12345)
+    })
+
+    it('should return null for unknown session', () => {
+      expect(storage.getSessionSeen('missing')).toBeNull()
+    })
+  })
 })

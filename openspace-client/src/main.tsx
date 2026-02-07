@@ -5,6 +5,7 @@ import "./index.css"
 import App from "./App.tsx"
 import { DialogProvider } from "./context/DialogContext"
 import { LayoutProvider } from "./context/LayoutContext"
+import { ServerProvider } from "./context/ServerContext"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,9 +20,11 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <DialogProvider>
-        <LayoutProvider>
-          <App />
-        </LayoutProvider>
+        <ServerProvider>
+          <LayoutProvider>
+            <App />
+          </LayoutProvider>
+        </ServerProvider>
       </DialogProvider>
     </QueryClientProvider>
   </StrictMode>,

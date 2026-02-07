@@ -8,6 +8,7 @@ import { render, type RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement, ReactNode } from 'react'
 import { DialogProvider } from '../../context/DialogContext'
+import { ServerProvider } from '../../context/ServerContext'
 
 /**
  * Create a new QueryClient for testing
@@ -42,7 +43,9 @@ function TestProviders({ children, queryClient }: TestProvidersProps) {
   return (
     <QueryClientProvider client={client}>
       <DialogProvider>
-        {children}
+        <ServerProvider>
+          {children}
+        </ServerProvider>
       </DialogProvider>
     </QueryClientProvider>
   )

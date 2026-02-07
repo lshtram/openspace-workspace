@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
+import { useServer } from "../context/ServerContext"
 
-export const fileStatusQueryKey = (directory?: string) => ["file-status", directory]
+export const fileStatusQueryKey = (serverUrl?: string, directory?: string) => ["file-status", serverUrl, directory]
 
 export function useFileStatus() {
+  const server = useServer()
   const directory = openCodeService.directory
   return useQuery({
-    queryKey: fileStatusQueryKey(directory),
+    queryKey: fileStatusQueryKey(server.activeUrl, directory),
     queryFn: async () => {
       const response = await openCodeService.client.file.status({
         directory,

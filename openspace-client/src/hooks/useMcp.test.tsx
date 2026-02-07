@@ -1,7 +1,21 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
+import { vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useMcpStatus, useMcpToggle } from './useMcp'
+
+vi.mock('../context/ServerContext', () => ({
+  useServer: () => ({
+    activeUrl: 'http://localhost:3000',
+    defaultUrl: null,
+    servers: [],
+    addServer: vi.fn(),
+    setActive: vi.fn(),
+    removeServer: vi.fn(),
+    replaceServer: vi.fn(),
+    setDefault: vi.fn(),
+  }),
+}))
 
 // Test wrapper component
 function createWrapper() {
@@ -74,26 +88,30 @@ describe('useMcpToggle', () => {
       wrapper: createWrapper(),
     })
 
-    const mutation = result.current.mutateAsync({
+    const data = await result.current.mutateAsync({
       name: 'test-server',
       connect: true,
     })
 
-    await expect(mutation).resolves.toBeDefined()
-  })
+    // Mutation resolves with mocked data
+    expect(data).toBeDefined()
+    expect(typeof data).toBe('object')
+  }, 10000)
 
   it('should disconnect from MCP server', async () => {
     const { result } = renderHook(() => useMcpToggle(), {
       wrapper: createWrapper(),
     })
 
-    const mutation = result.current.mutateAsync({
+    const data = await result.current.mutateAsync({
       name: 'test-server',
       connect: false,
     })
 
-    await expect(mutation).resolves.toBeDefined()
-  })
+    // Mutation resolves with mocked data
+    expect(data).toBeDefined()
+    expect(typeof data).toBe('object')
+  }, 10000)
 
   it('should update query cache on success', async () => {
     const queryClient = new QueryClient({

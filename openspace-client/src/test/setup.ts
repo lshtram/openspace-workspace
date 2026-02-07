@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom'
 import { beforeAll, afterEach, afterAll } from 'vitest'
 import { server } from './mocks/server'
+import { setupLocalStorageMock } from './utils/test-utils'
 
 // Mock ResizeObserver for Radix UI components
 globalThis.ResizeObserver = class ResizeObserver {
@@ -8,6 +9,8 @@ globalThis.ResizeObserver = class ResizeObserver {
   unobserve() {}
   disconnect() {}
 }
+
+setupLocalStorageMock()
 
 // Start MSW server before all tests
 beforeAll(() => {

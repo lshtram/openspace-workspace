@@ -85,6 +85,7 @@ We use specialized skills to ensure high-integrity development. See `.agent/skil
 4. **Pages are Orchestrators**: Move logic to hooks (ViewModels).
 5. **Strict TypeScript**: No `any` usage.
 6. **Efficiency First**: Browser usage is a LAST RESORT.
+7. **Arm64 Only**: All builds/tests must run under arm64 (use `/opt/homebrew/bin/node`). If `node -p process.arch` reports `x64`, stop, notify the user, and fix PATH immediately.
 
 ## 📊 Project Status
 

@@ -55,11 +55,16 @@ describe('SessionSidebar', () => {
       />
     )
     
-    const session1 = screen.getByText('Session 1').closest('button')
-    const session2 = screen.getByText('Untitled Session').closest('button')
+    // The active session should be wrapped in a div with the active class
+    const session1Button = screen.getByText('Session 1').closest('button')
+    const session2Button = screen.getByText('Untitled Session').closest('button')
     
-    expect(session1).toHaveClass('bg-black/[0.04]')
-    expect(session2).not.toHaveClass('bg-black/[0.04]')
+    // Check that the parent div has the active styling class
+    const session1Container = session1Button?.parentElement
+    const session2Container = session2Button?.parentElement
+    
+    expect(session1Container).toHaveClass('bg-black/[0.04]')
+    expect(session2Container).not.toHaveClass('bg-black/[0.04]')
   })
 
   it('should call onSelectSession when a session is clicked', () => {
@@ -111,5 +116,25 @@ describe('SessionSidebar', () => {
     
     fireEvent.click(screen.getByText('Load more'))
     expect(onLoadMore).toHaveBeenCalled()
+  })
+
+  it('should show next unseen button and call handler', () => {
+    const onSelectNextUnseen = vi.fn()
+    renderWithProviders(
+      <SessionSidebar
+        projectName="Test Project"
+        projectPath="/test/path"
+        sessions={mockSessions}
+        onSelectSession={vi.fn()}
+        onNewSession={vi.fn()}
+        onLoadMore={vi.fn()}
+        unseenSessionIds={new Set(['1'])}
+        unseenCount={1}
+        onSelectNextUnseen={onSelectNextUnseen}
+      />
+    )
+
+    fireEvent.click(screen.getByText('Next unseen'))
+    expect(onSelectNextUnseen).toHaveBeenCalled()
   })
 })

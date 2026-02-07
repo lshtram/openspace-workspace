@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerProvider } from '../context/ServerContext'
 import { useSessions } from './useSessions'
 import { useFileStatus } from './useFileStatus'
 import { useLspStatus } from './useLsp'
@@ -22,7 +23,9 @@ function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        {children}
+        <ServerProvider>
+          {children}
+        </ServerProvider>
       </QueryClientProvider>
     )
   }

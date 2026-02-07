@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 import type { ModelOption } from "../types/opencode"
+import { useServer } from "../context/ServerContext"
 
 type ModelsResult = {
   models: ModelOption[]
@@ -8,12 +9,13 @@ type ModelsResult = {
   defaultModelId?: string
 }
 
-export const modelsQueryKey = (directory?: string) => ["models", directory]
+export const modelsQueryKey = (serverUrl?: string, directory?: string) => ["models", serverUrl, directory]
 
 export function useModels() {
+  const server = useServer()
   const directory = openCodeService.directory
   return useQuery<ModelsResult>({
-    queryKey: modelsQueryKey(directory),
+    queryKey: modelsQueryKey(server.activeUrl, directory),
     queryFn: async () => {
       const response = await openCodeService.client.provider.list({
         directory,

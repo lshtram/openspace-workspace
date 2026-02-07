@@ -2,11 +2,15 @@ import * as Popover from "@radix-ui/react-popover"
 import * as Tabs from "@radix-ui/react-tabs"
 import * as Switch from "@radix-ui/react-switch"
 import { Check, Loader2 } from "lucide-react"
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMcpStatus, useMcpToggle } from "../hooks/useMcp"
 import { useLspStatus } from "../hooks/useLsp"
 import { useConfig } from "../hooks/useConfig"
-import { openCodeService } from "../services/OpenCodeClient"
+import { useDialog } from "../context/DialogContext"
+import { useServer } from "../context/ServerContext"
+import { checkServerHealth, type ServerHealth } from "../utils/serverHealth"
+import { DialogManageServers } from "./DialogManageServers"
+import { ServerRow } from "./ServerRow"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -19,10 +23,13 @@ type StatusPopoverProps = {
 }
 
 export function StatusPopover({ connected }: StatusPopoverProps) {
+  const dialog = useDialog()
+  const server = useServer()
   const mcpQuery = useMcpStatus()
   const lspQuery = useLspStatus()
   const configQuery = useConfig()
   const mcpToggle = useMcpToggle()
+  const [statusMap, setStatusMap] = useState<Record<string, ServerHealth | undefined>>({})
 
   const mcpItems = useMemo(() => {
     const data = mcpQuery.data ?? {}
@@ -38,6 +45,33 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
   const pluginCount = plugins.length
 
   const overallHealthy = connected && mcpItems.every((m) => m.status === "connected" || m.status === "disabled")
+  const servers = useMemo(() => {
+    const current = server.activeUrl
+    const list = server.servers
+    if (!current) return list
+    if (!list.includes(current)) return [current, ...list]
+    return [current, ...list.filter((item) => item !== current)]
+  }, [server.activeUrl, server.servers])
+
+  useEffect(() => {
+    let alive = true
+    const fetcher = globalThis.fetch
+    const refresh = async () => {
+      const results: Record<string, ServerHealth> = {}
+      await Promise.all(
+        servers.map(async (url) => {
+          results[url] = await checkServerHealth(url, fetcher)
+        }),
+      )
+      if (alive) setStatusMap(results)
+    }
+    refresh()
+    const interval = setInterval(refresh, 10_000)
+    return () => {
+      alive = false
+      clearInterval(interval)
+    }
+  }, [servers])
 
   return (
     <Popover.Root>
@@ -70,7 +104,7 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
                 value="servers"
                 className="relative flex-1 px-4 py-2 text-xs font-medium text-muted transition-colors hover:text-[var(--text)] data-[state=active]:text-[var(--accent)]"
               >
-                Servers
+                Servers {servers.length > 0 && `(${servers.length})`}
                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-current opacity-0 transition-opacity data-[state=active]:opacity-100" />
               </Tabs.Trigger>
               <Tabs.Trigger
@@ -98,16 +132,54 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
 
             <div className="max-h-[400px] overflow-y-auto p-2">
               <Tabs.Content value="servers" className="space-y-1">
-                <div className="flex items-center justify-between rounded-xl bg-[var(--surface-strong)] p-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
-                    <div>
-                      <div className="text-sm font-medium">Local Server</div>
-                      <div className="text-[10px] text-muted uppercase tracking-wider">{openCodeService.baseUrl}</div>
-                    </div>
-                  </div>
-                  {connected && <Check className="h-4 w-4 text-emerald-600" />}
-                </div>
+                {servers.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted">No servers configured</div>
+                ) : (
+                  servers.map((url) => {
+                    const status = statusMap[url]
+                    const isDefault = url === server.defaultUrl
+                    const isActive = url === server.activeUrl
+                    const isBlocked = status?.healthy === false
+
+                    return (
+                      <button
+                        key={url}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors",
+                          isBlocked ? "opacity-50" : "hover:bg-[var(--surface-strong)]",
+                        )}
+                        onClick={() => {
+                          if (!isBlocked) server.setActive(url)
+                        }}
+                        disabled={isBlocked}
+                      >
+                        <ServerRow
+                          url={url}
+                          status={status}
+                          dimmed={isBlocked}
+                          className="flex items-center gap-3 min-w-0"
+                          badge={
+                            isDefault ? (
+                              <span className="rounded-md bg-black/5 px-2 py-0.5 text-[11px] text-muted">Default</span>
+                            ) : null
+                          }
+                          trailing={
+                            <div className="ml-auto flex items-center gap-2">
+                              {isActive && <Check className="h-4 w-4 text-emerald-600" />}
+                            </div>
+                          }
+                        />
+                      </button>
+                    )
+                  })
+                )}
+
+                <button
+                  className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold shadow-sm transition hover:border-black/20"
+                  onClick={() => dialog.show(<DialogManageServers />)}
+                >
+                  Manage servers
+                </button>
               </Tabs.Content>
 
               <Tabs.Content value="mcp" className="space-y-1">

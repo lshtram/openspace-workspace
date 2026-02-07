@@ -85,14 +85,28 @@ vi.mock('./utils/storage', () => ({
     saveProjects: vi.fn(),
     getLastProjectPath: vi.fn(() => null),
     saveLastProjectPath: vi.fn(),
+    getServers: vi.fn(() => []),
+    saveServers: vi.fn(),
+    getActiveServer: vi.fn(() => null),
+    saveActiveServer: vi.fn(),
+    getDefaultServer: vi.fn(() => null),
+    saveDefaultServer: vi.fn(),
+    getSessionSeenMap: vi.fn(() => ({})),
+    saveSessionSeenMap: vi.fn(),
+    markSessionSeen: vi.fn(),
+    getSessionSeen: vi.fn(() => null),
   },
 }))
 
 // Mock OpenCode service
-vi.mock('./services/OpenCodeClient', () => ({
-  openCodeService: {
+vi.mock('./services/OpenCodeClient', () => {
+  const service = {
     baseUrl: 'http://localhost:3000',
     directory: '',
+    setBaseUrl: vi.fn(),
+    setDirectory: vi.fn((dir: string) => {
+      service.directory = dir
+    }),
     checkConnection: vi.fn(() => Promise.resolve(true)),
     client: {
       project: {
@@ -102,8 +116,10 @@ vi.mock('./services/OpenCodeClient', () => ({
         create: vi.fn(() => Promise.resolve({ data: { id: 'new-session-123' } })),
       },
     },
-  },
-}))
+  }
+
+  return { openCodeService: service }
+})
 
 const renderApp = (queryClient = createTestQueryClient()) => {
   return renderWithProviders(

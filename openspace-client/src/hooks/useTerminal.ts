@@ -3,6 +3,7 @@ import { Terminal as XTerm } from "xterm"
 import { FitAddon } from "xterm-addon-fit"
 import { WebLinksAddon } from "xterm-addon-web-links"
 import { openCodeService } from "../services/OpenCodeClient"
+import { useServer } from "../context/ServerContext"
 
 type TerminalState = {
   ready: boolean
@@ -17,9 +18,12 @@ const getTerminalTheme = () => {
 }
 
 export function useTerminal(resizeTrigger?: number) {
+  const server = useServer()
+  const directory = openCodeService.directory
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<TerminalState>({ ready: false })
   const fitRef = useRef<FitAddon | null>(null)
+  const ptyIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (fitRef.current && state.ready) {
@@ -36,13 +40,14 @@ export function useTerminal(resizeTrigger?: number) {
 
     const connect = async () => {
       const ptyResponse = await openCodeService.pty.create({
-        directory: openCodeService.directory,
+        directory,
       })
       const pty = ptyResponse.data
       if (!pty || disposed) return
+      ptyIdRef.current = pty.id
 
       const url = new URL(`${openCodeService.baseUrl}/pty/${pty.id}/connect`)
-      url.searchParams.set("directory", openCodeService.directory)
+      url.searchParams.set("directory", directory)
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
 
       const xterm = new XTerm({
@@ -72,7 +77,7 @@ export function useTerminal(resizeTrigger?: number) {
         void openCodeService.pty.update({
           ptyID: pty.id,
           size: { cols: xterm.cols, rows: xterm.rows },
-          directory: openCodeService.directory,
+          directory,
         })
       })
       socket.addEventListener("close", () => {
@@ -94,7 +99,7 @@ export function useTerminal(resizeTrigger?: number) {
         void openCodeService.pty.update({
           ptyID: pty.id,
           size: { cols, rows },
-          directory: openCodeService.directory,
+          directory,
         })
       })
 
@@ -115,8 +120,11 @@ export function useTerminal(resizeTrigger?: number) {
       fit?.dispose()
       fitRef.current = null
       resizeCleanup?.()
+      if (ptyIdRef.current) {
+        void openCodeService.pty.remove({ ptyID: ptyIdRef.current }).catch(() => {})
+      }
     }
-  }, [])
+  }, [server.activeUrl, directory])
 
   return { containerRef, state }
 }

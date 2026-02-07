@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
+import { useServer } from "../context/ServerContext"
 
-export const mcpQueryKey = ["mcp", openCodeService.directory]
+export const mcpQueryKey = (serverUrl?: string, directory?: string) => ["mcp", serverUrl, directory]
 
 export function useMcpStatus() {
+  const server = useServer()
   return useQuery({
-    queryKey: mcpQueryKey,
+    queryKey: mcpQueryKey(server.activeUrl, openCodeService.directory),
     queryFn: async () => {
       const response = await openCodeService.client.mcp.status({
         directory: openCodeService.directory,
@@ -18,6 +20,7 @@ export function useMcpStatus() {
 
 export function useMcpToggle() {
   const queryClient = useQueryClient()
+  const server = useServer()
   
   return useMutation({
     mutationFn: async ({ name, connect }: { name: string; connect: boolean }) => {
@@ -38,7 +41,7 @@ export function useMcpToggle() {
       return response.data ?? {}
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(mcpQueryKey, data)
+      queryClient.setQueryData(mcpQueryKey(server.activeUrl, openCodeService.directory), data)
     },
   })
 }

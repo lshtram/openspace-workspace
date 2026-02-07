@@ -1,15 +1,18 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import type { MessageEntry, EventEnvelope } from "../types/opencode"
-import type { Message, Part } from "../lib/opencode/v2/gen/types.gen"
+import type { MessageEntry } from "../types/opencode"
+import type { Message, Part, GlobalEvent } from "../lib/opencode/v2/gen/types.gen"
 import type { StreamEvent } from "../lib/opencode/gen/core/serverSentEvents.gen"
 import { openCodeService } from "../services/OpenCodeClient"
-import { messagesQueryKey } from "./useMessages"
+import { sessionsQueryKey } from "./useSessions"
+import { useServer } from "../context/ServerContext"
+import { pushToastOnce } from "../utils/toastStore"
+import { storage } from "../utils/storage"
 
 const updateMessageEntries = (
   entries: MessageEntry[],
   sessionId: string,
-  envelope: EventEnvelope,
+  envelope: { type: string; properties?: Record<string, unknown> },
 ): MessageEntry[] => {
   const next = [...entries]
 
@@ -26,13 +29,14 @@ const updateMessageEntries = (
 
   if (envelope.type === "message.removed") {
     const messageID = envelope.properties?.messageID as string | undefined
+    const eventSessionID = envelope.properties?.sessionID as string | undefined
     if (!messageID) return entries
+    if (eventSessionID && eventSessionID !== sessionId) return entries
     return next.filter((item) => item.info.id !== messageID)
   }
 
   if (envelope.type === "message.part.updated") {
     const part = envelope.properties?.part as Part | undefined
-    const delta = envelope.properties?.delta as string | undefined
     if (!part || part.sessionID !== sessionId) return entries
     const index = next.findIndex((item) => item.info.id === part.messageID)
     if (index < 0) return entries
@@ -40,12 +44,7 @@ const updateMessageEntries = (
     const parts = [...current.parts]
     const partIndex = parts.findIndex((item) => item.id === part.id)
     if (partIndex >= 0) {
-      const existing = parts[partIndex]
-      if (delta && existing.type === "text" && part.type === "text") {
-        parts[partIndex] = { ...part, text: existing.text + delta }
-      } else {
-        parts[partIndex] = part
-      }
+      parts[partIndex] = part
     } else {
       parts.push(part)
     }
@@ -67,31 +66,146 @@ const updateMessageEntries = (
   return entries
 }
 
+const SESSION_SEEN_EVENT = "openspace:session-seen"
+
+const getEnvelopeSessionId = (
+  envelope: { type: string; properties?: Record<string, unknown> },
+): string | undefined => {
+  if (envelope.type === "message.updated") {
+    const info = envelope.properties?.info as Message | undefined
+    return info?.sessionID
+  }
+
+  if (envelope.type === "message.removed") {
+    return envelope.properties?.sessionID as string | undefined
+  }
+
+  if (envelope.type === "message.part.updated") {
+    const part = envelope.properties?.part as Part | undefined
+    return part?.sessionID
+  }
+
+  return undefined
+}
+
 export function useSessionEvents(sessionId?: string) {
   const queryClient = useQueryClient()
   const directory = openCodeService.directory
+  const server = useServer()
+  const lastErrorRef = useRef(0)
+  const hasShownErrorRef = useRef(false)
 
   useEffect(() => {
     if (!sessionId) return
     const controller = new AbortController()
-    
-    void openCodeService.client.event.subscribe(
-      { directory },
-      {
-        signal: controller.signal,
-        onSseEvent: (event: StreamEvent<unknown>) => {
-          const envelope = event.data as EventEnvelope
-          queryClient.setQueryData<MessageEntry[]>(messagesQueryKey(sessionId), (prev) => {
-            const next = updateMessageEntries(prev ?? [], sessionId, envelope)
-            return next
-          })
-        },
-        onSseError: (error: unknown) => {
-          console.error("SSE Error:", error)
-        },
-      }
-    )
+    let alive = true
 
-    return () => controller.abort()
-  }, [queryClient, sessionId, directory])
+    const reportError = (error: unknown) => {
+      if (controller.signal.aborted) return
+      if (error instanceof DOMException && error.name === "AbortError") return
+      if (error instanceof Error && error.name === "AbortError") return
+      if (hasShownErrorRef.current) return
+      hasShownErrorRef.current = true
+      const now = Date.now()
+      if (now - lastErrorRef.current < 5000) return
+      lastErrorRef.current = now
+
+      const message = error instanceof Error ? error.message : String(error || "Unknown error")
+      pushToastOnce(`sse:${message}`, {
+        title: "Session stream interrupted",
+        description: message || "Reconnecting to session events.",
+        tone: "error",
+      })
+      console.error("SSE Error:", error)
+    }
+
+    const onSseEvent = (event: StreamEvent<unknown>) => {
+      const data = event.data as GlobalEvent
+      if (!data?.payload) return
+      if (data.directory !== directory) return
+      const envelope = data.payload
+      const envelopeSessionId = getEnvelopeSessionId(envelope)
+      if (envelopeSessionId) {
+        const now = Date.now()
+        queryClient.setQueriesData(
+          { queryKey: sessionsQueryKey(server.activeUrl, directory) },
+          (prev) => {
+            if (!Array.isArray(prev)) return prev
+            return prev.map((session) => {
+              if (session.id !== envelopeSessionId) return session
+              return {
+                ...session,
+                time: {
+                  ...(session.time ?? { created: now, updated: now }),
+                  updated: now,
+                },
+              }
+            })
+          },
+        )
+      }
+      if (envelopeSessionId && envelopeSessionId === sessionId) {
+        storage.markSessionSeen(sessionId)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(SESSION_SEEN_EVENT, { detail: sessionId }))
+        }
+      }
+      queryClient.setQueriesData<MessageEntry[]>(
+        {
+          predicate: (query) => {
+            const key = query.queryKey
+            return (
+              Array.isArray(key) &&
+              key[0] === "messages" &&
+              key[1] === server.activeUrl &&
+              key[2] === directory &&
+              key[3] === sessionId
+            )
+          },
+        },
+        (prev) => updateMessageEntries(prev ?? [], sessionId, envelope),
+      )
+    }
+
+    const connect = async () => {
+      let attempt = 0
+      while (alive && !controller.signal.aborted) {
+        try {
+          const result = await openCodeService.client.global.event({
+            signal: controller.signal,
+            onSseEvent,
+            onSseError: reportError,
+            sseDefaultRetryDelay: 2000,
+            sseMaxRetryDelay: 30000,
+          })
+
+          const stream = result?.stream
+          if (!stream || typeof stream[Symbol.asyncIterator] !== "function") {
+            reportError(new Error("Event stream unavailable"))
+            return
+          }
+          hasShownErrorRef.current = false
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          for await (const _ of stream) {
+            if (!alive || controller.signal.aborted) break
+          }
+        } catch (error) {
+          reportError(error)
+        }
+
+        if (!alive || controller.signal.aborted) break
+        attempt += 1
+        const backoff = Math.min(2000 * 2 ** (attempt - 1), 30000)
+        await new Promise((resolve) => setTimeout(resolve, backoff))
+      }
+    }
+
+    void connect()
+
+    return () => {
+      alive = false
+      controller.abort()
+    }
+  }, [queryClient, sessionId, directory, server.activeUrl])
 }

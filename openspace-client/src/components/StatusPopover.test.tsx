@@ -6,6 +6,7 @@ import { StatusPopover } from './StatusPopover'
 import { useMcpStatus, useMcpToggle } from '../hooks/useMcp'
 import { useLspStatus } from '../hooks/useLsp'
 import { useConfig } from '../hooks/useConfig'
+import { checkServerHealth } from '../utils/serverHealth'
 
 // Mock hooks
 vi.mock('../hooks/useMcp', () => ({
@@ -19,6 +20,10 @@ vi.mock('../hooks/useLsp', () => ({
 
 vi.mock('../hooks/useConfig', () => ({
   useConfig: vi.fn(),
+}))
+
+vi.mock('../utils/serverHealth', () => ({
+  checkServerHealth: vi.fn(),
 }))
 
 describe('StatusPopover', () => {
@@ -48,6 +53,8 @@ describe('StatusPopover', () => {
         plugin: ['plugin-1', 'plugin-2']
       }
     } as never)
+
+    vi.mocked(checkServerHealth).mockResolvedValue({ healthy: true, version: '1.1.51' })
   })
 
   it('should render trigger button with connected status', () => {
@@ -68,7 +75,7 @@ describe('StatusPopover', () => {
     
     await user.click(screen.getByRole('button'))
     
-    expect(await screen.findByText('Servers')).toBeInTheDocument()
+    expect(await screen.findByText(/Servers/)).toBeInTheDocument()
     expect(screen.getByText(/MCP \(1\)/)).toBeInTheDocument()
     expect(screen.getByText(/LSP \(1\)/)).toBeInTheDocument()
     expect(screen.getByText(/Plugins \(2\)/)).toBeInTheDocument()
@@ -80,8 +87,8 @@ describe('StatusPopover', () => {
     
     await user.click(screen.getByRole('button'))
     
-    expect(await screen.findByText('Local Server')).toBeInTheDocument()
-    expect(screen.getByText(/localhost/i)).toBeInTheDocument()
+    expect(await screen.findByText('localhost:3000')).toBeInTheDocument()
+    expect(screen.getByText('Manage servers')).toBeInTheDocument()
   })
 
   it('should show MCP servers and allow toggling', async () => {

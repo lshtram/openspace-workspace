@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
+import { useServer } from "../context/ServerContext"
 
-export const lspQueryKey = ["lsp", openCodeService.directory]
+export const lspQueryKey = (serverUrl?: string, directory?: string) => ["lsp", serverUrl, directory]
 
 export function useLspStatus() {
+  const server = useServer()
   return useQuery({
-    queryKey: lspQueryKey,
+    queryKey: lspQueryKey(server.activeUrl, openCodeService.directory),
     queryFn: async () => {
       const response = await openCodeService.client.lsp.status({
         directory: openCodeService.directory,

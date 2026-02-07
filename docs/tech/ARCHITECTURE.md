@@ -1,241 +1,209 @@
 # OpenSpace Technical Architecture
 
 ## Overview
-OpenSpace is a shell-first, multi-modal development environment. It breaks away from traditional "Editor Gravity" by treating voice, visual artifacts (whiteboards, presentations), and requirements as first-class citizens.
+OpenSpace is a multimodal, shell-first development environment. It orchestrates interactions between a user and AI agents through a unified **Event Bus**, treating all inputs (Voice, Text, Sketch) and outputs (TTS, Terminal, Canvas, Backend AI) as swappable **Modalities**.
+
+This architecture prioritizes **Modality Decoupling** (REQ-CORE-001) and **Artifact Fidelity** (REQ-CORE-017), ensuring that non-text "truth" (audio, sketches) is preserved and referenced, not just transiently converted to text.
+
+---
 
 ## Core Principles
-1. **Shell-First**: Everything happens in a session. The editor is just one way to view and modify artifacts.
-2. **Modality Agnostic**: Every major subsystem (Voice, Whiteboard, Terminal, Editor) communicates through a stable interface.
-3. **Dynamic Delegation**: The system can dynamically spawn sub-agents with specific skills and MCP toolsets to solve complex tasks.
-4. **Swappability**: Libraries can be swapped (e.g., Web Speech API -> Kokoro TTS) without rewriting the core application.
+1.  **Everything is a Modality**: The User Interface *and* the AI Backend are peers. The Runtime manages them equally.
+2.  **Unified Data Schema**: All events carry a `MultimodalContent` payload (Text + Media References). The Orchestrator routes content, it doesn't transcode it.
+3.  **State as Truth**: The Artifact Store is the single source of truth. Session state is just a specialized artifact.
+4.  **Workflow as Code**: The Orchestrator's logic is data-driven, loaded from `AGENTS.md` and `PROCESS.md` (REQ-CORE-005).
+
+---
 
 ## System Architecture
 
+### High-level Structure
+The system is composed of the **Runtime Core** and a collection of **Plugins (Modalities)**.
+
+1.  **Runtime Host**: Manages the lifecycle of plugins and the Event Bus.
+2.  **Event Bus**: A typed, async message broker.
+3.  **Orchestrator**: A workflow engine that routes events based on the active `PROCESS.md` state.
+4.  **Artifact Store**: A unified file system indexer that handles mixed content (Code + Media + Metadata).
+
 ### Component Interaction Map
-The OpenSpace Shell is the **Host Environment**. It provides the infrastructure (Persistence, Navigation, Communication) in which all Modalities and Agents reside.
-
 ```mermaid
 flowchart TD
-    subgraph Shell ["OpenSpace Shell (The Host)"]
-        direction TB
-        
-        subgraph Infrastructure ["System Layer (Infrastructure)"]
-            SM[Session Manager]
-            Bus((Global Event Bus))
-            Index[Artifact Index / File Tree]
-            Client[OpenCode Backend Client]
-        end
-
-        subgraph ModalityPlugs ["Interaction Layer (Swappable Modalities)"]
-            direction LR
-            M1["Voice I/O"]
-            M2[Whiteboard]
-            M3[Code Editor]
-            M4[Terminal]
-            M5["Text / Chat"]
-        end
-
-        subgraph Brain ["Orchestration Layer"]
-            Console[Agent Console]
-            Delegator[Agent Delegator]
-        end
+    subgraph Host["Runtime Host"]
+        Store[(Artifact Store)]
+        Orch[Orchestrator]
+        Bus((Event Bus))
     end
 
-    User((User)) <--> ModalityPlugs
-    ModalityPlugs <--> Bus
-    Bus <--> Brain
-    Brain <--> Infrastructure
-    Infrastructure <--> ModalityPlugs
+    subgraph UserModalities["User Modalities"]
+        VI[Voice Input]
+        VO[Voice Output]
+        TI[Text Input]
+        TO[Text Output]
+        Canvas[Visual Canvas]
+        Term[Terminal]
+    end
+
+    subgraph BackendModalities["Backend Modalities"]
+        LLM[LLM Bridge]
+        Tools[Local Tools]
+    end
+
+    %% Data Flow
+    VI -->|InputEvent| Bus
+    TI -->|InputEvent| Bus
+    Canvas -->|InputEvent| Bus
+
+    Bus -->|Route| Orch
+    Orch -->|CommandEvent| Bus
+
+    Bus -->|OutputEvent| VO
+    Bus -->|OutputEvent| TO
+    Bus -->|OutputEvent| LLM
+
+    LLM -->|ContentEvent| Bus
+    Bus -->|ContentEvent| Store
+
+    %% Storage
+    Store <-->|Read/Write| FileSystem
 ```
 
-### 1. The Modality Contract (`IModality`)
-All major subsystems (including sub-agents and processors) implement the `IModality` interface. This ensures lifecycle consistency and enables full session recovery through explicit state objects.
+---
 
-```typescript
-export interface IModality<TState = any, TCapabilities = any> {
-  readonly id: string;
-  readonly type: string;
-  readonly name: string;
-  initialize(config: ModalityConfig): Promise<void>;
-  mount?(container: HTMLElement): void;
-  dispose(): Promise<void>;
-  getState(): TState;
-  setState(state: TState): Promise<void>;
-  getCapabilities(): TCapabilities;
-  registerProcessor?(processor: IModalityProcessor<any, any>): void;
-  linkRequirement?(requirementId: string): void;
-  getLinkedRequirements?(): string[];
-}
-```
+## The Unified Data Schema (Crucial for Multimodality)
 
-### 2. Dynamic Delegation (`IAgentDelegator`)
-The `IAgentDelegator` is a core system modality that manages the lifecycle of specialized sub-agents. It tracks active sessions and allows for "hotplugging" MCP tools on the fly.
+To support REQ-CORE-017 (Non-text Truth), we strictly define the data passing through the bus. We do not pass raw binary data on the bus; we pass **References**.
 
-- **Dynamic Skills**: Skills (like `Librarian` or `Technical Analysis`) are injected into the sub-agent's prompt.
-- **MCP Hotplugging**: Sub-agents are only given the tools (MCP servers) they need for the specific task.
-- **Context Scoping**: Sub-agents receive a pruned context focused on relevant artifacts.
+### `MultimodalContent`
+```ts
+type ContentBlock = 
+  | { type: 'text'; value: string; format: 'markdown' | 'plain' }
+  | { type: 'audio'; url: string; duration?: number; transcript?: string }
+  | { type: 'image'; url: string; alt?: string; metadata?: VisualMetadata }
+  | { type: 'tool_call'; id: string; name: string; args: Record<string, any> }
+  | { type: 'tool_result'; id: string; result: string; is_error: boolean };
 
-### 3. Modality Middleware (`IModalityProcessor`)
-The architecture supports **Process Blocks** that can be chained between modalities. These are themselves managed as modalities, allowing them to persist their own configuration (e.g., summarization depth).
-
-- **Transformers**: A summarizer can sit between the `AgentConsole` and `VoiceOutput`, condensing 500 words of text into a 20-word voice summary while the full text remains on screen.
-- **Emotion Enrichment**: An `EmotionProcessor` can analyze user voice input and attach metadata like `frustrated: 0.8`. The Agent can then use this to choose a "calming" response tone.
-- **Barge-in Logic**: The `IAgentDelegator` can trigger `IVoiceInput.interrupt()` if the agent needs to cut off the user.
-
-```typescript
-export interface IModalityProcessor<TIn = any, TOut = any> extends IModality {
-  process(data: TIn, metadata?: VoiceMetadata): Promise<{ data: TOut, metadata?: VoiceMetadata }>;
-}
-```
-
-## Data Flow
-The OpenSpace data flow is designed for low latency and high semantic fidelity.
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant M as Input Modality (Voice)
-    participant B as Global Event Bus
-    participant C as Agent Console
-    participant P as Middleware (Summarizer)
-    participant O as Output Modality (TTS)
-
-    U->>M: Speech Input
-    M->>B: emit transcript
-    B->>C: on transcript
-    Note over C: Orchestration Logic
-    C->>B: emit agent response
-    B->>P: process full text
-    P->>B: emit summary ready
-    B->>O: enqueue summary
-    O->>U: Audio Output
-```
-
-1. **User Input**: Captured via a Modality (e.g., Voice transcript + Emotion metadata).
-2. **Streaming & Interruption**: Raw audio chunks can be streamed for real-time analysis. The agent can trigger an `interrupt()` signal to stop user input (Barge-in).
-3. **Orchestration**: The Agent Console analyzes the input and current emotional state.
-4. **Delegation**: If complex, a sub-agent is spawned via `IAgentDelegator` with specific skills and MCP tools.
-5. **Processing**: Output is piped through registered `IModalityProcessors` (e.g., Summarizers).
-6. **Multi-Modal Feedback**: High-bandwidth data (full text) goes to `CodeEditor/Console`, while optimized data (summaries + emotion-tinted audio) goes to `VoiceOutput`.
-
-
-### 4. Dual-Mode Coordinate System & Scaling
-To handle both fixed-size artifacts (like images) and infinite canvases, visual modalities support two projection modes:
-
-- **Projection Modes**:
-  - `normalized`: Coordinates are 0-10000. Used for **Annotation Layers** where annotations must stay pinned to a fixed target (Image, Code file).
-  - `world`: Absolute coordinates used for **Infinite Whiteboards**.
-- **Spatial Awareness**: Modalities provide `getViewport()` to the Agent, allowing it to understand what the user is currently looking at and spawn objects in the visible area.
-- **Fractional Indexing**: Shapes use a `string` based `index` (e.g., `a1`, `a2`) to allow high-performance z-ordering without full list rewrites.
-
-```typescript
-export interface IGeometry {
-  x: number; y: number;
-  width: number; height: number;
-  rotation: number;
-}
-
-export interface IShape {
-  id: string;
-  type: 'path' | 'rect' | 'ellipse' | 'arrow' | 'text' | 'image' | 'group';
-  geometry: IGeometry;
-  data: {
-    points?: Array<[x: number, y: number, pressure: number]>;
-    text?: string;
-    image?: { src: string; naturalWidth: number; naturalHeight: number; };
-    style: IShapeStyle;
+interface IEventPayload {
+  sessionId: string;
+  timestamp: number;
+  senderId: string; // Modality ID
+  content: ContentBlock[];
+  context?: {
+    activeArtifact?: string; // URI
+    selection?: Range;
   };
-  index: string; // z-order
 }
 ```
 
-### 5. Universal Annotation (`IAnnotationLayer`)
-Annotations are treated as a specialized transparent whiteboard layer that can be overlaid on any other modality.
+---
 
-```mermaid
-flowchart TD
-    subgraph ModalityStack
-        Redline[Annotation Layer - Transparent]
-        Host["Host Modality (Code/Image)"]
-    end
-    
-    Anchor{IAnchor}
-    Host -.->|Provides Context| Anchor
-    Anchor -.->|Pins Shape| Redline
+## Core Services
+
+### 1. Runtime Manager
+**Responsibility**: The "Kernel". It boots the system, loads configuration, and mounts Modalities.
+**Interface**:
+```ts
+interface IRuntime {
+  register(modality: IModality): void;
+  start(): Promise<void>;
+  shutdown(): Promise<void>;
+}
 ```
 
-- **Anchoring**: Annotations can be "pinned" to underlying content (e.g., specific lines of code) via an `IAnchor`.
-- **Image Support**: Images are first-class artifacts. They can be placed on a whiteboard, annotated in `normalized` mode, or grouped with other shapes to represent complex requirements.
-- **Semantic Grouping**: Multiple shapes can be grouped into a single logical unit. This creates a "Visual AST" that the Agent can manipulate (e.g., "Refactor this group of shapes into a 'Login Form' component").
+### 2. Orchestrator (The Workflow Engine)
+**Responsibility**: Determines *who* handles an event. It does not contain hardcoded business logic. Instead, it loads a **State Machine** defined in `PROCESS.md`.
+**Logic**:
+- On `InputEvent`:
+    1. Check active state in `PROCESS.md`.
+    2. Check active agent in `AGENTS.md`.
+    3. Determine if immediate response (Simulated) or Backend (LLM) is needed.
+    4. Emit `IntentEvent` to target Modality.
 
-### 6. Stateful Presentations (`IPresentation`)
-Presentations are not just passive renderers; they are active modalities that project artifacts into a narrative state machine.
+### 3. Artifact Store (The Memory)
+**Responsibility**: Indexes the project. Handles the "File Tree vs. Metadata" problem (REQ-CORE-029).
+**Strategy**:
+- **Code/Text**: Uses YAML Frontmatter for metadata (`status`, `priority`, `tags`).
+- **Binary/Media**: Uses a directory-level `_manifest.json` to store metadata for images/audio to avoid file clutter.
+- **Indexing**: Lazy. Indexes on read or file-watcher event.
 
-- **Artifact Projection**: Slides are generated from Markdown/YAML, where thematic breaks (`---`) define slide boundaries.
-- **Requirement Traceability**: Each slide can be linked to one or more requirements (`REQ-XXX`), allowing the Agent to navigate the presentation based on functional scope.
-- **Agent-Driven Narrative**: The Agent can control the deck (`goto`, `next`) and access speaker notes to provide context-aware narration.
+---
 
-### 7. Semantic Artifact Indexing (`IArtifactIndex`)
-Beyond raw file trees, OpenSpace maintains a semantic map of the project.
+## Modality Contract
+A Modality is any plugin that can Input or Output data.
 
-- **Multi-Dimensional Classification**: Artifacts are indexed by type, feature, flow stage, and linked requirements.
-- **Contextual Filtering**: The UI can toggle between a "Global View" and a "Contextual View" (e.g., only showing artifacts relevant to the current debugging session).
+```ts
+interface IModality {
+  id: string;
+  type: 'user_input' | 'user_output' | 'backend' | 'tool';
+  
+  // Lifecycle
+  initialize(bus: IEventBus, config: any): Promise<void>;
+  dispose(): Promise<void>;
 
-### 8. Session Orchestration (`ISessionManager`)
-The Session Manager is the "Brain" of the OpenSpace shell infrastructure.
+  // Capabilities
+  capabilities: {
+    supportsStreaming: boolean;
+    supportedMimeTypes: string[];
+  };
+}
+```
 
-- **State Hydration**: Orchestrates the `getState()` and `setState()` calls to ensure full session recovery.
-- **Global Event Bus**: Provides the `broadcast()` mechanism for cross-modality communication.
-- **Instance Management**: Tracks all active modality instances, ensuring they are properly initialized and disposed of.
+### Key Modalities
 
-### 9. Component Sandboxing (`IComponentPreview`)
-A specialized modality for rendering AI-generated UI components.
+#### A. Voice Modality (Input/Output)
+- **Input**: Listens to microphone. Uses local VAD (Voice Activity Detection). Emits `audio` blocks.
+- **Output**: Subscribes to `OutputEvent`. If block is `text`, uses TTS. If block is `audio`, plays directly.
+- **Config**: Honors `voice_enabled` flag (REQ-CORE-034).
 
-## Lifecycle vs. Communication
-The distinction between the Shell and the Bus is based on the separation of **Existence** and **Conversation**:
+#### B. Visual Canvas (Input/Output)
+- **Input**: Emits `image` blocks (snapshots) or `vector` blocks (strokes).
+- **Output**: Renders `component_preview` blocks.
 
-1. **The Shell (Governance)**: Manages **Lifecycle** (init/dispose) and **Persistence** (get/set state). It owns the infrastructure like the **File Tree** and the **Session Manager**.
-2. **The Bus (Flow)**: Manages **Communication**. Modalities emit semantic events (e.g., `transcript`, `shape_added`), and the Agent Console listens and responds.
+#### C. LLM Bridge (Backend)
+- **Input**: Subscribes to `IntentEvent`.
+- **Output**: Emits `ContentEvent` (streamed).
+- **Role**: It acts as the "Brain", but to the Runtime, it's just another I/O device.
 
-## Data Modality Analogy
-OpenSpace treats different modalities with the same level of atomic rigor:
-- **Text Modality**: Stream of characters -> Semantic Tokens -> Meaning.
-- **Graphic Modality**: Stream of Geometries (Shapes/Deltas) -> Semantic Groups -> Meaning.
+---
 
-By treating a "Rectangle + Text" on a whiteboard as a "Semantic Component," the Agent can manipulate visual designs with the same precision it uses for source code.
+## Implementation Plan (Revised)
 
-## Current Modalities
-- **Voice**: 
-  - **Input**: Streaming STT with emotion detection and barge-in (interruption) support.
-  - **Output**: Priority-based streaming TTS with emotional prosody and middleware (processor) support.
-- **Visual**: 
-  - **Whiteboard**: Dual-mode (freehand + structured) using logical coordinates.
-  - **Annotation Layer**: Universal redlining with element anchoring.
-  - **Presentations**: Stateful slide decks with requirement linking and agent narration.
-  - **Component Preview**: Safe sandbox for visual verification of AI-generated code.
-- **Text**:
-  - **Input**: Standard text input for chat and commands.
-  - **Output**: Markdown-rendered agent responses and tool logs.
-- **Data & Navigation**:
-  - **File Tree**: VSCode-standard unified view.
-  - **Artifact Index**: Semantic project map with multi-dimensional filtering.
-- **Shell & Code**:
-  - **Code Editor**: Monaco surface with LSP and redline support.
-  - **Terminal**: xterm.js bridge to OpenCode PTY.
-  - **Agent Console**: The primary command, control, and delegation center.
+### Phase 1: The Spinal Cord (Bus & Runtime)
+**Goal**: A working CLI that can echo text back to the user via the Event Bus.
+1.  Define `IEventBus` and `MultimodalContent` schema.
+2.  Implement in-memory Bus.
+3.  Implement `RuntimeHost`.
+4.  Create `StdIOModality` (Terminal Input/Output).
 
-## Architectural Guidelines
+### Phase 2: The Brain (Orchestrator & Backend)
+**Goal**: Connect to an LLM and have a conversation.
+1.  Implement `Orchestrator` with a hardcoded "Echo" workflow.
+2.  Implement `LLMModality` (Mock first, then Real).
+3.  Update Orchestrator to route `StdIO` -> `LLM` -> `StdIO`.
 
-1. **Interface-First**: No implementation should be started without first defining and auditing the interface contract in `src/interfaces/`.
-2. **Lifecycle Symmetry**: All managed components MUST implement `initialize` and `dispose`. Failure to dispose of hardware resources (Mic, GPU) or WebSockets is considered a critical bug.
-3. **Serializability**: Modality state returned by `getState()` MUST be serializable to JSON. This ensures session persistence and "memento" patterns work out of the box.
-4. **Middleware-Friendly**: Modalities that produce or consume high-level data (Text, Speech, Geometry) should support `IModalityProcessor` registration to allow non-destructive transformation.
-5. **Low Latency by Design**: Prefer streaming (chunks/events) over bulk data transfers. Use `isProcessing` status to keep the UI responsive.
-6. **Conflict Resolution (CRDT-First)**: For stateful visual modalities, implementations should prefer CRDT-based state management (e.g., Yjs) to handle simultaneous Agent/User edits without locks.
-7. **Permission-Aware**: Delegated sub-agents operate on a "Least Privilege" model. MCP hotplugging must be accompanied by explicit user authorization for high-risk tools.
+### Phase 3: The Memory (Artifact Store)
+**Goal**: Save the conversation to files.
+1.  Implement `ArtifactStore`.
+2.  Create `SessionManager` service (listens to Bus, writes Markdown transcripts).
+3.  Implement Frontmatter parsing.
 
-## Implementation Status
-- Phase 0: Foundation (In Progress)
-- Phase 1: Voice Modality (Planned)
-- Phase 2: Visual Modalities (Planned)
-- Phase 3: Polish & Persistence (Planned)
+### Phase 4: The Senses (Voice & Vision)
+**Goal**: Add Voice and Canvas without changing the Core.
+1.  Implement `WebAudioModality` (Browser-based STT/TTS).
+2.  Implement `CanvasModality`.
+3.  Update `PROCESS.md` to allow parallel inputs.
+
+### Phase 5: The Workflow (Configurable Logic)
+**Goal**: User-defined workflows.
+1.  Implement `WorkflowParser` for `AGENTS.md` / `PROCESS.md`.
+2.  Replace hardcoded Orchestrator logic with the State Machine.
+
+---
+
+## Requirements Mapping
+| Feature | Architecture Solution |
+| :--- | :--- |
+| **Decoupled Modalities** (REQ-CORE-001) | Event Bus + `MultimodalContent` schema separates Producer from Consumer. |
+| **Non-Text Truth** (REQ-CORE-017) | `ContentBlock.type = 'audio'/'image'` preserves original fidelity. |
+| **Configurable Workflow** (REQ-CORE-005) | Orchestrator loads `PROCESS.md` at runtime. |
+| **Artifact Metadata** (REQ-CORE-031) | Artifact Store abstracts Frontmatter/Manifests. |
+| **Swappable Renderer** (REQ-CORE-037) | Presentation is just another `OutputEvent` handled by a `PresentationModality`. |

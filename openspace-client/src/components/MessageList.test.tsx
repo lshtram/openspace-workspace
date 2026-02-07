@@ -179,6 +179,26 @@ describe('MessageList', () => {
     expect(screen.getByText('bold')).toBeInTheDocument()
   })
 
+  it('should render load earlier button when hasMore is true', () => {
+    const onLoadMore = vi.fn()
+    render(
+      <MessageList
+        messages={[]}
+        parts={{}}
+        hasMore
+        onLoadMore={onLoadMore}
+        isFetching={false}
+      />
+    )
+
+    const button = screen.getByText('Load earlier messages')
+    expect(button).toBeInTheDocument()
+    act(() => {
+      button.click()
+    })
+    expect(onLoadMore).toHaveBeenCalled()
+  })
+
   it('should render inline code correctly', () => {
     const message = createAssistantMessage('msg-1', Date.now())
     const textPart = createTextPart('part-1', 'Use `const` for constants.')

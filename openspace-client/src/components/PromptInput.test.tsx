@@ -123,12 +123,12 @@ describe('PromptInput', () => {
     })
   })
 
-  it('should show loader icon when isPending is true', () => {
+  it('should show stop button when isPending is true', () => {
     const { container } = render(<PromptInput {...defaultProps} isPending={true} value="test" />)
     
-    // Check for loader icon (Loader2 with animate-spin)
-    const loader = container.querySelector('.animate-spin')
-    expect(loader).toBeInTheDocument()
+    // Check for stop button (red button with Square icon)
+    const stopButton = container.querySelector('button.bg-red-500')
+    expect(stopButton).toBeInTheDocument()
   })
 
   it('should render attachments when provided', () => {

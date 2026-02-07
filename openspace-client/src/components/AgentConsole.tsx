@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Message, Part } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { useAgents } from "../hooks/useAgents"
-import { useMessages, messagesQueryKey } from "../hooks/useMessages"
+import { useMessages } from "../hooks/useMessages"
 import { useModels } from "../hooks/useModels"
 import { useSessionEvents } from "../hooks/useSessionEvents"
+import { useServer } from "../context/ServerContext"
 import type { MessageEntry, ModelOption, PromptAttachment } from "../types/opencode"
 import { AgentSelector } from "./AgentSelector"
 import { ContextMeter } from "./ContextMeter"
@@ -28,10 +29,12 @@ type AgentConsoleProps = {
 
 export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps) {
   const queryClient = useQueryClient()
+  const server = useServer()
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<PromptAttachment[]>([])
+  const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set())
   const agentsQuery = useAgents()
   const modelsQuery = useModels()
   const messagesQuery = useMessages(sessionId)
@@ -76,6 +79,8 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
     },
   })
 
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map())
+
   const promptMutation = useMutation({
     mutationFn: async ({
       id,
@@ -90,8 +95,10 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
         | { type: "text"; text: string }
         | { type: "file"; mime: string; filename?: string; url: string }
       >
-    }) =>
-      openCodeService.client.session.prompt({
+    }) => {
+      const controller = new AbortController()
+      abortControllersRef.current.set(id, controller)
+      return openCodeService.client.session.prompt({
         sessionID: id,
         directory: openCodeService.directory,
         agent,
@@ -100,10 +107,23 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
           modelID: model.id,
         },
         parts,
-      }),
+      }, { signal: controller.signal })
+    },
     onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey: messagesQueryKey(variables.id) })
-      const previousMessages = queryClient.getQueryData<MessageEntry[]>(messagesQueryKey(variables.id))
+      setPendingSessionIds((prev) => {
+        const next = new Set(prev)
+        next.add(variables.id)
+        return next
+      })
+      const messagesKeyPrefix = ["messages", server.activeUrl, openCodeService.directory, variables.id]
+      await queryClient.cancelQueries({
+        queryKey: messagesKeyPrefix,
+        exact: false,
+      })
+      const previousMessages = queryClient.getQueriesData<MessageEntry[]>({
+        queryKey: messagesKeyPrefix,
+        exact: false,
+      })
       
       const userParts: Part[] = variables.parts.map(p => {
         if (p.type === "text") {
@@ -143,17 +163,33 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
         parts: userParts
       }
 
-      queryClient.setQueryData<MessageEntry[]>(messagesQueryKey(variables.id), (prev) => [...(prev ?? []), optimisticMsg])
+      queryClient.setQueriesData<MessageEntry[]>(
+        { queryKey: messagesKeyPrefix, exact: false },
+        (prev) => [...(prev ?? []), optimisticMsg],
+      )
       
       return { previousMessages }
     },
-    onError: (_err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousMessages) {
-        queryClient.setQueryData(messagesQueryKey(variables.id), context.previousMessages)
+        context.previousMessages.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data)
+        })
       }
     },
+    onSettled: (_data, _error, variables) => {
+      setPendingSessionIds((prev) => {
+        const next = new Set(prev)
+        next.delete(variables.id)
+        return next
+      })
+      abortControllersRef.current.delete(variables.id)
+    },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: messagesQueryKey(variables.id) })
+      queryClient.invalidateQueries({
+        queryKey: ["messages", server.activeUrl, openCodeService.directory, variables.id],
+        exact: false,
+      })
     },
   })
 
@@ -197,6 +233,15 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
     })
   }
 
+  const handleAbort = () => {
+    if (!sessionId) return
+    const controller = abortControllersRef.current.get(sessionId)
+    if (controller) {
+      controller.abort()
+      abortControllersRef.current.delete(sessionId)
+    }
+  }
+
   const usage = useMemo(() => {
     const formatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
     const entries = Array.isArray(messagesQuery.data) ? messagesQuery.data : []
@@ -224,7 +269,14 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
   }, [messagesQuery.data, models])
 
   const messages = useMemo<Message[]>(
-    () => (Array.isArray(messagesQuery.data) ? messagesQuery.data.map((entry) => entry.info) : []),
+    () => {
+      if (!Array.isArray(messagesQuery.data)) return []
+      // Filter out optimistic pending messages to avoid duplication
+      // The server will send the real message via SSE
+      return messagesQuery.data
+        .filter((entry) => !entry.info.id.startsWith("pending-"))
+        .map((entry) => entry.info)
+    },
     [messagesQuery.data],
   )
 
@@ -232,15 +284,27 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
     const map: Record<string, Part[]> = {}
     const entries = Array.isArray(messagesQuery.data) ? messagesQuery.data : []
     for (const entry of entries) {
-      map[entry.info.id] = entry.parts
+      // Also filter out pending messages from parts
+      if (!entry.info.id.startsWith("pending-")) {
+        map[entry.info.id] = entry.parts
+      }
     }
     return map
   }, [messagesQuery.data])
 
+  const isPendingForSession = Boolean(sessionId && pendingSessionIds.has(sessionId))
+
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-hidden">
-        <MessageList messages={messages} parts={parts} isPending={promptMutation.isPending} />
+        <MessageList
+          messages={messages}
+          parts={parts}
+          isPending={isPendingForSession}
+          hasMore={messagesQuery.hasMore}
+          onLoadMore={messagesQuery.loadMore}
+          isFetching={messagesQuery.isFetching}
+        />
       </div>
       <PromptInput
         value={prompt}
@@ -249,8 +313,9 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
         onSubmit={sendMessage}
         onAddAttachment={onAddAttachment}
         onRemoveAttachment={onRemoveAttachment}
-        disabled={promptMutation.isPending || createSession.isPending}
-        isPending={promptMutation.isPending}
+        onAbort={handleAbort}
+        disabled={isPendingForSession || createSession.isPending}
+        isPending={isPendingForSession}
         leftSection={
           <div className="flex items-center gap-1">
             <AgentSelector

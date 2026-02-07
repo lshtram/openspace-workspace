@@ -9,6 +9,7 @@ import { useFileStatus } from '../hooks/useFileStatus'
 vi.mock('../services/OpenCodeClient', () => ({
   openCodeService: {
     directory: '/test/dir',
+    setBaseUrl: vi.fn(),
     client: {
       file: {
         list: vi.fn(),

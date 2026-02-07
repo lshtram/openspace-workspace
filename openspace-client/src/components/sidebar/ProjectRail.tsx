@@ -1,5 +1,8 @@
 import * as Popover from "@radix-ui/react-popover"
+import * as Dialog from "@radix-ui/react-dialog"
 import { cn } from "../../lib/utils"
+import { Settings, HelpCircle, Plus, Key, Terminal, Palette, Globe } from "lucide-react"
+import { SettingsDialog } from "../SettingsDialog"
 
 export type Project = {
   id: string
@@ -69,49 +72,51 @@ export function ProjectRail({
   )
 }
 
-import { Settings, HelpCircle, Plus, Key, Terminal, Palette, Globe } from "lucide-react"
-
 function SettingsMenu() {
   return (
-    <Popover.Root>
-      <Popover.Trigger asChild>
-        <button className="hover:text-black/60 transition-colors">
-          <Settings size={22} strokeWidth={1.5} />
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          side="right"
-          align="end"
-          sideOffset={12}
-          className="z-50 w-[240px] overflow-hidden rounded-2xl border border-black/5 bg-white p-1.5 shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200"
-        >
-          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#a0a0a0]">
-            Settings
-          </div>
-          <div className="space-y-0.5">
-            {[
-              { icon: Key, label: "API Keys", detail: "Manage providers" },
-              { icon: Terminal, label: "Terminal", detail: "Appearance & Shell" },
-              { icon: Palette, label: "Theme", detail: "Light / Dark mode" },
-              { icon: Globe, label: "Language", detail: "English" },
-            ].map((item) => (
-              <button
-                key={item.label}
-                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition hover:bg-black/5"
-              >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black/[0.03]">
-                  <item.icon size={15} className="text-black/60" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-[#1d1a17]">{item.label}</span>
-                  <span className="text-[11px] text-black/40">{item.detail}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <Dialog.Root>
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button className="hover:text-black/60 transition-colors">
+            <Settings size={22} strokeWidth={1.5} />
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            side="right"
+            align="end"
+            sideOffset={12}
+            className="z-50 w-[240px] overflow-hidden rounded-2xl border border-black/5 bg-white p-1.5 shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200"
+          >
+            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#a0a0a0]">
+              Settings
+            </div>
+            <div className="space-y-0.5">
+              {[
+                { icon: Key, label: "API Keys", detail: "Manage providers" },
+                { icon: Terminal, label: "Terminal", detail: "Appearance & Shell" },
+                { icon: Palette, label: "Theme", detail: "Light / Dark mode" },
+                { icon: Globe, label: "Language", detail: "English" },
+              ].map((item) => (
+                <Dialog.Trigger asChild key={item.label}>
+                  <button
+                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition hover:bg-black/5"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black/[0.03]">
+                      <item.icon size={15} className="text-black/60" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[13px] font-medium text-[#1d1a17]">{item.label}</span>
+                      <span className="text-[11px] text-black/40">{item.detail}</span>
+                    </div>
+                  </button>
+                </Dialog.Trigger>
+              ))}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      <SettingsDialog />
+    </Dialog.Root>
   )
 }

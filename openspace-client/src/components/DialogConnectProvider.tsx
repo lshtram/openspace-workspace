@@ -7,12 +7,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { providersQueryKey } from "../hooks/useProviders"
 import { modelsQueryKey } from "../hooks/useModels"
 import { DialogSelectProvider } from "./DialogSelectProvider"
+import { useServer } from "../context/ServerContext"
 
 type DialogConnectProviderProps = {
   providerId: string
 }
 
 export function DialogConnectProvider({ providerId }: DialogConnectProviderProps) {
+  const server = useServer()
   const { data: providers } = useProviders()
   const { show, close } = useDialog()
   const queryClient = useQueryClient()
@@ -31,8 +33,12 @@ export function DialogConnectProvider({ providerId }: DialogConnectProviderProps
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: providersQueryKey(openCodeService.directory) })
-      queryClient.invalidateQueries({ queryKey: modelsQueryKey(openCodeService.directory) })
+      queryClient.invalidateQueries({
+        queryKey: providersQueryKey(server.activeUrl, openCodeService.directory),
+      })
+      queryClient.invalidateQueries({
+        queryKey: modelsQueryKey(server.activeUrl, openCodeService.directory),
+      })
       close()
     },
   })

@@ -5,13 +5,26 @@
  * filtering connected providers and transforming models into a flat list.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { server } from '@/test/mocks/server'
 import { createTestQueryClient } from '@/test/utils'
 import { useModels, modelsQueryKey } from './useModels'
+
+vi.mock('../context/ServerContext', () => ({
+  useServer: () => ({
+    activeUrl: 'http://localhost:3000',
+    defaultUrl: null,
+    servers: [],
+    addServer: vi.fn(),
+    setActive: vi.fn(),
+    removeServer: vi.fn(),
+    replaceServer: vi.fn(),
+    setDefault: vi.fn(),
+  }),
+}))
 
 // Wrapper component for hook testing
 function createWrapper(queryClient?: QueryClient) {
@@ -353,8 +366,8 @@ describe('useModels', () => {
 
   describe('Query Configuration', () => {
     it('should use correct query key with directory', () => {
-      expect(modelsQueryKey(""))
-        .toEqual(['models', ""])
+      expect(modelsQueryKey("http://localhost:3000", ""))
+        .toEqual(['models', "http://localhost:3000", ""])
     })
 
     it('should be able to refetch data', async () => {

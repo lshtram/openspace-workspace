@@ -57,7 +57,7 @@ test("can close settings dialog", async ({ page, gotoHome, seedProject }) => {
   await expect(dialog).not.toBeVisible()
 })
 
-test("settings selection currently resets after reopen (no persistence yet)", async ({
+test("settings selection persists after reopen", async ({
   page,
   gotoHome,
   seedProject,
@@ -74,5 +74,5 @@ test("settings selection currently resets after reopen (no persistence yet)", as
 
   const reopened = await openSettingsDialog(page, gotoHome, seedProject)
   const reopenedTheme = reopened.locator("select").first()
-  await expect(reopenedTheme).toHaveValue("Light")
+  await expect(reopenedTheme).toHaveValue("Dark")
 })

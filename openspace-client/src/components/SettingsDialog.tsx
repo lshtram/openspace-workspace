@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog"
 import { X, Keyboard, Globe, Key, Palette, Terminal, Bot } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 type SettingsTab = {
   id: string
@@ -17,8 +17,49 @@ const tabs: SettingsTab[] = [
   { id: "language", label: "Language", icon: Globe },
 ]
 
+type SettingsState = {
+  theme: "Light" | "Dark" | "System"
+  soundNotifications: boolean
+  notifyOnAgentCompletion: boolean
+  defaultShell: "Default" | "Bash" | "Zsh" | "Fish"
+  language: "English" | "Deutsch" | "Español" | "Français"
+}
+
+const SETTINGS_STORAGE_KEY = "openspace.settings"
+
+const defaultSettings: SettingsState = {
+  theme: "Light",
+  soundNotifications: false,
+  notifyOnAgentCompletion: false,
+  defaultShell: "Default",
+  language: "English",
+}
+
+function loadSettings(): SettingsState {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    if (!raw) return defaultSettings
+    const parsed = JSON.parse(raw) as Partial<SettingsState> | null
+    if (!parsed || typeof parsed !== "object") return defaultSettings
+    return {
+      theme: parsed.theme ?? defaultSettings.theme,
+      soundNotifications: Boolean(parsed.soundNotifications),
+      notifyOnAgentCompletion: Boolean(parsed.notifyOnAgentCompletion),
+      defaultShell: parsed.defaultShell ?? defaultSettings.defaultShell,
+      language: parsed.language ?? defaultSettings.language,
+    }
+  } catch {
+    return defaultSettings
+  }
+}
+
 export function SettingsDialog() {
   const [activeTab, setActiveTab] = useState("general")
+  const [settings, setSettings] = useState<SettingsState>(() => loadSettings())
+
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+  }, [settings])
 
   return (
     <Dialog.Portal>
@@ -64,12 +105,35 @@ export function SettingsDialog() {
               </Dialog.Close>
             </div>
 
-            {activeTab === "general" && <GeneralSettings />}
+            {activeTab === "general" && (
+              <GeneralSettings
+                theme={settings.theme}
+                soundNotifications={settings.soundNotifications}
+                notifyOnAgentCompletion={settings.notifyOnAgentCompletion}
+                onThemeChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
+                onSoundNotificationsChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, soundNotifications: enabled }))
+                }
+                onNotifyOnAgentCompletionChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, notifyOnAgentCompletion: enabled }))
+                }
+              />
+            )}
             {activeTab === "shortcuts" && <ShortcutsSettings />}
             {activeTab === "providers" && <ProvidersSettings />}
             {activeTab === "agents" && <AgentsSettings />}
-            {activeTab === "terminal" && <TerminalSettings />}
-            {activeTab === "language" && <LanguageSettings />}
+            {activeTab === "terminal" && (
+              <TerminalSettings
+                defaultShell={settings.defaultShell}
+                onDefaultShellChange={(shell) => setSettings((prev) => ({ ...prev, defaultShell: shell }))}
+              />
+            )}
+            {activeTab === "language" && (
+              <LanguageSettings
+                language={settings.language}
+                onLanguageChange={(language) => setSettings((prev) => ({ ...prev, language }))}
+              />
+            )}
           </div>
         </div>
       </Dialog.Content>
@@ -77,7 +141,23 @@ export function SettingsDialog() {
   )
 }
 
-function GeneralSettings() {
+type GeneralSettingsProps = {
+  theme: SettingsState["theme"]
+  soundNotifications: boolean
+  notifyOnAgentCompletion: boolean
+  onThemeChange: (theme: SettingsState["theme"]) => void
+  onSoundNotificationsChange: (enabled: boolean) => void
+  onNotifyOnAgentCompletionChange: (enabled: boolean) => void
+}
+
+function GeneralSettings({
+  theme,
+  soundNotifications,
+  notifyOnAgentCompletion,
+  onThemeChange,
+  onSoundNotificationsChange,
+  onNotifyOnAgentCompletionChange,
+}: GeneralSettingsProps) {
   return (
     <div className="space-y-6">
       <section>
@@ -85,7 +165,11 @@ function GeneralSettings() {
         <div className="space-y-3">
           <label className="flex items-center justify-between">
             <span className="text-[13px] text-black/70">Theme</span>
-            <select className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5">
+            <select
+              value={theme}
+              onChange={(event) => onThemeChange(event.target.value as SettingsState["theme"])}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
               <option>Light</option>
               <option>Dark</option>
               <option>System</option>
@@ -98,11 +182,21 @@ function GeneralSettings() {
         <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">Notifications</h3>
         <div className="space-y-3">
           <label className="flex items-center gap-3">
-            <input type="checkbox" className="h-4 w-4 rounded border-black/20" />
+            <input
+              type="checkbox"
+              checked={soundNotifications}
+              onChange={(event) => onSoundNotificationsChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
             <span className="text-[13px] text-black/70">Enable sound notifications</span>
           </label>
           <label className="flex items-center gap-3">
-            <input type="checkbox" className="h-4 w-4 rounded border-black/20" />
+            <input
+              type="checkbox"
+              checked={notifyOnAgentCompletion}
+              onChange={(event) => onNotifyOnAgentCompletionChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
             <span className="text-[13px] text-black/70">Notify on agent completion</span>
           </label>
         </div>
@@ -159,14 +253,23 @@ function AgentsSettings() {
   )
 }
 
-function TerminalSettings() {
+type TerminalSettingsProps = {
+  defaultShell: SettingsState["defaultShell"]
+  onDefaultShellChange: (shell: SettingsState["defaultShell"]) => void
+}
+
+function TerminalSettings({ defaultShell, onDefaultShellChange }: TerminalSettingsProps) {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-black/50">Customize terminal appearance and behavior.</p>
       <div className="space-y-3">
         <label className="flex items-center justify-between">
           <span className="text-[13px] text-black/70">Default Shell</span>
-          <select className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5">
+          <select
+            value={defaultShell}
+            onChange={(event) => onDefaultShellChange(event.target.value as SettingsState["defaultShell"])}
+            className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+          >
             <option>Default</option>
             <option>Bash</option>
             <option>Zsh</option>
@@ -178,13 +281,22 @@ function TerminalSettings() {
   )
 }
 
-function LanguageSettings() {
+type LanguageSettingsProps = {
+  language: SettingsState["language"]
+  onLanguageChange: (language: SettingsState["language"]) => void
+}
+
+function LanguageSettings({ language, onLanguageChange }: LanguageSettingsProps) {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-black/50">Select your preferred language.</p>
       <label className="flex items-center justify-between">
         <span className="text-[13px] text-black/70">Language</span>
-        <select className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5">
+        <select
+          value={language}
+          onChange={(event) => onLanguageChange(event.target.value as SettingsState["language"])}
+          className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+        >
           <option>English</option>
           <option>Deutsch</option>
           <option>Español</option>

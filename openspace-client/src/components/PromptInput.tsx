@@ -16,6 +16,7 @@ type PromptInputProps = {
   leftSection?: React.ReactNode
   rightSection?: React.ReactNode
   fileSuggestions?: string[]
+  projectRootName?: string
 }
 
 export function PromptInput({
@@ -31,12 +32,39 @@ export function PromptInput({
   leftSection,
   rightSection,
   fileSuggestions = [],
+  projectRootName,
 }: PromptInputProps) {
   const fileRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
   const suggestionContext = useMemo(() => {
+    const normalizePath = (input: string) =>
+      input.replace(/\\/g, "/").replace(/^\.?\//, "").trim()
+
+    const getFiltered = (rawQuery: string) => {
+      const normalizedQuery = normalizePath(rawQuery).toLowerCase()
+      const rootPrefix = projectRootName ? `${projectRootName.toLowerCase()}/` : ""
+      const withoutRoot =
+        rootPrefix && normalizedQuery.startsWith(rootPrefix)
+          ? normalizedQuery.slice(rootPrefix.length)
+          : normalizedQuery
+
+      return fileSuggestions
+        .filter((item) => {
+          const normalizedItem = normalizePath(item).toLowerCase()
+          const rootPrefixedItem = rootPrefix ? `${rootPrefix}${normalizedItem}` : normalizedItem
+
+          if (!normalizedQuery) return true
+          return (
+            normalizedItem.includes(normalizedQuery) ||
+            normalizedItem.includes(withoutRoot) ||
+            rootPrefixedItem.includes(normalizedQuery)
+          )
+        })
+        .slice(0, 8)
+    }
+
     const textarea = textareaRef.current
     const cursor = textarea?.selectionStart ?? value.length
     const before = value.slice(0, cursor)
@@ -44,9 +72,7 @@ export function PromptInput({
     const openMatch = before.match(/(?:^|\s)\/open\s+([^\n]*)$/)
     if (openMatch) {
       const query = openMatch[1]?.trim() ?? ""
-      const filtered = fileSuggestions
-        .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 8)
+      const filtered = getFiltered(query)
       const openTokenStart = before.lastIndexOf("/open", cursor)
       return {
         mode: "open" as const,
@@ -59,9 +85,7 @@ export function PromptInput({
     const mentionMatch = before.match(/(?:^|\s)@([^\s@]*)$/)
     if (mentionMatch) {
       const query = mentionMatch[1] ?? ""
-      const filtered = fileSuggestions
-        .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 8)
+      const filtered = getFiltered(query)
       return {
         mode: "mention" as const,
         query,
@@ -71,7 +95,7 @@ export function PromptInput({
     }
 
     return null
-  }, [fileSuggestions, value])
+  }, [fileSuggestions, projectRootName, value])
 
   const selectSuggestion = (selectedPath: string) => {
     const textarea = textareaRef.current

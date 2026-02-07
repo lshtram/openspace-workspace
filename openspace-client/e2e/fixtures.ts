@@ -16,8 +16,10 @@ export const testProjectPath =
 async function ensureTestProject(dir: string) {
   await fs.mkdir(dir, { recursive: true })
   await fs.mkdir(path.join(dir, "src"), { recursive: true })
+  await fs.mkdir(path.join(dir, "src", "types"), { recursive: true })
   const readmePath = path.join(dir, "README.md")
   const indexPath = path.join(dir, "src", "index.ts")
+  const typesIndexPath = path.join(dir, "src", "types", "index.ts")
   try {
     await fs.access(readmePath)
   } catch {
@@ -27,6 +29,11 @@ async function ensureTestProject(dir: string) {
     await fs.access(indexPath)
   } catch {
     await fs.writeFile(indexPath, "export const hello = 'world'\n")
+  }
+  try {
+    await fs.access(typesIndexPath)
+  } catch {
+    await fs.writeFile(typesIndexPath, "export type E2EType = { ok: boolean }\n")
   }
 }
 

@@ -73,6 +73,30 @@ describe('PromptInput', () => {
     expect(onChange).toHaveBeenCalledWith('@src/index.ts ')
   })
 
+  it('should match /open suggestion when query includes project root prefix', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="/open openspace-client/src/typ"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['README.md', 'src/types/index.ts']}
+        projectRootName="openspace-client"
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Enter}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@src/types/index.ts ')
+  })
+
   it('should not call onSubmit when Shift+Enter is pressed', async () => {
     const onSubmit = vi.fn()
     const user = userEvent.setup()
@@ -120,6 +144,30 @@ describe('PromptInput', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(onChange).toHaveBeenCalledWith('@src/index.ts ')
+  })
+
+  it('should match @mention suggestion when query includes project root prefix', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="@openspace-client/src/typ"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['README.md', 'src/types/index.ts']}
+        projectRootName="openspace-client"
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Tab}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@src/types/index.ts ')
   })
 
   it('should call onSubmit when submit button is clicked', async () => {

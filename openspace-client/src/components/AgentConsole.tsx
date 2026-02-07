@@ -38,6 +38,12 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
   const [attachments, setAttachments] = useState<PromptAttachment[]>([])
   const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set())
   const [fileSuggestions, setFileSuggestions] = useState<string[]>([])
+  const projectRootName = useMemo(() => {
+    if (!directory) return undefined
+    const normalized = directory.replace(/\\/g, "/").replace(/\/+$/, "")
+    const segments = normalized.split("/")
+    return segments[segments.length - 1] || undefined
+  }, [directory])
   const agentsQuery = useAgents()
   const modelsQuery = useModels()
   const messagesQuery = useMessages(sessionId)
@@ -79,8 +85,32 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
       const visited = new Set<string>()
       const queue: string[] = ["."]
       let traversedDirs = 0
-      const maxDirs = 30
-      const maxFiles = 200
+      const maxDirs = 250
+      const maxFiles = 3000
+      const ignoredDirectoryNames = new Set([
+        ".git",
+        ".next",
+        ".turbo",
+        ".vite",
+        "build",
+        "coverage",
+        "dist",
+        "node_modules",
+        "out",
+        "playwright-report",
+        "test-results",
+      ])
+
+      const getBaseName = (input: string) => {
+        const normalized = input.replace(/\\/g, "/").replace(/\/+$/, "")
+        const parts = normalized.split("/")
+        return parts[parts.length - 1] ?? normalized
+      }
+
+      const shouldSkipDirectory = (dirPath: string) => {
+        const base = getBaseName(dirPath)
+        return ignoredDirectoryNames.has(base)
+      }
 
       while (queue.length > 0 && traversedDirs < maxDirs && files.length < maxFiles) {
         const dir = queue.shift()
@@ -99,7 +129,9 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
               files.push(node.path)
               if (files.length >= maxFiles) break
             } else if (node.type === "directory") {
-              queue.push(node.path)
+              if (!shouldSkipDirectory(node.path)) {
+                queue.push(node.path)
+              }
             }
           }
         } catch {
@@ -362,6 +394,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
         value={prompt}
         attachments={attachments}
         fileSuggestions={fileSuggestions}
+        projectRootName={projectRootName}
         onChange={setPrompt}
         onSubmit={sendMessage}
         onAddAttachment={onAddAttachment}

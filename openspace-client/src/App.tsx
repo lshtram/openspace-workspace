@@ -107,6 +107,17 @@ function App() {
     }
   }
 
+  const handleSwitchWorkspace = useCallback(
+    (workspaceDirectory: string) => {
+      setActiveSession(undefined)
+      openCodeService.setDirectory(workspaceDirectory)
+      queryClient.invalidateQueries({
+        queryKey: sessionsQueryKey(server.activeUrl, workspaceDirectory),
+      })
+    },
+    [queryClient, server.activeUrl, setActiveSession],
+  )
+
   const handleAddProject = (path: string) => {
     const name = path.split("/").filter(Boolean).pop() || "project"
     const newProject: Project = {
@@ -291,6 +302,8 @@ function App() {
               onSelectNextUnseen={() => {
                 if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
               }}
+              currentDirectory={openCodeService.directory}
+              onSwitchWorkspace={handleSwitchWorkspace}
             />
           )}
 

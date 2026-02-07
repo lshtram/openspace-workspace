@@ -4,6 +4,7 @@ import { cn } from "../../lib/utils"
 import type { Session } from "../../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
 import * as Popover from "@radix-ui/react-popover"
+import { WorkspaceManager } from "./WorkspaceManager"
 
 type SessionSidebarProps = {
   projectName: string
@@ -21,6 +22,8 @@ type SessionSidebarProps = {
   unseenSessionIds?: Set<string>
   unseenCount?: number
   onSelectNextUnseen?: () => void
+  currentDirectory: string
+  onSwitchWorkspace: (directory: string) => void
 }
 
 export function SessionSidebar({
@@ -39,6 +42,8 @@ export function SessionSidebar({
   unseenSessionIds,
   unseenCount,
   onSelectNextUnseen,
+  currentDirectory,
+  onSwitchWorkspace,
 }: SessionSidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
@@ -72,6 +77,11 @@ export function SessionSidebar({
         <p className="truncate text-[13px] text-black/40" title={projectPath}>
           {projectPath}
         </p>
+        {currentDirectory && currentDirectory !== projectPath && (
+          <p className="truncate text-[12px] text-black/30" title={currentDirectory}>
+            Workspace: {currentDirectory}
+          </p>
+        )}
       </div>
 
       <div className="px-4 mb-4">
@@ -221,6 +231,11 @@ export function SessionSidebar({
           <ScrollArea.Thumb className="relative flex-1 rounded-[10px] bg-black/10" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+      <WorkspaceManager
+        projectPath={projectPath}
+        currentDirectory={currentDirectory}
+        onSwitchWorkspace={onSwitchWorkspace}
+      />
     </aside>
   )
 }

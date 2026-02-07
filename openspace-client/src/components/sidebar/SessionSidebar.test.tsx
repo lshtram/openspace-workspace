@@ -4,6 +4,10 @@ import { renderWithProviders } from '../../test/utils'
 import { SessionSidebar } from './SessionSidebar'
 import type { Session } from '../../lib/opencode/v2/gen/types.gen'
 
+vi.mock('./WorkspaceManager', () => ({
+  WorkspaceManager: () => <div data-testid="workspace-manager" />,
+}))
+
 const mockSessions: Session[] = [
   { id: '1', title: 'Session 1', time: { created: Date.now(), updated: Date.now() }, directory: '/test', slug: 's1', projectID: 'p1', version: '1' },
   { id: '2', title: '', time: { created: Date.now(), updated: Date.now() }, directory: '/test', slug: 's2', projectID: 'p1', version: '1' },
@@ -19,6 +23,8 @@ describe('SessionSidebar', () => {
         onSelectSession={vi.fn()}
         onNewSession={vi.fn()}
         onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -35,6 +41,8 @@ describe('SessionSidebar', () => {
         onSelectSession={vi.fn()}
         onNewSession={vi.fn()}
         onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -52,6 +60,8 @@ describe('SessionSidebar', () => {
         onSelectSession={vi.fn()}
         onNewSession={vi.fn()}
         onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -77,6 +87,8 @@ describe('SessionSidebar', () => {
         onSelectSession={onSelectSession}
         onNewSession={vi.fn()}
         onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -94,6 +106,8 @@ describe('SessionSidebar', () => {
         onSelectSession={vi.fn()}
         onNewSession={onNewSession}
         onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -111,6 +125,8 @@ describe('SessionSidebar', () => {
         onSelectSession={vi.fn()}
         onNewSession={vi.fn()}
         onLoadMore={onLoadMore}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
     
@@ -131,6 +147,8 @@ describe('SessionSidebar', () => {
         unseenSessionIds={new Set(['1'])}
         unseenCount={1}
         onSelectNextUnseen={onSelectNextUnseen}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
       />
     )
 

@@ -224,6 +224,35 @@ describe('storage utility', () => {
     })
   })
 
+  describe('workspace metadata', () => {
+    it('should ignore invalid entries and sort by order', () => {
+      const payload: unknown[] = [
+        { directory: '/ws/a', label: 'A', enabled: true, order: 2 },
+        { directory: '/ws/b', label: 'B', enabled: false, order: 1 },
+        { label: 'missing-directory' },
+        'garbage',
+      ]
+      localStorage.setItem('openspace.workspaces', JSON.stringify(payload))
+
+      const metas = storage.getWorkspaceMeta()
+
+      expect(metas.map((meta) => meta.directory)).toEqual(['/ws/b', '/ws/a'])
+      expect(metas[0]).toMatchObject({ label: 'B', enabled: false })
+    })
+
+    it('should upsert metadata entries and respect order', () => {
+      storage.updateWorkspaceMeta('/ws/a', { label: 'First', enabled: true, order: 2 })
+      storage.updateWorkspaceMeta('/ws/b', { label: 'Second', enabled: false, order: 1 })
+      storage.updateWorkspaceMeta('/ws/a', { enabled: false, order: 3 })
+
+      const metas = storage.getWorkspaceMeta()
+      expect(metas).toEqual([
+        { directory: '/ws/b', label: 'Second', enabled: false, order: 1 },
+        { directory: '/ws/a', label: 'First', enabled: false, order: 3 },
+      ])
+    })
+  })
+
   describe('getServers', () => {
     it('should return only non-empty string servers', () => {
       localStorage.setItem('openspace.servers', JSON.stringify(['http://a', '', 42, null, 'http://b']))

@@ -113,6 +113,7 @@ export class OpenCodeService {
   public get lsp() { return this.client.lsp }
   public get mcp() { return this.client.mcp }
   public get config() { return this.client.config }
+  public get worktree() { return this.client.worktree }
 }
 
 export const openCodeService = OpenCodeService.getInstance()

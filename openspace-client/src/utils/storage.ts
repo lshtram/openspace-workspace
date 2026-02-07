@@ -4,12 +4,20 @@ export type StoredProject = {
   color: string
 }
 
+export type StoredWorkspaceMeta = {
+  directory: string
+  label?: string
+  enabled?: boolean
+  order?: number
+}
+
 const PROJECTS_KEY = "openspace.projects"
 const LAST_PROJECT_KEY = "openspace.last_project"
 const SERVERS_KEY = "openspace.servers"
 const ACTIVE_SERVER_KEY = "openspace.active_server"
 const DEFAULT_SERVER_KEY = "openspace.default_server"
 const SESSION_SEEN_KEY = "openspace.session_seen"
+const WORKSPACES_KEY = "openspace.workspaces"
 
 export const storage = {
   getProjects: (): StoredProject[] => {
@@ -102,5 +110,47 @@ export const storage = {
   getSessionSeen: (sessionId: string): number | null => {
     const map = storage.getSessionSeenMap()
     return map[sessionId] ?? null
+  },
+  getWorkspaceMeta: (): StoredWorkspaceMeta[] => {
+    try {
+      const data = localStorage.getItem(WORKSPACES_KEY)
+      if (!data) return []
+      const parsed = JSON.parse(data)
+      if (!Array.isArray(parsed)) return []
+      const valid = parsed
+        .filter(
+          (item): item is StoredWorkspaceMeta =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            typeof item.directory === "string" &&
+            item.directory.trim().length > 0,
+        )
+        .map((item) => ({
+          directory: item.directory,
+          label: typeof item.label === "string" ? item.label : undefined,
+          enabled: typeof item.enabled === "boolean" ? item.enabled : undefined,
+          order: typeof item.order === "number" && Number.isFinite(item.order) ? item.order : undefined,
+        }))
+      return valid.sort((a, b) => {
+        const orderA = typeof a.order === "number" ? a.order : 0
+        const orderB = typeof b.order === "number" ? b.order : 0
+        return orderA - orderB
+      })
+    } catch {
+      return []
+    }
+  },
+  saveWorkspaceMeta: (meta: StoredWorkspaceMeta[]) => {
+    localStorage.setItem(WORKSPACES_KEY, JSON.stringify(meta))
+  },
+  updateWorkspaceMeta: (directory: string, patch: Partial<StoredWorkspaceMeta>) => {
+    const metas = storage.getWorkspaceMeta()
+    const index = metas.findIndex((item) => item.directory === directory)
+    if (index >= 0) {
+      metas[index] = { ...metas[index], ...patch }
+    } else {
+      metas.push({ directory, ...patch })
+    }
+    storage.saveWorkspaceMeta(metas)
   },
 }

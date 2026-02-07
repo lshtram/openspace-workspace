@@ -29,6 +29,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-3xl panel-surface p-0 shadow-2xl animate-in zoom-in-95 fade-in duration-200 focus:outline-none">
+            <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+            <Dialog.Description className="sr-only">Dialog content</Dialog.Description>
             <div className="relative p-6">
               {content}
               <Dialog.Close asChild>

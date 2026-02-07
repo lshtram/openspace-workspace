@@ -27,11 +27,12 @@ export function ServerProvider({ children }: ServerProviderProps) {
   const [defaultUrl, setDefaultUrl] = useState<string | null>(() => storage.getDefaultServer())
   const [activeUrl, setActiveUrl] = useState<string>(() => {
     const stored = storage.getActiveServer()
-    return stored || defaultUrl || defaultBaseUrl
+    const initial = stored || defaultUrl || defaultBaseUrl
+    openCodeService.setBaseUrl(initial)
+    return initial
   })
-
+  
   useEffect(() => {
-    openCodeService.setBaseUrl(activeUrl)
     storage.saveActiveServer(activeUrl)
   }, [activeUrl])
 
@@ -47,12 +48,14 @@ export function ServerProvider({ children }: ServerProviderProps) {
     const normalized = normalizeServerUrl(url)
     if (!normalized) return
     setServers((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]))
+    openCodeService.setBaseUrl(normalized)
     setActiveUrl(normalized)
   }, [])
 
   const setActive = useCallback((url: string) => {
     const normalized = normalizeServerUrl(url)
     if (!normalized) return
+    openCodeService.setBaseUrl(normalized)
     setActiveUrl(normalized)
   }, [])
 
@@ -68,8 +71,9 @@ export function ServerProvider({ children }: ServerProviderProps) {
 
         setActiveUrl((prevActive) => {
           if (prevActive !== normalized) return prevActive
-          if (nextDefault) return nextDefault
-          return nextServers[0] ?? defaultBaseUrl
+          const nextActive = nextDefault ?? nextServers[0] ?? defaultBaseUrl
+          openCodeService.setBaseUrl(nextActive)
+          return nextActive
         })
 
         return nextDefault
@@ -90,7 +94,11 @@ export function ServerProvider({ children }: ServerProviderProps) {
     })
 
     setDefaultUrl((prev) => (prev === normalizedOriginal ? normalizedNext : prev))
-    setActiveUrl((prev) => (prev === normalizedOriginal ? normalizedNext : prev))
+    setActiveUrl((prev) => {
+      if (prev !== normalizedOriginal) return prev
+      openCodeService.setBaseUrl(normalizedNext)
+      return normalizedNext
+    })
   }, [])
 
   const setDefault = useCallback((url: string | null) => {

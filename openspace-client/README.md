@@ -17,7 +17,7 @@ npm run test
 # Quick validation (fast checks)
 npm run check
 
-# Full pre-PR validation
+# Full validation
 npm run pre-pr
 ```
 
@@ -42,7 +42,7 @@ npm run pre-pr
 
 - **During development**: `npm run check` - Run frequently to catch issues early
 - **Before committing**: `npm run check` - Ensure your changes don't break anything
-- **Before creating PR**: `npm run pre-pr` - Full validation including E2E tests
+- **Before pushing to `master`**: `npm run pre-pr` - Full validation including E2E tests
 - **Debugging tests**: `npm run test:ui` or `npm run test:e2e:ui`
 
 See [scripts/README.md](scripts/README.md) for detailed documentation.
@@ -125,13 +125,11 @@ Run `npm run check` frequently during development to catch issues early.
 
 ## Contributing
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make your changes
-3. Run `npm run check` to validate locally
-4. Commit your changes: `git commit -m "feat: your feature"`
-5. Push to remote: `git push origin feature/your-feature`
-6. Run `npm run pre-pr` for full validation
-7. Create a pull request
+1. Make your changes on `master`
+2. Run `npm run check` to validate locally
+3. Commit your changes: `git commit -m "feat: your feature"`
+4. Run `npm run pre-pr` for full validation
+5. Push to remote: `git push origin master`
 
 ## Vite Setup Details
 

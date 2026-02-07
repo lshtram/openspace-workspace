@@ -4,9 +4,9 @@ This directory contains automation scripts to help maintain code quality and str
 
 ## Scripts
 
-### 🚀 pre-pr.sh - Full Pre-PR Validation
+### 🚀 pre-pr.sh - Full Validation
 
-**Purpose**: Comprehensive validation before creating a pull request. Ensures all code passes quality checks.
+**Purpose**: Comprehensive validation before pushing changes to `master`. Ensures all code passes quality checks.
 
 **What it checks**:
 - ✓ Git status (warns about uncommitted changes)
@@ -25,7 +25,7 @@ npm run pre-pr
 ./scripts/pre-pr.sh
 ```
 
-**When to use**: Before creating a pull request or pushing to remote
+**When to use**: Before pushing to remote
 
 **Time**: ~5-10 minutes (depending on whether E2E tests are run)
 
@@ -84,13 +84,13 @@ git add .
 git commit -m "your message"
 ```
 
-### Before Creating PR
+### Before Pushing
 ```bash
 # Run full validation including E2E tests
 npm run pre-pr
 
-# If all passes, push and create PR
-git push origin your-branch-name
+# If all passes, push to master
+git push origin master
 ```
 
 ### Debugging Test Failures

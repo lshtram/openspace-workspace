@@ -17,7 +17,7 @@
 ### `npm run pre-pr` (Full - 5-10min)
 ```
 ┌─────────────────────────────────────┐
-│  Pre-PR Validation (Comprehensive)  │
+│  Full Validation (Comprehensive)    │
 ├─────────────────────────────────────┤
 │  ✓ Git Status Check                 │
 │  ✓ Dependencies Check               │
@@ -36,7 +36,7 @@
 | After changing code | `npm run check` | Fast feedback loop |
 | Before committing | `npm run check` | Catch issues before commit |
 | After pulling changes | `npm run check` | Verify everything still works |
-| Before creating PR | `npm run pre-pr` | Full validation with E2E |
+| Before pushing to `master` | `npm run pre-pr` | Full validation with E2E |
 | In CI/CD pipeline | `npm run pre-pr` | Comprehensive checks |
 
 ## 📊 Comparison
@@ -50,7 +50,7 @@
 | E2E tests | ❌ | ✅ (optional) |
 | Git status | ❌ | ✅ |
 | Time | ~30-60s | ~5-10min |
-| Use case | Development | Pre-PR/CI |
+| Use case | Development | Pre-push/CI |
 
 ## 🔧 Common Workflows
 
@@ -82,7 +82,7 @@ git add .
 git commit -m "feat: add new feature"
 ```
 
-### Pre-Pull Request
+### Before Pushing to `master`
 ```bash
 # 1. Ensure all changes are committed
 git status
@@ -92,8 +92,8 @@ npm run pre-pr
 
 # 3. Answer 'y' to run E2E tests (important!)
 
-# 4. If all passes, push and create PR
-git push origin your-branch
+# 4. If all passes, push to master
+git push origin master
 ```
 
 ## 🚨 Troubleshooting
@@ -161,7 +161,7 @@ npm run build
 1. **Run `check` frequently** - Don't wait until the end to validate
 2. **Fix issues immediately** - Easier to fix while context is fresh
 3. **Use watch mode during development** - `npm run test` for auto-rerun
-4. **Skip E2E in pre-pr during development** - Save time, run before final PR
+4. **Skip E2E in pre-pr during development** - Save time, run before final push
 5. **Check logs in `/tmp/`** - Detailed error information saved there
 
 ## 📝 Exit Codes

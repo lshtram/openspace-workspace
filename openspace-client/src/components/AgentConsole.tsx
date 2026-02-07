@@ -25,11 +25,13 @@ const readAsDataUrl = (file: File) =>
 type AgentConsoleProps = {
   sessionId?: string
   onSessionCreated?: (id: string) => void
+  directory?: string
 }
 
-export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps) {
+export function AgentConsole({ sessionId, onSessionCreated, directory: directoryProp }: AgentConsoleProps) {
   const queryClient = useQueryClient()
   const server = useServer()
+  const directory = directoryProp ?? openCodeService.directory
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
   const [prompt, setPrompt] = useState("")
@@ -69,7 +71,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
   }
 
   useEffect(() => {
-    if (!openCodeService.directory) return
+    if (!directory) return
     let cancelled = false
 
     const loadFiles = async () => {
@@ -88,7 +90,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
 
         try {
           const response = await openCodeService.client.file.list({
-            directory: openCodeService.directory,
+            directory,
             path: dir,
           })
           const entries = (response.data ?? []) as FileNode[]
@@ -115,12 +117,12 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [directory])
 
   const createSession = useMutation({
     mutationFn: async () => {
       const response = await openCodeService.client.session.create({
-        directory: openCodeService.directory,
+        directory,
       })
       return response.data ?? null
     },
@@ -150,7 +152,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
       abortControllersRef.current.set(id, controller)
       return openCodeService.client.session.prompt({
         sessionID: id,
-        directory: openCodeService.directory,
+        directory,
         agent,
         model: {
           providerID: model.providerID,
@@ -165,7 +167,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
         next.add(variables.id)
         return next
       })
-      const messagesKeyPrefix = ["messages", server.activeUrl, openCodeService.directory, variables.id]
+      const messagesKeyPrefix = ["messages", server.activeUrl, directory, variables.id]
       await queryClient.cancelQueries({
         queryKey: messagesKeyPrefix,
         exact: false,
@@ -237,7 +239,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["messages", server.activeUrl, openCodeService.directory, variables.id],
+        queryKey: ["messages", server.activeUrl, directory, variables.id],
         exact: false,
       })
     },

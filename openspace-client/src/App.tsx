@@ -299,6 +299,7 @@ function App() {
               <div className="flex flex-1 flex-col min-w-0 relative">
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AgentConsole 
+                    directory={activeProject?.path ?? openCodeService.directory}
                     sessionId={activeSessionId} 
                     onSessionCreated={setActiveSession} 
                   />
@@ -320,7 +321,7 @@ function App() {
 
               {rightSidebarExpanded && (
                 <aside className="hidden w-[280px] flex-shrink-0 flex-col border-l border-black/[0.03] md:flex animate-in slide-in-from-right duration-300">
-                  <FileTree />
+                  <FileTree directory={activeProject?.path ?? openCodeService.directory} />
                 </aside>
               )}
             </div>

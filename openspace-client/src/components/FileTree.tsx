@@ -16,7 +16,12 @@ type NodeState = {
   loading: Set<string>
 }
 
-export function FileTree() {
+type FileTreeProps = {
+  directory?: string
+}
+
+export function FileTree({ directory: directoryProp }: FileTreeProps) {
+  const directory = directoryProp ?? openCodeService.directory
   const [state, setState] = useState<NodeState>({
     nodes: {},
     expanded: new Set(["."]),
@@ -37,7 +42,7 @@ export function FileTree() {
     try {
       const response = await openCodeService.client.file.list({
         path,
-        directory: openCodeService.directory,
+        directory,
       })
       const list = response.data ?? []
       loadedRef.current.add(path)
@@ -59,14 +64,21 @@ export function FileTree() {
     } finally {
       loadingRef.current.delete(path)
     }
-  }, [])
+  }, [directory])
 
   useEffect(() => {
+    loadedRef.current.clear()
+    loadingRef.current.clear()
+    setState({
+      nodes: {},
+      expanded: new Set(["."]),
+      loading: new Set(),
+    })
     const timer = window.setTimeout(() => {
       void load(".")
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [load])
+  }, [load, directory])
 
   const toggle = async (path: string) => {
     setState((prev) => {

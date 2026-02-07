@@ -19,13 +19,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <DialogProvider>
-        <ServerProvider>
+      <ServerProvider>
+        <DialogProvider>
           <LayoutProvider>
             <App />
           </LayoutProvider>
-        </ServerProvider>
-      </DialogProvider>
+        </DialogProvider>
+      </ServerProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

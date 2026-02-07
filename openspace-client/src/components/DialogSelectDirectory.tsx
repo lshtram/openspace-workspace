@@ -18,7 +18,7 @@ export function DialogSelectDirectory({ onSelect }: DialogSelectDirectoryProps) 
   const [search, setSearch] = useState("")
 
   useEffect(() => {
-    if (pathInfo?.home) {
+    if (typeof pathInfo?.home === "string" && pathInfo.home.length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentDir(pathInfo.home)
     }
@@ -34,11 +34,15 @@ export function DialogSelectDirectory({ onSelect }: DialogSelectDirectoryProps) 
     openCodeService.client.file.list({ directory: currentDir, path: "" })
       .then(response => {
         if (!active) return
-        const dirs = (response.data ?? [])
-          .filter(n => n.type === "directory")
-          .map(n => ({ name: n.name, absolute: n.absolute }))
+        const nodes = Array.isArray(response.data) ? response.data : []
+        const dirs = nodes
+          .filter((node) => Boolean(node) && node.type === "directory" && typeof node.name === "string" && typeof node.absolute === "string")
+          .map(node => ({ name: node.name, absolute: node.absolute }))
           .sort((a, b) => a.name.localeCompare(b.name))
         setItems(dirs)
+      })
+      .catch(() => {
+        if (active) setItems([])
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -47,12 +51,13 @@ export function DialogSelectDirectory({ onSelect }: DialogSelectDirectoryProps) 
     return () => { active = false }
   }, [currentDir])
 
-  const filtered = items.filter(item => 
+  const filtered = items.filter(item =>
     item.name.toLowerCase().includes(search.toLowerCase()) ||
     item.absolute.toLowerCase().includes(search.toLowerCase())
   )
 
   const handleSelect = (path: string) => {
+    if (!path) return
     onSelect(path)
     close()
   }

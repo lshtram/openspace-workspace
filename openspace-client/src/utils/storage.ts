@@ -15,7 +15,22 @@ export const storage = {
   getProjects: (): StoredProject[] => {
     try {
       const data = localStorage.getItem(PROJECTS_KEY)
-      return data ? JSON.parse(data) : []
+      if (!data) return []
+      const parsed = JSON.parse(data)
+      if (!Array.isArray(parsed)) return []
+      return parsed
+        .filter(
+          (item): item is { path: string; name: string; color?: string } =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            typeof item.path === "string" &&
+            typeof item.name === "string",
+        )
+        .map((item) => ({
+          path: item.path,
+          name: item.name,
+          color: typeof item.color === "string" ? item.color : "bg-[#fce7f3]",
+        }))
     } catch {
       return []
     }
@@ -32,7 +47,10 @@ export const storage = {
   getServers: (): string[] => {
     try {
       const data = localStorage.getItem(SERVERS_KEY)
-      return data ? JSON.parse(data) : []
+      if (!data) return []
+      const parsed = JSON.parse(data)
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     } catch {
       return []
     }
@@ -59,7 +77,16 @@ export const storage = {
   getSessionSeenMap: (): Record<string, number> => {
     try {
       const data = localStorage.getItem(SESSION_SEEN_KEY)
-      return data ? JSON.parse(data) : {}
+      if (!data) return {}
+      const parsed = JSON.parse(data)
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {}
+      const map: Record<string, number> = {}
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          map[key] = value
+        }
+      }
+      return map
     } catch {
       return {}
     }

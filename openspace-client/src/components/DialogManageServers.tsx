@@ -36,7 +36,7 @@ export function DialogManageServers() {
 
   const items = useMemo(() => {
     const current = server.activeUrl
-    const list = server.servers
+    const list = server.servers.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     if (!current) return list
     if (!list.includes(current)) return [current, ...list]
     return [current, ...list.filter((item) => item !== current)]

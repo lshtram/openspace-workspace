@@ -56,6 +56,24 @@ describe('storage utility', () => {
       const projects = storage.getProjects()
       expect(projects).toEqual([])
     })
+
+    it('should return empty array for non-array payload', () => {
+      localStorage.setItem('openspace.projects', JSON.stringify({ path: '/x' }))
+      expect(storage.getProjects()).toEqual([])
+    })
+
+    it('should filter malformed project entries', () => {
+      localStorage.setItem(
+        'openspace.projects',
+        JSON.stringify([
+          { path: '/ok', name: 'OK', color: 'blue' },
+          { path: '/missing-name' },
+          123,
+        ]),
+      )
+
+      expect(storage.getProjects()).toEqual([{ path: '/ok', name: 'OK', color: 'blue' }])
+    })
   })
 
   describe('saveProjects', () => {
@@ -176,6 +194,27 @@ describe('storage utility', () => {
 
     it('should return null for unknown session', () => {
       expect(storage.getSessionSeen('missing')).toBeNull()
+    })
+
+    it('should sanitize malformed session seen map values', () => {
+      localStorage.setItem(
+        'openspace.session_seen',
+        JSON.stringify({ valid: 100, invalid: '123', nested: { x: 1 } }),
+      )
+
+      expect(storage.getSessionSeenMap()).toEqual({ valid: 100 })
+    })
+  })
+
+  describe('getServers', () => {
+    it('should return only non-empty string servers', () => {
+      localStorage.setItem('openspace.servers', JSON.stringify(['http://a', '', 42, null, 'http://b']))
+      expect(storage.getServers()).toEqual(['http://a', 'http://b'])
+    })
+
+    it('should return empty array for non-array payload', () => {
+      localStorage.setItem('openspace.servers', JSON.stringify({ a: 'http://a' }))
+      expect(storage.getServers()).toEqual([])
     })
   })
 })

@@ -1,19 +1,24 @@
 import { test, expect, testProjectPath } from "./fixtures"
+import type { Page } from "@playwright/test"
 import { openStatusPopover } from "./actions"
 import { newSessionButtonSelector } from "./selectors"
 
-test("status popover opens and shows connection info", async ({ page, gotoHome, seedProject }) => {
-  // Seed a test project
+async function openSession(
+  page: Page,
+  gotoHome: () => Promise<void>,
+  seedProject: (path: string, name: string) => Promise<void>,
+) {
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  // Create a new session
   const newSessionBtn = page.locator(newSessionButtonSelector).first()
   await expect(newSessionBtn).toBeVisible()
   await newSessionBtn.click()
-
-  // Wait for page to fully load
   await page.waitForTimeout(1000)
+}
+
+test("status popover opens and shows connection info", async ({ page, gotoHome, seedProject }) => {
+  await openSession(page, gotoHome, seedProject)
 
   const popover = await openStatusPopover(page)
 
@@ -25,17 +30,7 @@ test("status popover opens and shows connection info", async ({ page, gotoHome, 
 })
 
 test("can view MCP status", async ({ page, gotoHome, seedProject }) => {
-  // Seed a test project
-  await seedProject(testProjectPath, "openspace-e2e")
-  await gotoHome()
-
-  // Create a new session
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
-
-  // Wait for page to fully load
-  await page.waitForTimeout(1000)
+  await openSession(page, gotoHome, seedProject)
 
   const popover = await openStatusPopover(page)
 
@@ -47,4 +42,24 @@ test("can view MCP status", async ({ page, gotoHome, seedProject }) => {
     await mcpSection.click()
     await expect(mcpSection).toBeVisible()
   }
+})
+
+test("status popover closes on Escape", async ({ page, gotoHome, seedProject }) => {
+  await openSession(page, gotoHome, seedProject)
+
+  const popover = await openStatusPopover(page)
+  await expect(popover).toBeVisible()
+
+  await page.keyboard.press("Escape")
+  await expect(popover).not.toBeVisible()
+})
+
+test("status popover closes on outside click", async ({ page, gotoHome, seedProject }) => {
+  await openSession(page, gotoHome, seedProject)
+
+  const popover = await openStatusPopover(page)
+  await expect(popover).toBeVisible()
+
+  await page.mouse.click(8, 8)
+  await expect(popover).not.toBeVisible()
 })

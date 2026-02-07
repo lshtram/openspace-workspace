@@ -63,6 +63,19 @@ describe('PromptInput', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it('should submit slash and mention style input without special interception', async () => {
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(<PromptInput {...defaultProps} value="/model @src/file.ts" onSubmit={onSubmit} />)
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Enter}')
+
+    expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
   it('should call onSubmit when submit button is clicked', async () => {
     const onSubmit = vi.fn()
     const user = userEvent.setup()
@@ -129,6 +142,21 @@ describe('PromptInput', () => {
     // Check for stop button (red button with Square icon)
     const stopButton = container.querySelector('button.bg-red-500')
     expect(stopButton).toBeInTheDocument()
+  })
+
+  it('should call onAbort when pending stop button is clicked', async () => {
+    const onAbort = vi.fn()
+    const user = userEvent.setup()
+
+    const { container } = render(
+      <PromptInput {...defaultProps} isPending={true} value="test" onAbort={onAbort} />
+    )
+
+    const stopButton = container.querySelector('button.bg-red-500')
+    expect(stopButton).toBeInTheDocument()
+    await user.click(stopButton as HTMLElement)
+
+    expect(onAbort).toHaveBeenCalledOnce()
   })
 
   it('should render attachments when provided', () => {

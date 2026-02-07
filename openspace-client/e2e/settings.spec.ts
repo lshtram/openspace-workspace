@@ -1,55 +1,37 @@
 import { test, expect, testProjectPath } from "./fixtures"
+import type { Page } from "@playwright/test"
 
-test("can open settings dialog", async ({ page, gotoHome, seedProject }) => {
+async function openSettingsDialog(
+  page: Page,
+  gotoHome: () => Promise<void>,
+  seedProject: (path: string, name: string) => Promise<void>,
+) {
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  // Click settings icon in project rail (look for the Settings icon)
-  const settingsBtn = page.locator('aside button svg[data-lucide="settings"]').locator('..').first()
-  // Alternative: find by the popover structure
-  if (await settingsBtn.count() === 0) {
-    // Try finding any button in the bottom section of ProjectRail
-    const bottomButtons = page.locator('aside[class*="w-[68px]"] > div:last-child button')
-    const count = await bottomButtons.count()
-    if (count > 0) {
-      await bottomButtons.first().click()
-    }
-  } else {
-    await settingsBtn.click()
-  }
-  
-  // Settings popover should appear
+  const bottomButtons = page.locator('aside[class*="w-[68px]"] > div:last-child button')
+  await expect(bottomButtons.first()).toBeVisible()
+  await bottomButtons.first().click()
+
   const popover = page.locator('[data-radix-popper-content-wrapper]').first()
   await expect(popover).toBeVisible({ timeout: 5000 })
-  
-  // Click on a settings option to open the dialog
-  const themeOption = popover.locator('text=Theme').first()
-  await expect(themeOption).toBeVisible()
-  await themeOption.click()
-  
-  // Settings dialog should open
-  const dialog = page.locator('[role="dialog"]').filter({ hasText: 'Settings' }).first()
+
+  await popover.locator("text=Theme").first().click()
+
+  const dialog = page.locator('[role="dialog"]').filter({ hasText: "Settings" }).first()
   await expect(dialog).toBeVisible()
-  
+  return dialog
+}
+
+test("can open settings dialog", async ({ page, gotoHome, seedProject }) => {
+  const dialog = await openSettingsDialog(page, gotoHome, seedProject)
+
   // Check for settings tabs
-  await expect(dialog.locator('nav').first()).toBeVisible()
+  await expect(dialog.locator("nav").first()).toBeVisible()
 })
 
 test("can switch settings tabs", async ({ page, gotoHome, seedProject }) => {
-  await seedProject(testProjectPath, "openspace-e2e")
-  await gotoHome()
-
-  // Open settings
-  const bottomButtons = page.locator('aside[class*="w-[68px]"] > div:last-child button')
-  if (await bottomButtons.count() > 0) {
-    await bottomButtons.first().click()
-  }
-  
-  const popover = page.locator('[data-radix-popper-content-wrapper]').first()
-  const themeOption = popover.locator('text=Theme').first()
-  await themeOption.click()
-  
-  const dialog = page.locator('[role="dialog"]').filter({ hasText: 'Settings' }).first()
+  const dialog = await openSettingsDialog(page, gotoHome, seedProject)
   
   // Click on Shortcuts tab
   const shortcutsTab = dialog.locator('button:has-text("Shortcuts"), nav button:has-text("Shortcuts")').first()
@@ -60,21 +42,7 @@ test("can switch settings tabs", async ({ page, gotoHome, seedProject }) => {
 })
 
 test("can close settings dialog", async ({ page, gotoHome, seedProject }) => {
-  await seedProject(testProjectPath, "openspace-e2e")
-  await gotoHome()
-
-  // Open settings
-  const bottomButtons = page.locator('aside[class*="w-[68px]"] > div:last-child button')
-  if (await bottomButtons.count() > 0) {
-    await bottomButtons.first().click()
-  }
-  
-  const popover = page.locator('[data-radix-popper-content-wrapper]').first()
-  const themeOption = popover.locator('text=Theme').first()
-  await themeOption.click()
-  
-  const dialog = page.locator('[role="dialog"]').filter({ hasText: 'Settings' }).first()
-  await expect(dialog).toBeVisible()
+  const dialog = await openSettingsDialog(page, gotoHome, seedProject)
   
   // Close with X button (look for the close/X button)
   const closeBtn = dialog.locator('button svg[data-lucide="x"]').locator('..').first()
@@ -87,4 +55,24 @@ test("can close settings dialog", async ({ page, gotoHome, seedProject }) => {
   
   // Dialog should be closed
   await expect(dialog).not.toBeVisible()
+})
+
+test("settings selection currently resets after reopen (no persistence yet)", async ({
+  page,
+  gotoHome,
+  seedProject,
+}) => {
+  const dialog = await openSettingsDialog(page, gotoHome, seedProject)
+  const themeSelect = dialog.locator("select").first()
+
+  await expect(themeSelect).toBeVisible()
+  await themeSelect.selectOption("Dark")
+  await expect(themeSelect).toHaveValue("Dark")
+
+  await page.keyboard.press("Escape")
+  await expect(dialog).not.toBeVisible()
+
+  const reopened = await openSettingsDialog(page, gotoHome, seedProject)
+  const reopenedTheme = reopened.locator("select").first()
+  await expect(reopenedTheme).toHaveValue("Light")
 })

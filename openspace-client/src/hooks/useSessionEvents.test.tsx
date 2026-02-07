@@ -266,6 +266,103 @@ describe('useSessionEvents', () => {
     expect(data?.[0].parts).toHaveLength(0)
   })
 
+  it('should handle out-of-order events by applying parts only after message exists', () => {
+    let sseCallback: (event: { data: unknown }) => void = () => {}
+    vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
+      const { onSseEvent, signal } = options as {
+        onSseEvent: (e: { data: unknown }) => void
+        signal: AbortSignal
+      }
+      sseCallback = onSseEvent
+      // eslint-disable-next-line require-yield
+      const stream = (async function* () {
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) return resolve()
+          signal.addEventListener("abort", () => resolve(), { once: true })
+        })
+      })()
+      return { stream } as never
+    })
+
+    queryClient.setQueryData(messagesQueryKey('http://localhost:3000', '/test/dir', 'session-123', 50), [])
+
+    renderHook(() => useSessionEvents('session-123'), { wrapper })
+
+    // Part update arrives before message exists; should be ignored.
+    act(() => {
+      sseCallback({
+        data: {
+          directory: '/test/dir',
+          payload: {
+            type: 'message.part.updated',
+            properties: {
+              part: {
+                id: 'part-1',
+                messageID: 'msg-1',
+                sessionID: 'session-123',
+                type: 'text',
+                text: 'early part',
+              },
+            },
+          },
+        },
+      })
+    })
+
+    let data = queryClient.getQueryData<MessageEntry[]>(
+      messagesQueryKey('http://localhost:3000', '/test/dir', 'session-123', 50),
+    )
+    expect(data).toEqual([])
+
+    // Message arrives afterwards.
+    act(() => {
+      sseCallback({
+        data: {
+          directory: '/test/dir',
+          payload: {
+            type: 'message.updated',
+            properties: {
+              info: { id: 'msg-1', sessionID: 'session-123', role: 'assistant', time: { created: Date.now() } },
+            },
+          },
+        },
+      })
+    })
+
+    data = queryClient.getQueryData<MessageEntry[]>(
+      messagesQueryKey('http://localhost:3000', '/test/dir', 'session-123', 50),
+    )
+    expect(data).toHaveLength(1)
+    expect(data?.[0].parts).toHaveLength(0)
+
+    // A later part update should now be applied.
+    act(() => {
+      sseCallback({
+        data: {
+          directory: '/test/dir',
+          payload: {
+            type: 'message.part.updated',
+            properties: {
+              part: {
+                id: 'part-1',
+                messageID: 'msg-1',
+                sessionID: 'session-123',
+                type: 'text',
+                text: 'late part',
+              },
+            },
+          },
+        },
+      })
+    })
+
+    data = queryClient.getQueryData<MessageEntry[]>(
+      messagesQueryKey('http://localhost:3000', '/test/dir', 'session-123', 50),
+    )
+    expect(data?.[0].parts).toHaveLength(1)
+    expect(data?.[0].parts[0].id).toBe('part-1')
+  })
+
   it('should retry on stream errors with backoff', async () => {
     vi.useFakeTimers()
     const toastMock = vi.mocked(pushToastOnce)

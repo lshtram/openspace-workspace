@@ -136,6 +136,33 @@ describe('StatusPopover', () => {
     expect(await screen.findByText('plugin-2')).toBeInTheDocument()
   })
 
+  it('should switch tabs and update visible content', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderWithProviders(<StatusPopover connected={true} />)
+
+    await user.click(screen.getByRole('button'))
+    expect(await screen.findByText('Manage servers')).toBeInTheDocument()
+
+    await user.click(screen.getByText(/MCP \(1\)/))
+    expect(await screen.findByText('server-1')).toBeInTheDocument()
+    expect(screen.queryByText('Manage servers')).not.toBeInTheDocument()
+
+    await user.click(screen.getByText(/Plugins \(2\)/))
+    expect(await screen.findByText('plugin-1')).toBeInTheDocument()
+    expect(screen.queryByText('server-1')).not.toBeInTheDocument()
+  })
+
+  it('should close popover on Escape', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderWithProviders(<StatusPopover connected={true} />)
+
+    await user.click(screen.getByRole('button'))
+    expect(await screen.findByText('Manage servers')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByText('Manage servers')).not.toBeInTheDocument()
+  })
+
   it('should show empty states', async () => {
     vi.mocked(useMcpStatus).mockReturnValue({ data: {} } as never)
     vi.mocked(useLspStatus).mockReturnValue({ data: [] } as never)

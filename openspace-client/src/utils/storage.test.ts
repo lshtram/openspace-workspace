@@ -74,6 +74,19 @@ describe('storage utility', () => {
 
       expect(storage.getProjects()).toEqual([{ path: '/ok', name: 'OK', color: 'blue' }])
     })
+
+    it('should apply default color for legacy project entries without color', () => {
+      localStorage.setItem(
+        'openspace.projects',
+        JSON.stringify([
+          { path: '/legacy/project', name: 'Legacy Project' },
+        ]),
+      )
+
+      expect(storage.getProjects()).toEqual([
+        { path: '/legacy/project', name: 'Legacy Project', color: 'bg-[#fce7f3]' },
+      ])
+    })
   })
 
   describe('saveProjects', () => {
@@ -203,6 +216,11 @@ describe('storage utility', () => {
       )
 
       expect(storage.getSessionSeenMap()).toEqual({ valid: 100 })
+    })
+
+    it('should return empty map for legacy non-object session seen payload', () => {
+      localStorage.setItem('openspace.session_seen', JSON.stringify(['s1', 's2']))
+      expect(storage.getSessionSeenMap()).toEqual({})
     })
   })
 

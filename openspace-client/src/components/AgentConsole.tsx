@@ -1,6 +1,6 @@
-import { useMemo, useState, useRef } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { Message, Part } from "../lib/opencode/v2/gen/types.gen"
+import type { Message, Part, FileNode } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { useAgents } from "../hooks/useAgents"
 import { useMessages } from "../hooks/useMessages"
@@ -35,6 +35,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<PromptAttachment[]>([])
   const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set())
+  const [fileSuggestions, setFileSuggestions] = useState<string[]>([])
   const agentsQuery = useAgents()
   const modelsQuery = useModels()
   const messagesQuery = useMessages(sessionId)
@@ -66,6 +67,55 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
   const onRemoveAttachment = (id: string) => {
     setAttachments((prev) => prev.filter((item) => item.id !== id))
   }
+
+  useEffect(() => {
+    if (!openCodeService.directory) return
+    let cancelled = false
+
+    const loadFiles = async () => {
+      const files: string[] = []
+      const visited = new Set<string>()
+      const queue: string[] = ["."]
+      let traversedDirs = 0
+      const maxDirs = 30
+      const maxFiles = 200
+
+      while (queue.length > 0 && traversedDirs < maxDirs && files.length < maxFiles) {
+        const dir = queue.shift()
+        if (!dir || visited.has(dir)) continue
+        visited.add(dir)
+        traversedDirs += 1
+
+        try {
+          const response = await openCodeService.client.file.list({
+            directory: openCodeService.directory,
+            path: dir,
+          })
+          const entries = (response.data ?? []) as FileNode[]
+          for (const node of entries) {
+            if (node.type === "file") {
+              files.push(node.path)
+              if (files.length >= maxFiles) break
+            } else if (node.type === "directory") {
+              queue.push(node.path)
+            }
+          }
+        } catch {
+          // ignore suggestion errors; prompt works without this enhancement
+        }
+      }
+
+      if (!cancelled) {
+        const uniq = Array.from(new Set(files)).sort((a, b) => a.localeCompare(b))
+        setFileSuggestions(uniq)
+      }
+    }
+
+    void loadFiles()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const createSession = useMutation({
     mutationFn: async () => {
@@ -309,6 +359,7 @@ export function AgentConsole({ sessionId, onSessionCreated }: AgentConsoleProps)
       <PromptInput
         value={prompt}
         attachments={attachments}
+        fileSuggestions={fileSuggestions}
         onChange={setPrompt}
         onSubmit={sendMessage}
         onAddAttachment={onAddAttachment}

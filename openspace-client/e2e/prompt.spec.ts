@@ -27,3 +27,37 @@ test("can send a prompt and receive a reply", async ({ page, gotoHome, seedProje
   const assistantMessage = page.locator('[class*="assistant"], .message-bubble.assistant, div[class*="bg-white"]').first()
   await expect(assistantMessage).toBeVisible({ timeout: 120_000 })
 })
+
+test("slash open shows file suggestions and inserts selection", async ({ page, gotoHome, seedProject }) => {
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
+  await ensureInSession(page)
+
+  const input = page.locator(promptSelector).first()
+  await expect(input).toBeVisible({ timeout: 10000 })
+  await input.fill("/open src")
+
+  const suggestionList = page.locator('[data-testid="prompt-suggestion-list"]').first()
+  await expect(suggestionList).toBeVisible()
+  await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
+
+  await input.press("Enter")
+  await expect(input).toHaveValue(/@src\/index\.ts\s?/)
+})
+
+test("at mention shows file suggestions and inserts selection", async ({ page, gotoHome, seedProject }) => {
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
+  await ensureInSession(page)
+
+  const input = page.locator(promptSelector).first()
+  await expect(input).toBeVisible({ timeout: 10000 })
+  await input.fill("@src")
+
+  const suggestionList = page.locator('[data-testid="prompt-suggestion-list"]').first()
+  await expect(suggestionList).toBeVisible()
+  await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
+
+  await input.press("Tab")
+  await expect(input).toHaveValue(/@src\/index\.ts\s?/)
+})

@@ -1,5 +1,5 @@
 import clsx from "clsx"
-import { useRef, type KeyboardEvent } from "react"
+import { useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Image, ArrowUp, Square } from "lucide-react"
 import type { PromptAttachment } from "../types/opencode"
 
@@ -15,6 +15,7 @@ type PromptInputProps = {
   onAbort?: () => void
   leftSection?: React.ReactNode
   rightSection?: React.ReactNode
+  fileSuggestions?: string[]
 }
 
 export function PromptInput({
@@ -29,10 +30,84 @@ export function PromptInput({
   onAbort,
   leftSection,
   rightSection,
+  fileSuggestions = [],
 }: PromptInputProps) {
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const suggestionContext = useMemo(() => {
+    const textarea = textareaRef.current
+    const cursor = textarea?.selectionStart ?? value.length
+    const before = value.slice(0, cursor)
+
+    const openMatch = before.match(/(?:^|\s)\/open\s+([^\n]*)$/)
+    if (openMatch) {
+      const query = openMatch[1]?.trim() ?? ""
+      const filtered = fileSuggestions
+        .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 8)
+      const openTokenStart = before.lastIndexOf("/open", cursor)
+      return {
+        mode: "open" as const,
+        query,
+        filtered,
+        replaceStart: openTokenStart >= 0 ? openTokenStart : cursor - openMatch[1].length,
+      }
+    }
+
+    const mentionMatch = before.match(/(?:^|\s)@([^\s@]*)$/)
+    if (mentionMatch) {
+      const query = mentionMatch[1] ?? ""
+      const filtered = fileSuggestions
+        .filter((item) => item.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 8)
+      return {
+        mode: "mention" as const,
+        query,
+        filtered,
+        replaceStart: cursor - mentionMatch[1].length - 1,
+      }
+    }
+
+    return null
+  }, [fileSuggestions, value])
+
+  const selectSuggestion = (selectedPath: string) => {
+    const textarea = textareaRef.current
+    if (!textarea || !suggestionContext) return
+    const cursor = textarea.selectionStart ?? value.length
+    const before = value.slice(0, suggestionContext.replaceStart)
+    const after = value.slice(cursor)
+    const next = `${before}@${selectedPath} ${after}`
+    onChange(next)
+    requestAnimationFrame(() => {
+      const pos = before.length + selectedPath.length + 2
+      textarea.focus()
+      textarea.setSelectionRange(pos, pos)
+    })
+  }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const hasSuggestions = Boolean(suggestionContext && suggestionContext.filtered.length > 0)
+
+    if (hasSuggestions && event.key === "ArrowDown") {
+      event.preventDefault()
+      setActiveIndex((prev) => (prev + 1) % suggestionContext!.filtered.length)
+      return
+    }
+    if (hasSuggestions && event.key === "ArrowUp") {
+      event.preventDefault()
+      setActiveIndex((prev) => (prev - 1 + suggestionContext!.filtered.length) % suggestionContext!.filtered.length)
+      return
+    }
+    if (hasSuggestions && (event.key === "Tab" || event.key === "Enter")) {
+      event.preventDefault()
+      selectSuggestion(suggestionContext!.filtered[activeIndex] ?? suggestionContext!.filtered[0])
+      setActiveIndex(0)
+      return
+    }
+
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       onSubmit()
@@ -50,6 +125,7 @@ export function PromptInput({
       <div className="relative flex w-full flex-col overflow-hidden rounded-[26px] border border-black/10 bg-white shadow-sm transition-shadow focus-within:shadow-md">
         <div className="flex flex-col px-5 pt-4">
           <textarea
+            ref={textareaRef}
             rows={1}
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -60,6 +136,29 @@ export function PromptInput({
             disabled={disabled}
             style={{ minHeight: '24px', maxHeight: '400px' }}
           />
+
+          {suggestionContext && suggestionContext.filtered.length > 0 && (
+            <div
+              data-testid="prompt-suggestion-list"
+              className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-black/10 bg-white p-1 shadow-sm"
+            >
+              {suggestionContext.filtered.map((item, index) => (
+                <button
+                  key={item}
+                  type="button"
+                  data-testid="prompt-suggestion-item"
+                  data-selected={index === activeIndex ? "true" : "false"}
+                  className={clsx(
+                    "flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs",
+                    index === activeIndex ? "bg-black/10 text-black" : "text-black/70 hover:bg-black/5",
+                  )}
+                  onClick={() => selectSuggestion(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
           
           {attachments.length > 0 && (
             <div className="mb-2 mt-3 flex flex-wrap gap-2">

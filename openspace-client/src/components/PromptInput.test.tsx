@@ -50,6 +50,29 @@ describe('PromptInput', () => {
     expect(onSubmit).toHaveBeenCalledOnce()
   })
 
+  it('should select /open suggestion on Enter and insert mention text', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="/open src"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['README.md', 'src/index.ts']}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Enter}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@src/index.ts ')
+  })
+
   it('should not call onSubmit when Shift+Enter is pressed', async () => {
     const onSubmit = vi.fn()
     const user = userEvent.setup()
@@ -74,6 +97,29 @@ describe('PromptInput', () => {
     await user.keyboard('{Enter}')
 
     expect(onSubmit).toHaveBeenCalledOnce()
+  })
+
+  it('should select @mention suggestion on Tab and insert mention text', async () => {
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value="@src"
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['README.md', 'src/index.ts']}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    await user.click(textarea)
+    await user.keyboard('{Tab}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith('@src/index.ts ')
   })
 
   it('should call onSubmit when submit button is clicked', async () => {

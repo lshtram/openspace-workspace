@@ -4,7 +4,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import type { Message, Part, AssistantMessage, ToolPart } from "../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
 import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
 import { cn } from "../lib/utils"
 
 type MessageListProps = {
@@ -24,30 +24,42 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   const [startTime, setStartTime] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [canScroll, setCanScroll] = useState(false)
   const [activeTurnId, setActiveTurnId] = useState<string | undefined>(undefined)
   const [hashFocusedId, setHashFocusedId] = useState<string | undefined>(undefined)
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const turnRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const pendingBackfillRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
 
   const turns = useMemo(() => {
-    const result: { user?: Message; assistants: Message[]; id: string }[] = []
-    let currentTurn: { user?: Message; assistants: Message[]; id: string } | null = null
+    const result: { user?: Message; assistants: Message[]; id: string; messageIds: string[] }[] = []
+    let currentTurn: { user?: Message; assistants: Message[]; id: string; messageIds: string[] } | null = null
 
     ordered.forEach((msg) => {
       if (msg.role === "user") {
         if (currentTurn) result.push(currentTurn)
-        currentTurn = { user: msg, assistants: [], id: msg.id }
+        currentTurn = { user: msg, assistants: [], id: msg.id, messageIds: [msg.id] }
       } else if (msg.role === "assistant") {
         if (!currentTurn) {
-          currentTurn = { assistants: [msg], id: msg.id }
+          currentTurn = { assistants: [msg], id: msg.id, messageIds: [msg.id] }
         } else {
           currentTurn.assistants.push(msg)
+          currentTurn.messageIds.push(msg.id)
         }
       }
     })
     if (currentTurn) result.push(currentTurn)
     return result
   }, [ordered])
+
+  const updateScrollState = useCallback(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const isOverflowing = viewport.scrollHeight > viewport.clientHeight + 2
+    const nearBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 40
+    setCanScroll(isOverflowing)
+    setIsAtBottom(!isOverflowing || nearBottom)
+  }, [])
 
   useEffect(() => {
     if (isPending) {
@@ -85,14 +97,16 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
       if (!hash) return
       const match = hash.match(/^#message-(.+)$/)
       if (!match) return
-      const targetId = match[1]
-      const target = document.getElementById(messageAnchor(targetId))
+      const targetId = decodeURIComponent(match[1])
+      const turnId =
+        turns.find((turn) => turn.id === targetId || turn.messageIds.includes(targetId))?.id ?? targetId
+      const target = document.getElementById(messageAnchor(turnId))
       if (!target) return
       target.scrollIntoView({ behavior, block: "start" })
-      setHashFocusedId(targetId)
-      setActiveTurnId(targetId)
+      setHashFocusedId(turnId)
+      setActiveTurnId(turnId)
     },
-    [],
+    [turns],
   )
 
   const updateScrollSpy = useCallback(() => {
@@ -129,19 +143,27 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   }
 
   const handleScroll = useCallback(() => {
-    const viewport = viewportRef.current
-    if (!viewport) return
-
-    const nearBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 40
-    setIsAtBottom(nearBottom)
+    updateScrollState()
     updateScrollSpy()
-  }, [updateScrollSpy])
+  }, [updateScrollSpy, updateScrollState])
 
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
     if (isAtBottom) scrollToBottom("auto")
-  }, [turns.length, isPending, isAtBottom, scrollToBottom])
+    const frame = requestAnimationFrame(updateScrollState)
+    return () => cancelAnimationFrame(frame)
+  }, [turns.length, isPending, isAtBottom, scrollToBottom, updateScrollState])
+
+  useLayoutEffect(() => {
+    const pendingBackfill = pendingBackfillRef.current
+    const viewport = viewportRef.current
+    if (!pendingBackfill || !viewport || isFetching) return
+    const delta = viewport.scrollHeight - pendingBackfill.scrollHeight
+    viewport.scrollTop = pendingBackfill.scrollTop + Math.max(delta, 0)
+    pendingBackfillRef.current = null
+    updateScrollState()
+  }, [isFetching, turns.length, updateScrollState])
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => applyHashFocus("auto"))
@@ -157,6 +179,8 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
     <ScrollArea.Root className="h-full w-full overflow-hidden bg-white">
       <ScrollArea.Viewport
         ref={viewportRef}
+        data-testid="message-viewport"
+        data-scrollable="true"
         className="h-full w-full"
         onScroll={handleScroll}
         onWheelCapture={(event) => {
@@ -168,12 +192,21 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
         <div className="flex flex-col max-w-[840px] mx-auto pb-40">
           {hasMore && onLoadMore && (
             <div className="px-6 pt-4">
-              <button
-                type="button"
-                onClick={onLoadMore}
-                disabled={isFetching}
-                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[12px] font-medium text-black/60 shadow-sm transition hover:bg-black/[0.02] disabled:opacity-50"
-              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    const viewport = viewportRef.current
+                    if (viewport) {
+                      pendingBackfillRef.current = {
+                        scrollTop: viewport.scrollTop,
+                        scrollHeight: viewport.scrollHeight,
+                      }
+                    }
+                    onLoadMore()
+                  }}
+                  disabled={isFetching}
+                  className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[12px] font-medium text-black/60 shadow-sm transition hover:bg-black/[0.02] disabled:opacity-50"
+                >
                 {isFetching ? "Loading..." : "Load earlier messages"}
               </button>
             </div>
@@ -243,10 +276,11 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
           )}
         </div>
       </ScrollArea.Viewport>
-      {!isAtBottom && (
+      {canScroll && !isAtBottom && (
         <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex justify-center">
           <button
             type="button"
+            data-testid="resume-scroll"
             onClick={() => {
               scrollToBottom("smooth")
               setIsAtBottom(true)
@@ -420,7 +454,10 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
           {expanded ? <ChevronDown size={14} className="opacity-20" /> : <ChevronRight size={14} className="opacity-20" />}
         </button>
         {expanded && (
-          <div className="mt-1 rounded-xl border border-black/5 bg-[#151312] p-3 font-mono text-[12px] text-[#f6f3ef] overflow-x-auto shadow-inner">
+          <div
+            data-scrollable="true"
+            className="mt-1 rounded-xl border border-black/5 bg-[#151312] p-3 font-mono text-[12px] text-[#f6f3ef] overflow-x-auto shadow-inner"
+          >
             <ToolOutput part={part} />
           </div>
         )}

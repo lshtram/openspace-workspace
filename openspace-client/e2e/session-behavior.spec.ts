@@ -123,3 +123,66 @@ test("multiple sessions can be pending independently", async ({ page, gotoHome, 
   await rows.nth(Math.min(1, count - 1)).click()
   await expect(page.locator(promptSelector).first()).toBeVisible()
 })
+
+test("timeline shows load earlier and resume scroll controls", async ({ page, gotoHome, seedProject }) => {
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
+
+  await page.route(/\/session\/[^/]+\/message(\?.*)?$/, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue()
+      return
+    }
+
+    const requestUrl = new URL(route.request().url())
+    const limit = Number(requestUrl.searchParams.get("limit") ?? "50")
+    const sessionIdMatch = requestUrl.pathname.match(/\/session\/([^/]+)\/message/)
+    const sessionID = sessionIdMatch?.[1] ?? "session-e2e"
+    const now = Date.now()
+
+    const entries = Array.from({ length: limit }, (_, index) => ({
+      info: {
+        id: `msg_${index}`,
+        sessionID,
+        role: "user",
+        time: { created: now - (limit - index) * 1000 },
+        agent: "build",
+        model: { providerID: "openai", modelID: "gpt-4" },
+      },
+      parts: [
+        {
+          id: `part_${index}`,
+          sessionID,
+          messageID: `msg_${index}`,
+          type: "text",
+          text: `Message ${index}`,
+        },
+      ],
+    }))
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(entries),
+    })
+  })
+
+  await clickNewSession(page)
+
+  await expect(page.getByRole("button", { name: "Load earlier messages" })).toBeVisible({ timeout: 10000 })
+
+  await page.evaluate(() => {
+    const viewport = document.querySelector('[data-testid="message-viewport"]') as HTMLDivElement | null
+    if (!viewport) return
+    viewport.scrollTop = 0
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }))
+  })
+
+  const resume = page.getByTestId("resume-scroll")
+  await expect(resume).toBeVisible()
+  await page.evaluate(() => {
+    const button = document.querySelector('[data-testid="resume-scroll"]') as HTMLButtonElement | null
+    button?.click()
+  })
+  await expect(resume).toHaveCount(0)
+})

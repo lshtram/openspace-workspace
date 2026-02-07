@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { MessageList } from './MessageList'
 import type { Part, AssistantMessage, UserMessage } from '../lib/opencode/v2/gen/types.gen'
 
@@ -13,6 +13,7 @@ Object.assign(navigator, {
 describe('MessageList', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    window.location.hash = ''
   })
 
   afterEach(() => {
@@ -450,5 +451,53 @@ describe('MessageList', () => {
 
     expect(screen.getByText('attached file')).toBeInTheDocument()
     expect(screen.getByText('https://example.com/file.txt')).toBeInTheDocument()
+  })
+
+  it('should focus parent turn when hash points to assistant message id', () => {
+    const scrollIntoViewMock = vi.fn()
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock,
+    })
+
+    const user = createUserMessage('user-1', 1000)
+    const assistant = createAssistantMessage('assistant-1', 2000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
+
+    window.location.hash = '#message-assistant-1'
+    const { container } = render(<MessageList messages={[user, assistant]} parts={parts} />)
+
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
+
+    expect(scrollIntoViewMock).toHaveBeenCalled()
+    const parentTurn = container.querySelector('#message-user-1')
+    expect(parentTurn?.className).toContain('ring-1')
+  })
+
+  it('should show resume button when scrolled away from bottom', () => {
+    const user = createUserMessage('user-1', 1000)
+    const assistant = createAssistantMessage('assistant-1', 2000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
+    render(<MessageList messages={[user, assistant]} parts={parts} />)
+
+    const viewport = screen.getByTestId('message-viewport')
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 100 })
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1000 })
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 })
+    viewport.scrollTo = vi.fn()
+
+    fireEvent.scroll(viewport)
+
+    const resumeButton = screen.getByTestId('resume-scroll')
+    expect(resumeButton).toBeInTheDocument()
+
+    act(() => {
+      resumeButton.click()
+    })
+
+    expect(viewport.scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: 'smooth' })
+    expect(screen.queryByTestId('resume-scroll')).not.toBeInTheDocument()
   })
 })

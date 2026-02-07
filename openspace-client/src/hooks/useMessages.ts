@@ -35,6 +35,7 @@ export function useMessages(
   options?: { initialLimit?: number; pageSize?: number }
 ) {
   const server = useServer()
+  const directory = openCodeService.directory
   const initialLimit = options?.initialLimit ?? DEFAULT_MESSAGE_LIMIT
   const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_LIMIT
   const [limit, setLimit] = useState(initialLimit)
@@ -42,16 +43,16 @@ export function useMessages(
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLimit(initialLimit)
-  }, [sessionId, initialLimit])
+  }, [sessionId, initialLimit, server.activeUrl, directory])
 
   const query = useQuery<MessageEntry[]>({
-    queryKey: messagesQueryKey(server.activeUrl, openCodeService.directory, sessionId, limit),
+    queryKey: messagesQueryKey(server.activeUrl, directory, sessionId, limit),
     enabled: Boolean(sessionId),
     queryFn: async () => {
       if (!sessionId) return []
       return fetchMessages({
         sessionId,
-        directory: openCodeService.directory,
+        directory,
         limit,
       })
     },

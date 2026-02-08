@@ -33,6 +33,16 @@ const mocks = vi.hoisted(() => {
   }
 })
 
+class MockWebSocket {
+  readyState = 1
+  addEventListener() {}
+  removeEventListener() {}
+  send() {}
+  close() {}
+}
+
+vi.stubGlobal("WebSocket", MockWebSocket)
+
 vi.mock("xterm", () => ({
   Terminal: class {
     cols = 80
@@ -79,8 +89,8 @@ vi.mock("../context/ServerContext", () => ({
   }),
 }))
 
-function Harness() {
-  const { containerRef } = useTerminal(undefined, "/tmp/workspace")
+function Harness({ directory = "/tmp/workspace" }: { directory?: string }) {
+  const { containerRef } = useTerminal(undefined, directory)
   return <div ref={containerRef} />
 }
 
@@ -109,5 +119,37 @@ describe("useTerminal", () => {
     await waitFor(() => {
       expect(mocks.removeMock).toHaveBeenCalledWith({ ptyID: "pty-123", directory: "/tmp/workspace" })
     })
+  })
+
+  it("removes the previous PTY when the directory prop changes", async () => {
+    const { rerender, unmount } = render(<Harness />)
+
+    await waitFor(() => {
+      expect(mocks.createMock).toHaveBeenCalledWith({ directory: "/tmp/workspace" })
+    })
+
+    createDeferred.resolve({ data: { id: "pty-123" } })
+    await waitFor(() => expect(mocks.removeMock).not.toHaveBeenCalled())
+
+    const nextDeferred = deferred<{ data: { id: string } }>()
+    mocks.setCreateDeferred(nextDeferred)
+
+    rerender(<Harness directory="/tmp/alternate" />)
+
+    await waitFor(() => {
+      expect(mocks.createMock).toHaveBeenCalledWith({ directory: "/tmp/alternate" })
+    })
+
+    await waitFor(() => {
+      expect(mocks.removeMock).toHaveBeenCalledWith({ ptyID: "pty-123", directory: "/tmp/workspace" })
+    })
+
+    nextDeferred.resolve({ data: { id: "pty-456" } })
+    await waitFor(() => expect(mocks.removeMock).not.toHaveBeenCalledWith({ ptyID: "pty-456", directory: "/tmp/alternate" }))
+
+    unmount()
+    await waitFor(() =>
+      expect(mocks.removeMock).toHaveBeenCalledWith({ ptyID: "pty-456", directory: "/tmp/alternate" }),
+    )
   })
 })

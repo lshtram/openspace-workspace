@@ -11,6 +11,7 @@ import { useServer } from "../context/ServerContext"
 import { checkServerHealth, type ServerHealth } from "../utils/serverHealth"
 import { DialogManageServers } from "./DialogManageServers"
 import { ServerRow } from "./ServerRow"
+import { serverDisplayName } from "../utils/server"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -141,38 +142,50 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
                     const isActive = url === server.activeUrl
                     const isBlocked = status?.healthy === false
 
-                    return (
-                      <button
-                        key={url}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors",
-                          isBlocked ? "opacity-50" : "hover:bg-[var(--surface-strong)]",
-                        )}
-                        onClick={() => {
-                          if (!isBlocked) server.setActive(url)
-                        }}
-                        disabled={isBlocked}
-                      >
-                        <ServerRow
-                          url={url}
-                          status={status}
-                          dimmed={isBlocked}
-                          className="flex items-center gap-3 min-w-0"
-                          badge={
-                            isDefault ? (
-                              <span className="rounded-md bg-black/5 px-2 py-0.5 text-[11px] text-muted">Default</span>
-                            ) : null
-                          }
-                          trailing={
-                            <div className="ml-auto flex items-center gap-2">
-                              {isActive && <Check className="h-4 w-4 text-emerald-600" />}
-                            </div>
-                          }
-                        />
-                      </button>
-                    )
-                  })
-                )}
+                  const label = serverDisplayName(url)
+                  const ariaLabel = `${label}${isDefault ? " default" : ""}${isActive ? " active" : ""}`.trim()
+                  const healthLabel =
+                    status?.healthy === false
+                      ? "Unhealthy"
+                      : status?.healthy === true
+                        ? "Healthy"
+                        : "Checking…"
+
+                  return (
+                    <button
+                      key={url}
+                      className={cn(
+                        "flex w-full flex-col items-start rounded-xl p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
+                        isBlocked ? "opacity-50" : "hover:bg-[var(--surface-strong)]",
+                      )}
+                      onClick={() => {
+                        if (!isBlocked) server.setActive(url)
+                      }}
+                      disabled={isBlocked}
+                      aria-pressed={isActive}
+                      aria-label={`${ariaLabel} server status`}
+                    >
+                      <ServerRow
+                        url={url}
+                        status={status}
+                        dimmed={isBlocked}
+                        className="flex items-center gap-3 min-w-0"
+                        badge={
+                          isDefault ? (
+                            <span className="rounded-md bg-black/5 px-2 py-0.5 text-[11px] text-muted">Default</span>
+                          ) : null
+                        }
+                        trailing={
+                          <div className="ml-auto flex items-center gap-2">
+                            {isActive && <Check className="h-4 w-4 text-emerald-600" />}
+                          </div>
+                        }
+                      />
+                      <span className="text-[11px] text-black/50">{healthLabel}</span>
+                    </button>
+                  )
+                })
+              )}
 
                 <button
                   className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold shadow-sm transition hover:border-black/20"

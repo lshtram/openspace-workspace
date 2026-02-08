@@ -1,8 +1,10 @@
 export const SETTINGS_STORAGE_KEY = "openspace.settings"
 export const SETTINGS_UPDATED_EVENT = "openspace:settings-updated"
+export const OPEN_SETTINGS_EVENT = "openspace:open-settings"
 
 export type ShortcutAction =
   | "openCommandPalette"
+  | "openSettings"
   | "newSession"
   | "toggleSidebar"
   | "toggleTerminal"
@@ -12,6 +14,7 @@ export type ShortcutMap = Record<ShortcutAction, string>
 
 export const DEFAULT_SHORTCUTS: ShortcutMap = {
   openCommandPalette: "Mod+K",
+  openSettings: "Mod+,",
   newSession: "Mod+N",
   toggleSidebar: "Mod+B",
   toggleTerminal: "Mod+J",
@@ -20,6 +23,7 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
 
 type StoredSettings = {
   shortcuts?: Partial<ShortcutMap>
+  defaultAgent?: string
 }
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"])
@@ -42,6 +46,24 @@ export function loadShortcuts(): ShortcutMap {
 export function emitSettingsUpdated() {
   if (typeof window === "undefined") return
   window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT))
+}
+
+export function emitOpenSettings() {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT))
+}
+
+export function loadPreferredAgent(): string | undefined {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    if (!raw) return undefined
+    const parsed = JSON.parse(raw) as StoredSettings | null
+    if (!parsed || typeof parsed !== "object") return undefined
+    const value = parsed.defaultAgent?.trim()
+    return value ? value : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {

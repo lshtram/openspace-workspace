@@ -158,11 +158,11 @@ describe('WorkspaceManager', () => {
       <WorkspaceManager projectPath="/project" currentDirectory="/project/ws-1" onSwitchWorkspace={vi.fn()} />
     )
 
-    const upButtons = screen.getAllByTitle('Move workspace up')
+    const upButtons = screen.getAllByRole('button', { name: 'Move workspace up' })
     fireEvent.click(upButtons[1])
     expect(reorderWorkspace).toHaveBeenCalledWith('/project/ws-2', 'up')
 
-    const downButtons = screen.getAllByTitle('Move workspace down')
+    const downButtons = screen.getAllByRole('button', { name: 'Move workspace down' })
     fireEvent.click(downButtons[0])
     expect(reorderWorkspace).toHaveBeenCalledWith('/project/ws-1', 'down')
   })

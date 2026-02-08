@@ -63,3 +63,19 @@ test("status popover closes on outside click", async ({ page, gotoHome, seedProj
   await page.mouse.click(8, 8)
   await expect(popover).not.toBeVisible()
 })
+
+test("status popover tabs surface each panel", async ({ page, gotoHome, seedProject }) => {
+  await openSession(page, gotoHome, seedProject)
+
+  const popover = await openStatusPopover(page)
+
+  const serversTab = popover.getByRole("tab", { name: /Servers/i })
+  await serversTab.click()
+  await expect(popover.getByRole("button", { name: /Manage servers/i })).toBeVisible()
+
+  for (const name of ["MCP", "LSP", "Plugins"]) {
+    const tab = popover.getByRole("tab", { name: new RegExp(name, "i") })
+    await tab.click()
+    await expect(tab).toHaveAttribute("data-state", "active")
+  }
+})

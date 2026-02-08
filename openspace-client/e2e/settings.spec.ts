@@ -13,11 +13,6 @@ async function openSettingsDialog(
   await expect(bottomButtons.first()).toBeVisible()
   await bottomButtons.first().click()
 
-  const popover = page.locator('[data-radix-popper-content-wrapper]').first()
-  await expect(popover).toBeVisible({ timeout: 5000 })
-
-  await popover.locator("text=Theme").first().click()
-
   const dialog = page.locator('[role="dialog"]').filter({ hasText: "Settings" }).first()
   await expect(dialog).toBeVisible()
   return dialog

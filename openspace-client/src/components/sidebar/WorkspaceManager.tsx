@@ -49,13 +49,15 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
   }
 
   return (
-    <div className="px-4 pb-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col max-h-[280px]">
+      {/* Fixed header */}
+      <div className="flex-shrink-0 px-4 pt-4 pb-3 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#a0a0a0]">Workspaces</span>
         <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
           <Dialog.Trigger asChild>
             <button
               type="button"
+              data-testid="workspace-new"
               className="flex items-center gap-1 rounded-full border border-black/10 px-3 py-1 text-[12px] font-semibold text-[#1d1a17] hover:border-black/30"
             >
               <Plus size={14} />
@@ -72,11 +74,14 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                 Generate a sandbox worktree for the current project.
               </Dialog.Description>
               <div className="mt-4 space-y-2">
-                <label className="text-[12px] font-semibold uppercase tracking-[0.3em] text-[#a0a0a0]">
+                <label
+                  htmlFor="workspace-name-input"
+                  className="text-[12px] font-semibold uppercase tracking-[0.3em] text-[#a0a0a0]"
+                >
                   Name
                 </label>
                 <input
-                  autoFocus
+                  id="workspace-name-input"
                   value={newName}
                   onChange={(event) => setNewName(event.target.value)}
                   className="w-full rounded-xl border border-black/10 px-3 py-2 text-[14px] outline-none focus:border-black/30"
@@ -84,12 +89,13 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
               </div>
               <div className="mt-6 flex justify-end gap-2">
                 <Dialog.Close asChild>
-                  <button className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-black/50 hover:border-black/30">
+                  <button type="button" className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-black/50 hover:border-black/30">
                     Cancel
                   </button>
                 </Dialog.Close>
                 <button
                   type="button"
+                  data-testid="workspace-create-submit"
                   onClick={handleCreate}
                   disabled={createWorkspace.status === "pending" || !newName.trim()}
                   className={cn(
@@ -107,7 +113,9 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
         </Dialog.Root>
       </div>
 
-      <div className="mt-4 space-y-2">
+      {/* Scrollable workspace list */}
+      <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
+        <div className="space-y-2">
         {isLoading && (
           <div className="rounded-xl border border-dashed border-black/10 bg-white p-3 text-sm text-black/40">
             Loading workspaces…
@@ -134,25 +142,26 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                 "space-y-2 rounded-2xl border border-black/5 bg-white p-3",
                 isActive ? "border-black/20 shadow-sm" : "",
               )}
+              data-testid="workspace-card"
+              data-workspace={workspace.directory}
               data-active={isActive ? "true" : "false"}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
                   {editingDirectory === workspace.directory ? (
-                    <input
-                      value={editingValue}
-                      onChange={(event) => setEditingValue(event.target.value)}
-                      onBlur={() => handleRename(workspace.directory)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          handleRename(workspace.directory)
-                        } else if (event.key === "Escape") {
-                          setEditingDirectory(null)
-                        }
-                      }}
-                      className="w-full rounded-xl border border-black/10 px-3 py-1 text-[15px] outline-none focus:border-black/30"
-                      autoFocus
-                    />
+                      <input
+                        value={editingValue}
+                        onChange={(event) => setEditingValue(event.target.value)}
+                        onBlur={() => handleRename(workspace.directory)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            handleRename(workspace.directory)
+                          } else if (event.key === "Escape") {
+                            setEditingDirectory(null)
+                          }
+                        }}
+                        className="w-full rounded-xl border border-black/10 px-3 py-1 text-[15px] outline-none focus:border-black/30"
+                      />
                   ) : (
                     <button
                       type="button"
@@ -160,7 +169,11 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                       className="text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-[15px] font-semibold text-[#1d1a17]">
+                        <span
+                          data-testid="workspace-label"
+                          data-workspace={workspace.directory}
+                          className="text-[15px] font-semibold text-[#1d1a17]"
+                        >
                           {workspace.label}
                         </span>
                         {isActive && (
@@ -181,7 +194,7 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                     onClick={() => reorderWorkspace(workspace.directory, "up")}
                     disabled={index === 0}
                     className="rounded-full border border-black/10 p-1 text-black/50 hover:border-black/30"
-                    title="Move workspace up"
+                    aria-label="Move workspace up"
                   >
                     <ArrowUp size={14} />
                   </button>
@@ -190,16 +203,17 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                     onClick={() => reorderWorkspace(workspace.directory, "down")}
                     disabled={index === workspaces.length - 1}
                     className="rounded-full border border-black/10 p-1 text-black/50 hover:border-black/30"
-                    title="Move workspace down"
+                    aria-label="Move workspace down"
                   >
                     <ArrowDown size={14} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  data-testid="workspace-toggle"
                   onClick={() => toggleWorkspace(workspace.directory, !workspace.enabled)}
                   className={cn(
                     "rounded-xl px-3 py-1 text-[12px] font-semibold",
@@ -212,6 +226,7 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                 </button>
                 <button
                   type="button"
+                  data-testid="workspace-rename"
                   onClick={() => {
                     setEditingDirectory(workspace.directory)
                     setEditingValue(workspace.label)
@@ -222,6 +237,7 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                 </button>
                 <button
                   type="button"
+                  data-testid="workspace-reset"
                   onClick={() => resetWorkspace.mutate(workspace.directory)}
                   disabled={isResetting}
                   className="rounded-xl border border-black/10 px-3 py-1 text-[12px] font-semibold text-black/60 hover:border-black/30"
@@ -231,6 +247,7 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
                 </button>
                 <button
                   type="button"
+                  data-testid="workspace-delete"
                   onClick={() => removeWorkspace.mutate(workspace.directory)}
                   disabled={isRemoving}
                   className="rounded-xl border border-transparent px-3 py-1 text-[12px] font-semibold text-red-600 hover:bg-red-50"
@@ -242,6 +259,7 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import {
   DEFAULT_SHORTCUTS,
   SETTINGS_STORAGE_KEY,
   formatShortcutFromEvent,
+  loadPreferredAgent,
   loadShortcuts,
   matchesShortcut,
   normalizeShortcut,
@@ -36,6 +37,17 @@ describe("shortcuts", () => {
     const loaded = loadShortcuts()
     expect(loaded.newSession).toBe("Ctrl+N")
     expect(loaded.openCommandPalette).toBe(DEFAULT_SHORTCUTS.openCommandPalette)
+  })
+
+  it("loads preferred agent from settings", () => {
+    window.localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        defaultAgent: "plan",
+      }),
+    )
+
+    expect(loadPreferredAgent()).toBe("plan")
   })
 
   it("formats keyboard events into shortcut strings", () => {

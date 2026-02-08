@@ -1,6 +1,15 @@
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Keyboard, Globe, Key, Palette, Terminal, Bot } from "lucide-react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { X, Keyboard, Globe, Key, Palette, Terminal, Bot, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useDialog } from "../context/DialogContext"
+import { useServer } from "../context/ServerContext"
+import { useAgents } from "../hooks/useAgents"
+import { providerAuthQueryKey, useProviderAuth } from "../hooks/useProviderAuth"
+import { modelsQueryKey } from "../hooks/useModels"
+import { providersQueryKey, useProviders } from "../hooks/useProviders"
+import { openCodeService } from "../services/OpenCodeClient"
+import { DialogConnectProvider } from "./DialogConnectProvider"
 import {
   DEFAULT_SHORTCUTS,
   SETTINGS_STORAGE_KEY,
@@ -31,6 +40,7 @@ type SettingsState = {
   notifyOnAgentCompletion: boolean
   defaultShell: "Default" | "Bash" | "Zsh" | "Fish"
   language: "English" | "Deutsch" | "Español" | "Français"
+  defaultAgent: string
   shortcuts: ShortcutMap
 }
 
@@ -40,6 +50,7 @@ const defaultSettings: SettingsState = {
   notifyOnAgentCompletion: false,
   defaultShell: "Default",
   language: "English",
+  defaultAgent: "",
   shortcuts: { ...DEFAULT_SHORTCUTS },
 }
 
@@ -55,6 +66,7 @@ function loadSettings(): SettingsState {
       notifyOnAgentCompletion: Boolean(parsed.notifyOnAgentCompletion),
       defaultShell: parsed.defaultShell ?? defaultSettings.defaultShell,
       language: parsed.language ?? defaultSettings.language,
+      defaultAgent: typeof parsed.defaultAgent === "string" ? parsed.defaultAgent : defaultSettings.defaultAgent,
       shortcuts: {
         ...DEFAULT_SHORTCUTS,
         ...(parsed.shortcuts ?? {}),
@@ -84,6 +96,9 @@ export function SettingsDialog() {
             <Dialog.Title className="mb-6 px-2 text-[15px] font-semibold text-[#1d1a17]">
               Settings
             </Dialog.Title>
+            <Dialog.Description className="sr-only">
+              Configure OpenSpace preferences, shortcuts, providers, and agent behavior.
+            </Dialog.Description>
             <nav className="space-y-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon
@@ -139,7 +154,12 @@ export function SettingsDialog() {
               />
             )}
             {activeTab === "providers" && <ProvidersSettings />}
-            {activeTab === "agents" && <AgentsSettings />}
+            {activeTab === "agents" && (
+              <AgentsSettings
+                defaultAgent={settings.defaultAgent}
+                onDefaultAgentChange={(defaultAgent) => setSettings((prev) => ({ ...prev, defaultAgent }))}
+              />
+            )}
             {activeTab === "terminal" && (
               <TerminalSettings
                 defaultShell={settings.defaultShell}
@@ -230,6 +250,7 @@ type ShortcutRow = {
 
 const shortcutRows: ShortcutRow[] = [
   { id: "openCommandPalette", label: "Open Command Palette" },
+  { id: "openSettings", label: "Open Settings" },
   { id: "newSession", label: "New Session" },
   { id: "toggleSidebar", label: "Toggle Sidebar" },
   { id: "toggleTerminal", label: "Toggle Terminal" },
@@ -297,22 +318,174 @@ function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
 }
 
 function ProvidersSettings() {
+  const server = useServer()
+  const dialog = useDialog()
+  const queryClient = useQueryClient()
+  const providersQuery = useProviders()
+  const providerAuthQuery = useProviderAuth()
+
+  const disconnectProvider = useMutation({
+    mutationFn: async (providerID: string) => {
+      await openCodeService.client.auth.remove({ providerID })
+      return providerID
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: providersQueryKey(server.activeUrl, openCodeService.directory),
+      })
+      queryClient.invalidateQueries({
+        queryKey: providerAuthQueryKey(server.activeUrl, openCodeService.directory),
+      })
+      queryClient.invalidateQueries({
+        queryKey: modelsQueryKey(server.activeUrl, openCodeService.directory),
+      })
+    },
+  })
+
+  const providers = providersQuery.data?.all ?? []
+  const connectedProviders = new Set(providersQuery.data?.connected ?? [])
+  const defaults = providersQuery.data?.default ?? {}
+  const authMap = providerAuthQuery.data ?? {}
+
+  if (providersQuery.isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-black/60">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading providers...
+      </div>
+    )
+  }
+
+  if (providers.length === 0) {
+    return (
+      <div className="space-y-4">
+        <p className="text-[13px] text-black/50">Manage AI provider connections.</p>
+        <div className="rounded-xl border border-black/[0.05] bg-black/[0.01] p-4">
+          <p className="text-[13px] text-black/40">No providers available from the active OpenCode server.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <p className="text-[13px] text-black/50">Manage AI provider connections.</p>
-      <div className="rounded-xl border border-black/[0.05] bg-black/[0.01] p-4">
-        <p className="text-[13px] text-black/40">Provider management coming soon...</p>
+    <div className="space-y-5">
+      <p className="text-[13px] text-black/50">Manage AI provider connections and default models.</p>
+      <div className="space-y-2">
+        {providers.map((provider) => {
+          const isConnected = connectedProviders.has(provider.id)
+          const isAuthenticated =
+            Boolean((authMap as Record<string, { authenticated?: boolean } | undefined>)[provider.id]?.authenticated)
+          const modelCount = Object.keys(provider.models ?? {}).length
+          const defaultModelId = defaults[provider.id]
+          const defaultModelName = defaultModelId
+            ? provider.models?.[defaultModelId]?.name ?? defaultModelId
+            : undefined
+          const isDisconnecting =
+            disconnectProvider.isPending && disconnectProvider.variables === provider.id
+
+          return (
+            <div
+              key={provider.id}
+              className="flex items-center justify-between rounded-xl border border-black/[0.06] bg-white px-4 py-3"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-[13px] font-semibold text-[#1d1a17]">{provider.name}</span>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      isConnected || isAuthenticated ? "bg-emerald-50 text-emerald-700" : "bg-black/[0.04] text-black/50"
+                    }`}
+                  >
+                    {isConnected || isAuthenticated ? "Connected" : "Disconnected"}
+                  </span>
+                </div>
+                <div className="mt-1 text-[12px] text-black/50">
+                  {modelCount} model{modelCount === 1 ? "" : "s"}
+                  {defaultModelName ? ` · Default: ${defaultModelName}` : ""}
+                </div>
+              </div>
+              {isConnected || isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => disconnectProvider.mutate(provider.id)}
+                  disabled={isDisconnecting}
+                  className="min-w-[104px] rounded-lg border border-black/10 px-3 py-1.5 text-[12px] font-medium text-black/70 hover:border-black/25 disabled:opacity-50"
+                >
+                  {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => dialog.show(<DialogConnectProvider providerId={provider.id} />)}
+                  className="min-w-[104px] rounded-lg bg-[#1d1a17] px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-90"
+                >
+                  Connect
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function AgentsSettings() {
+type AgentsSettingsProps = {
+  defaultAgent: string
+  onDefaultAgentChange: (defaultAgent: string) => void
+}
+
+function AgentsSettings({ defaultAgent, onDefaultAgentChange }: AgentsSettingsProps) {
+  const agentsQuery = useAgents()
+  const agents = agentsQuery.data ?? []
+
   return (
-    <div className="space-y-4">
-      <p className="text-[13px] text-black/50">Configure default agents and behavior.</p>
-      <div className="rounded-xl border border-black/[0.05] bg-black/[0.01] p-4">
-        <p className="text-[13px] text-black/40">Agent settings coming soon...</p>
+    <div className="space-y-5">
+      <p className="text-[13px] text-black/50">Configure the default agent used for new prompts.</p>
+      {agentsQuery.isLoading ? (
+        <div className="flex items-center gap-2 text-sm text-black/60">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading agents...
+        </div>
+      ) : (
+        <>
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] text-black/70">Default Agent</span>
+            <select
+              value={defaultAgent}
+              onChange={(event) => onDefaultAgentChange(event.target.value)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
+              <option value="">Automatic (build, then first available)</option>
+              {agents.map((agent) => (
+                <option key={agent.name} value={agent.name}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="space-y-2 rounded-xl border border-black/[0.05] bg-black/[0.01] p-3">
+            {agents.length === 0 ? (
+              <p className="text-[13px] text-black/40">No agents available from the active OpenCode server.</p>
+            ) : (
+              agents.map((agent) => (
+                <div key={agent.name} className="flex items-start gap-2 rounded-lg bg-white px-3 py-2">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 text-black/35" />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-[#1d1a17]">{agent.name}</div>
+                    {agent.description && (
+                      <div className="truncate text-[12px] text-black/50">{agent.description}</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+      <div className="text-[12px] text-black/45">
+        Automatic mode uses <code className="rounded bg-black/5 px-1 py-0.5">build</code> when available.
       </div>
     </div>
   )

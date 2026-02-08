@@ -3,7 +3,7 @@ import { storage } from "../utils/storage"
 import { normalizeServerUrl } from "../utils/server"
 import { openCodeService } from "../services/OpenCodeClient"
 
-type ServerContextType = {
+export type ServerContextType = {
   activeUrl: string
   defaultUrl: string | null
   servers: string[]
@@ -14,7 +14,8 @@ type ServerContextType = {
   setDefault: (url: string | null) => void
 }
 
-const ServerContext = createContext<ServerContextType | undefined>(undefined)
+// eslint-disable-next-line react-refresh/only-export-components
+export const ServerContext = createContext<ServerContextType | undefined>(undefined)
 
 type ServerProviderProps = {
   children: ReactNode

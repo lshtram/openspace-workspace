@@ -1,8 +1,10 @@
 /* eslint-disable react-hooks/refs */
 import clsx from "clsx"
 import { useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { Image, ArrowUp, Square } from "lucide-react"
+import { Image, ArrowUp, Square, Layers } from "lucide-react"
 import type { PromptAttachment } from "../types/opencode"
+import { ContextPanel } from "./ContextPanel"
+import { getSuggestionContext } from "../utils/promptSuggestions"
 
 type PromptInputProps = {
   value: string
@@ -38,109 +40,22 @@ export function PromptInput({
   const fileRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [isContextPanelOpen, setIsContextPanelOpen] = useState(false)
 
   const suggestionContext = useMemo(() => {
-    const normalizePath = (input: string) =>
-      input.replace(/\\/g, "/").replace(/^\.?\//, "").trim()
-
-    const toSearchKey = (input: string) => input.toLowerCase().replace(/[^a-z0-9]/g, "")
-
-    const isSubsequence = (query: string, target: string) => {
-      if (!query) return true
-      let cursor = 0
-      for (const char of target) {
-        if (char === query[cursor]) cursor += 1
-        if (cursor === query.length) return true
-      }
-      return false
-    }
-
-    const matchScore = (query: string, target: string) => {
-      if (!query) return 0
-      const queryKey = toSearchKey(query)
-      const targetKey = toSearchKey(target)
-
-      if (target.includes(query)) return 0
-      if (isSubsequence(query, target)) return 1
-      if (queryKey && targetKey.includes(queryKey)) return 2
-      if (queryKey && isSubsequence(queryKey, targetKey)) return 3
-      return null
-    }
-
-    const getFiltered = (rawQuery: string) => {
-      const normalizedQuery = normalizePath(rawQuery).toLowerCase()
-      const rootPrefix = projectRootName ? `${projectRootName.toLowerCase()}/` : ""
-      const withoutRoot =
-        rootPrefix && normalizedQuery.startsWith(rootPrefix)
-          ? normalizedQuery.slice(rootPrefix.length)
-          : normalizedQuery
-      const queryVariants = Array.from(
-        new Set([normalizedQuery, withoutRoot].filter((value) => value.length > 0)),
-      )
-
-      return fileSuggestions
-        .map((item, index) => {
-          const normalizedItem = normalizePath(item).toLowerCase()
-          const rootPrefixedItem = rootPrefix ? `${rootPrefix}${normalizedItem}` : normalizedItem
-          if (queryVariants.length === 0) {
-            return { item, index, score: 0 }
-          }
-
-          let bestScore: number | null = null
-          for (const query of queryVariants) {
-            for (const target of [normalizedItem, rootPrefixedItem]) {
-              const score = matchScore(query, target)
-              if (score === null) continue
-              if (bestScore === null || score < bestScore) bestScore = score
-            }
-          }
-
-          if (bestScore === null) return null
-          return { item, index, score: bestScore }
-        })
-        .filter((entry): entry is { item: string; index: number; score: number } => entry !== null)
-        .sort((a, b) => (a.score === b.score ? a.index - b.index : a.score - b.score))
-        .map((entry) => entry.item)
-        .slice(0, 8)
-    }
-
     const textarea = textareaRef.current
     const cursor = textarea?.selectionStart ?? value.length
-    const before = value.slice(0, cursor)
-
-    const openMatch = before.match(/(?:^|\s)\/open\s+([^\n]*)$/)
-    if (openMatch) {
-      const query = openMatch[1]?.trim() ?? ""
-      const filtered = getFiltered(query)
-      const openTokenStart = before.lastIndexOf("/open", cursor)
-      return {
-        mode: "open" as const,
-        query,
-        filtered,
-        replaceStart: openTokenStart >= 0 ? openTokenStart : cursor - openMatch[1].length,
-      }
-    }
-
-    const mentionMatch = before.match(/(?:^|\s)@([^\s@]*)$/)
-    if (mentionMatch) {
-      const query = mentionMatch[1] ?? ""
-      const filtered = getFiltered(query)
-      return {
-        mode: "mention" as const,
-        query,
-        filtered,
-        replaceStart: cursor - mentionMatch[1].length - 1,
-      }
-    }
-
-    return null
+    return getSuggestionContext(value, cursor, fileSuggestions, projectRootName)
   }, [fileSuggestions, projectRootName, value])
+
+  const contextPanelItems = useMemo(() => fileSuggestions.slice(0, 16), [fileSuggestions])
 
   const selectSuggestion = (selectedPath: string) => {
     const textarea = textareaRef.current
-    if (!textarea || !suggestionContext) return
+    if (!textarea) return
     const cursor = textarea.selectionStart ?? value.length
-    const before = value.slice(0, suggestionContext.replaceStart)
+    const replaceStart = suggestionContext?.replaceStart ?? cursor
+    const before = value.slice(0, replaceStart)
     const after = value.slice(cursor)
     const next = `${before}@${selectedPath} ${after}`
     onChange(next)
@@ -231,7 +146,7 @@ export function PromptInput({
                   className="group relative flex h-16 w-16 overflow-hidden rounded-xl border border-black/5"
                 >
                   {item.mime.startsWith("image/") ? (
-                    <img src={item.dataUrl} className="h-full w-full object-cover" />
+                    <img src={item.dataUrl} alt={item.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-black/5 text-[10px] font-medium uppercase tracking-tighter">
                       PDF
@@ -257,7 +172,24 @@ export function PromptInput({
           
           <div className="flex items-center gap-1.5">
             {rightSection}
-            
+
+            <button
+              type="button"
+              aria-label="Open context panel"
+              data-testid="context-panel-button"
+              disabled={disabled}
+              onClick={() => setIsContextPanelOpen((prev) => !prev)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-[#1d1a17]/40 transition hover:bg-black/5 hover:text-[#1d1a17]"
+            >
+              <Layers className="h-4.5 w-4.5" />
+            </button>
+            <ContextPanel
+              items={contextPanelItems}
+              open={isContextPanelOpen}
+              onOpenChange={setIsContextPanelOpen}
+              onInsert={selectSuggestion}
+            />
+
             <button
               type="button"
               disabled={disabled && !isPending}
@@ -266,7 +198,7 @@ export function PromptInput({
             >
               <Image className="h-4.5 w-4.5" />
             </button>
-            
+
             <button
               type="button"
               onClick={isPending ? onAbort : onSubmit}

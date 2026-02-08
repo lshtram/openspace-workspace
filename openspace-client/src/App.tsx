@@ -21,6 +21,7 @@ import { useServer } from "./context/ServerContext"
 import {
   DEFAULT_SHORTCUTS,
   SETTINGS_UPDATED_EVENT,
+  emitOpenSettings,
   isEditableTarget,
   loadShortcuts,
   matchesShortcut,
@@ -262,6 +263,12 @@ function App() {
         return
       }
 
+      if (matchesShortcut(event, shortcuts.openSettings)) {
+        event.preventDefault()
+        emitOpenSettings()
+        return
+      }
+
       if (isEditableTarget(event.target)) return
 
       if (matchesShortcut(event, shortcuts.newSession)) {
@@ -299,6 +306,12 @@ function App() {
   useEffect(() => {
     const unregister = [
       registerCommand({
+        id: "open-settings",
+        title: "Open Settings",
+        shortcut: shortcuts.openSettings,
+        action: emitOpenSettings,
+      }),
+      registerCommand({
         id: "new-session",
         title: "New Session",
         shortcut: shortcuts.newSession,
@@ -332,6 +345,7 @@ function App() {
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
     setTerminalExpanded,
+    shortcuts.openSettings,
     shortcuts.newSession,
     shortcuts.toggleFileTree,
     shortcuts.toggleSidebar,

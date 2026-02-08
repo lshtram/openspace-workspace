@@ -13,6 +13,7 @@ import { ContextMeter } from "./ContextMeter"
 import { MessageList } from "./MessageList"
 import { ModelSelector } from "./ModelSelector"
 import { PromptInput } from "./PromptInput"
+import { SETTINGS_UPDATED_EVENT, loadPreferredAgent } from "../utils/shortcuts"
 
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -34,6 +35,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
   const directory = directoryProp ?? openCodeService.directory
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
+  const [preferredAgent, setPreferredAgent] = useState<string | undefined>(() => loadPreferredAgent())
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<PromptAttachment[]>([])
   const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set())
@@ -58,8 +60,17 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     () => (Array.isArray(agentsQuery.data) ? agentsQuery.data.map((agent) => agent.name) : []),
     [agentsQuery.data],
   )
-  const defaultAgent = agentNames.includes("build") ? "build" : agentNames[0]
+  const preferredDefaultAgent = preferredAgent && agentNames.includes(preferredAgent) ? preferredAgent : undefined
+  const defaultAgent = preferredDefaultAgent ?? (agentNames.includes("build") ? "build" : agentNames[0])
   const activeAgent = selectedAgent ?? defaultAgent
+
+  useEffect(() => {
+    const refreshPreferredAgent = () => {
+      setPreferredAgent(loadPreferredAgent())
+    }
+    window.addEventListener(SETTINGS_UPDATED_EVENT, refreshPreferredAgent)
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, refreshPreferredAgent)
+  }, [])
 
   const onAddAttachment = async (files: FileList | null) => {
     if (!files || files.length === 0) return

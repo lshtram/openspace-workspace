@@ -72,43 +72,47 @@ export function SessionSidebar({
 
   return (
     <aside className="flex h-full w-[260px] flex-col bg-[#fcfbf9] border-r border-black/[0.03] animate-in slide-in-from-left duration-300">
-      <div className="flex flex-col gap-1 px-6 pt-6 pb-4">
-        <h2 className="text-[17px] font-bold text-[#1d1a17]">{projectName}</h2>
-        <p className="truncate text-[13px] text-black/40" title={projectPath}>
-          {projectPath}
-        </p>
-        {currentDirectory && currentDirectory !== projectPath && (
-          <p className="truncate text-[12px] text-black/30" title={currentDirectory}>
-            Workspace: {currentDirectory}
+      {/* Fixed header section */}
+      <div className="flex-shrink-0">
+        <div className="flex flex-col gap-1 px-6 pt-6 pb-4">
+          <h2 className="text-[17px] font-bold text-[#1d1a17]">{projectName}</h2>
+          <p className="truncate text-[13px] text-black/40" title={projectPath}>
+            {projectPath}
           </p>
+          {currentDirectory && currentDirectory !== projectPath && (
+            <p className="truncate text-[12px] text-black/30" title={currentDirectory}>
+              Workspace: {currentDirectory}
+            </p>
+          )}
+        </div>
+
+        <div className="px-4 mb-4">
+          <button
+            onClick={onNewSession}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/5 bg-white py-2.5 text-[14px] font-medium text-[#1d1a17] shadow-sm transition-all hover:bg-black/[0.02] active:scale-[0.98]"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            <span>New session</span>
+          </button>
+        </div>
+
+        {(unseenCount ?? 0) > 0 && onSelectNextUnseen && (
+          <div className="px-4 mb-3">
+            <button
+              onClick={onSelectNextUnseen}
+              className="flex w-full items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100"
+            >
+              <span>Next unseen</span>
+              <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                {unseenCount}
+              </span>
+            </button>
+          </div>
         )}
       </div>
 
-      <div className="px-4 mb-4">
-        <button
-          onClick={onNewSession}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/5 bg-white py-2.5 text-[14px] font-medium text-[#1d1a17] shadow-sm transition-all hover:bg-black/[0.02] active:scale-[0.98]"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>New session</span>
-        </button>
-      </div>
-
-      {(unseenCount ?? 0) > 0 && onSelectNextUnseen && (
-        <div className="px-4 mb-3">
-          <button
-            onClick={onSelectNextUnseen}
-            className="flex w-full items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100"
-          >
-            <span>Next unseen</span>
-            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
-              {unseenCount}
-            </span>
-          </button>
-        </div>
-      )}
-
-      <ScrollArea.Root className="flex-1 overflow-hidden">
+      {/* Scrollable sessions area - grows to fill available space */}
+      <ScrollArea.Root className="flex-1 overflow-hidden min-h-0">
         <ScrollArea.Viewport className="h-full px-2 pb-4">
           <div className="space-y-0.5">
             {sessions.map((session) => {
@@ -231,11 +235,15 @@ export function SessionSidebar({
           <ScrollArea.Thumb className="relative flex-1 rounded-[10px] bg-black/10" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
-      <WorkspaceManager
-        projectPath={projectPath}
-        currentDirectory={currentDirectory}
-        onSwitchWorkspace={onSwitchWorkspace}
-      />
+      
+      {/* Fixed workspace manager at bottom with max-height and internal scrolling */}
+      <div className="flex-shrink-0 border-t border-black/[0.03]">
+        <WorkspaceManager
+          projectPath={projectPath}
+          currentDirectory={currentDirectory}
+          onSwitchWorkspace={onSwitchWorkspace}
+        />
+      </div>
     </aside>
   )
 }

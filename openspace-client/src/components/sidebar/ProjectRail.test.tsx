@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { screen, fireEvent } from '@testing-library/react'
+import { screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '../../test/utils'
 import { ProjectRail, type Project } from './ProjectRail'
@@ -91,7 +91,7 @@ describe('ProjectRail', () => {
     expect(badge).toBeInTheDocument()
   })
 
-  it('should open settings menu when settings button is clicked', async () => {
+  it('should open settings dialog when settings button is clicked', async () => {
     const user = userEvent.setup({ delay: null })
     renderWithProviders(
       <ProjectRail
@@ -107,8 +107,9 @@ describe('ProjectRail', () => {
     
     await user.click(settingsButton)
     
-    expect(await screen.findByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('API Keys')).toBeInTheDocument()
-    expect(screen.getByText('Theme')).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByRole('heading', { name: 'General' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Shortcuts' })).toBeInTheDocument()
   })
 })

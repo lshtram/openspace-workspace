@@ -8,7 +8,7 @@ import { render, type RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement, ReactNode } from 'react'
 import { DialogProvider } from '../../context/DialogContext'
-import { ServerProvider } from '../../context/ServerContext'
+import { ServerContext, ServerProvider, type ServerContextType } from '../../context/ServerContext'
 import { CommandPaletteProvider } from '../../context/CommandPaletteContext'
 
 /**
@@ -36,20 +36,31 @@ export function createTestQueryClient() {
 interface TestProvidersProps {
   children: ReactNode
   queryClient?: QueryClient
+  serverContextValue?: ServerContextType
 }
 
-function TestProviders({ children, queryClient }: TestProvidersProps) {
+function TestProviders({ children, queryClient, serverContextValue }: TestProvidersProps) {
   const client = queryClient || createTestQueryClient()
   
   return (
     <QueryClientProvider client={client}>
-      <ServerProvider>
-        <CommandPaletteProvider>
-          <DialogProvider>
-            {children}
-          </DialogProvider>
-        </CommandPaletteProvider>
-      </ServerProvider>
+      {serverContextValue ? (
+        <ServerContext.Provider value={serverContextValue}>
+          <CommandPaletteProvider>
+            <DialogProvider>
+              {children}
+            </DialogProvider>
+          </CommandPaletteProvider>
+        </ServerContext.Provider>
+      ) : (
+        <ServerProvider>
+          <CommandPaletteProvider>
+            <DialogProvider>
+              {children}
+            </DialogProvider>
+          </CommandPaletteProvider>
+        </ServerProvider>
+      )}
     </QueryClientProvider>
   )
 }
@@ -62,17 +73,18 @@ function TestProviders({ children, queryClient }: TestProvidersProps) {
  */
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient
+  serverContextValue?: ServerContextType
 }
 
 export function renderWithProviders(
   ui: ReactElement,
   options?: CustomRenderOptions
 ) {
-  const { queryClient, ...renderOptions } = options || {}
+  const { queryClient, serverContextValue, ...renderOptions } = options || {}
   
   return render(ui, {
     wrapper: ({ children }) => (
-      <TestProviders queryClient={queryClient}>
+      <TestProviders queryClient={queryClient} serverContextValue={serverContextValue}>
         {children}
       </TestProviders>
     ),

@@ -1,0 +1,1 @@
+/Users/opencode/.config/opencode/nso/hooks/post_tool_use/profiler.py

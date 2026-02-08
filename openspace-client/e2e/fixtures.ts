@@ -10,24 +10,29 @@ type TestFixtures = {
   seedProject: (path: string, name: string) => Promise<void>
 }
 
+// Use dream-news as the default test project
 export const testProjectPath =
-  process.env.OPENCODE_E2E_DIR || path.resolve(process.cwd(), "e2e", "workspace")
+  process.env.OPENCODE_E2E_DIR || "/Users/Shared/dev/dream-news"
 
-async function ensureTestProject(dir: string) {
+export async function ensureTestProject(dir: string) {
+  // Create basic project structure if it doesn't exist
+  // Note: For real projects like dream-news, this will be a no-op since files already exist
   await fs.mkdir(dir, { recursive: true })
   await fs.mkdir(path.join(dir, "src"), { recursive: true })
   await fs.mkdir(path.join(dir, "src", "types"), { recursive: true })
   await fs.mkdir(path.join(dir, ".opencode", "docs"), { recursive: true })
   await fs.mkdir(path.join(dir, "docs"), { recursive: true })
+  
   const readmePath = path.join(dir, "README.md")
   const indexPath = path.join(dir, "src", "index.ts")
   const typesIndexPath = path.join(dir, "src", "types", "index.ts")
   const techDocPath = path.join(dir, ".opencode", "docs", "TECHDOC1.md")
   const reqDocPath = path.join(dir, "docs", "REQ-002-FEATUREX.md")
+  
   try {
     await fs.access(readmePath)
   } catch {
-    await fs.writeFile(readmePath, "# OpenSpace E2E\n")
+    await fs.writeFile(readmePath, "# E2E Test Project\n")
   }
   try {
     await fs.access(indexPath)

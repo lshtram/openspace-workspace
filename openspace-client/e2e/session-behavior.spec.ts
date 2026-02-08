@@ -60,6 +60,7 @@ test("archive toggle and delete active session", async ({ page, gotoHome, seedPr
   const rows = page.locator('[data-session-id]')
   const activeRow = page.locator('[data-session-id][data-active="true"]').first()
   const nextRow = rows.nth(1)
+  await activeRow.scrollIntoViewIfNeeded()
   await expect(activeRow).toBeVisible()
 
   await openSessionMenu(page, activeRow)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PromptInput } from './PromptInput'
 import type { PromptAttachment } from '../types/opencode'
@@ -214,6 +214,32 @@ describe('PromptInput', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(onChange).toHaveBeenCalledWith('@docs/REQ-002-FEATUREX.md ')
+  })
+
+  it('should open the context panel and insert a suggestion', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
+
+    render(
+      <PromptInput
+        {...defaultProps}
+        value=""
+        onChange={onChange}
+        onSubmit={onSubmit}
+        fileSuggestions={['README.md', 'src/index.ts']}
+      />
+    )
+
+    const contextButton = screen.getByTestId('context-panel-button')
+    await user.click(contextButton)
+
+    const suggestions = await screen.findAllByTestId('context-panel-item')
+    await user.click(suggestions[0])
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('@README.md ')
+    })
   })
 
   it('should call onSubmit when submit button is clicked', async () => {

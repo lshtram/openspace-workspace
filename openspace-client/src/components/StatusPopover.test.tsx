@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '../test/utils'
 import { StatusPopover } from './StatusPopover'
 import { useMcpStatus, useMcpToggle } from '../hooks/useMcp'
 import { useLspStatus } from '../hooks/useLsp'
 import { useConfig } from '../hooks/useConfig'
-import { checkServerHealth } from '../utils/serverHealth'
+import { checkServerHealth, type ServerHealth } from '../utils/serverHealth'
 
 // Mock hooks
 vi.mock('../hooks/useMcp', () => ({
@@ -57,14 +57,16 @@ describe('StatusPopover', () => {
     vi.mocked(checkServerHealth).mockResolvedValue({ healthy: true, version: '1.1.51' })
   })
 
-  it('should render trigger button with connected status', () => {
+  it('should render trigger button with connected status', async () => {
     renderWithProviders(<StatusPopover connected={true} />)
+    await waitFor(() => expect(checkServerHealth).toHaveBeenCalled())
     expect(screen.getByText('Connected')).toBeInTheDocument()
     expect(screen.getByRole('button')).toHaveClass('bg-emerald-50')
   })
 
-  it('should render trigger button with offline status', () => {
+  it('should render trigger button with offline status', async () => {
     renderWithProviders(<StatusPopover connected={false} />)
+    await waitFor(() => expect(checkServerHealth).toHaveBeenCalled())
     expect(screen.getByText('Offline')).toBeInTheDocument()
     expect(screen.getByRole('button')).toHaveClass('bg-red-50')
   })
@@ -184,5 +186,59 @@ describe('StatusPopover', () => {
     // Check Plugins empty state
     await user.click(screen.getByText('Plugins'))
     expect(await screen.findByText(/No plugins active/)).toBeInTheDocument()
+  })
+
+  it('should switch to healthy server when clicked', async () => {
+    const user = userEvent.setup({ delay: null })
+    const setActive = vi.fn()
+    const serverContextValue = {
+      activeUrl: 'http://primary',
+      defaultUrl: 'http://primary',
+      servers: ['http://primary', 'http://server-2'],
+      addServer: vi.fn(),
+      setActive,
+      removeServer: vi.fn(),
+      replaceServer: vi.fn(),
+      setDefault: vi.fn(),
+    }
+
+    renderWithProviders(<StatusPopover connected={true} />, { serverContextValue })
+
+    await user.click(screen.getByRole('button'))
+    await waitFor(() => expect(checkServerHealth).toHaveBeenCalled())
+
+    const serverButton = await screen.findByLabelText(/server-2/i)
+    await user.click(serverButton)
+
+    expect(setActive).toHaveBeenCalledWith('http://server-2')
+  })
+
+  it('should not activate blocked server', async () => {
+    const user = userEvent.setup({ delay: null })
+    const setActive = vi.fn()
+    const serverContextValue = {
+      activeUrl: 'http://primary',
+      defaultUrl: 'http://primary',
+      servers: ['http://primary', 'http://blocked'],
+      addServer: vi.fn(),
+      setActive,
+      removeServer: vi.fn(),
+      replaceServer: vi.fn(),
+      setDefault: vi.fn(),
+    }
+
+    vi.mocked(checkServerHealth).mockImplementation(async (url: string) => ({
+      healthy: url.includes('blocked') ? false : true,
+    } as ServerHealth))
+
+    renderWithProviders(<StatusPopover connected={true} />, { serverContextValue })
+
+    await user.click(screen.getByRole('button'))
+    await waitFor(() => expect(checkServerHealth).toHaveBeenCalledTimes(2))
+
+    const serverButton = await screen.findByLabelText(/blocked/i)
+    expect(serverButton).toBeDisabled()
+    await user.click(serverButton)
+    expect(setActive).not.toHaveBeenCalled()
   })
 })

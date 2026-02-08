@@ -1,7 +1,8 @@
-import { useMemo, useCallback, useEffect } from "react"
+import { useMemo, useCallback, useEffect, useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 import { storage, type StoredWorkspaceMeta } from "../utils/storage"
+import type { Worktree, WorktreeCreateError } from "../lib/opencode/v2/gen/types.gen"
 
 export type WorkspaceItem = {
   directory: string
@@ -15,6 +16,7 @@ type ReorderDirection = "up" | "down"
 export function useWorkspaces(directory: string | undefined) {
   const queryClient = useQueryClient()
   const queryKey = ["workspaces", directory]
+  const [metaVersion, setMetaVersion] = useState(0)
 
   const workspacesQuery = useQuery({
     queryKey,
@@ -24,10 +26,14 @@ export function useWorkspaces(directory: string | undefined) {
   })
 
   const merged = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    metaVersion // Track version to force re-render
     const directories: string[] = workspacesQuery.data?.data ?? []
     const metas = storage.getWorkspaceMeta()
     const map = new Map<string, StoredWorkspaceMeta>()
-    metas.forEach((meta) => map.set(meta.directory, meta))
+    metas.forEach((meta) => {
+      map.set(meta.directory, meta)
+    })
     return directories
       .map((directory, index) => {
         const meta = map.get(directory)
@@ -43,7 +49,7 @@ export function useWorkspaces(directory: string | undefined) {
         }
       })
       .sort((a, b) => a.order - b.order)
-  }, [workspacesQuery.data?.data])
+  }, [workspacesQuery.data?.data, metaVersion])
 
   const syncMetadata = useCallback(() => {
     if (merged.length === 0) return
@@ -67,26 +73,30 @@ export function useWorkspaces(directory: string | undefined) {
 
     if (changed) {
       storage.saveWorkspaceMeta(updated)
+      setMetaVersion((v) => v + 1)
     }
   }, [merged])
 
   useEffect(() => {
-    syncMetadata()
+    // Schedule metadata sync to avoid synchronous state updates in effect
+    const timeoutId = setTimeout(syncMetadata, 0)
+    return () => clearTimeout(timeoutId)
   }, [syncMetadata])
 
-  const updateMeta = (directory: string, patch: Partial<StoredWorkspaceMeta>) => {
+  const updateMeta = useCallback((directory: string, patch: Partial<StoredWorkspaceMeta>) => {
     storage.updateWorkspaceMeta(directory, patch)
-  }
+    setMetaVersion((v) => v + 1)
+  }, [])
 
-  const toggleWorkspace = (workspaceDirectory: string, enabled: boolean) => {
+  const toggleWorkspace = useCallback((workspaceDirectory: string, enabled: boolean) => {
     updateMeta(workspaceDirectory, { enabled })
-  }
+  }, [updateMeta])
 
-  const renameWorkspace = (workspaceDirectory: string, label: string) => {
+  const renameWorkspace = useCallback((workspaceDirectory: string, label: string) => {
     updateMeta(workspaceDirectory, { label })
-  }
+  }, [updateMeta])
 
-  const reorderWorkspace = (workspaceDirectory: string, direction: ReorderDirection) => {
+  const reorderWorkspace = useCallback((workspaceDirectory: string, direction: ReorderDirection) => {
     const currentIndex = merged.findIndex((item) => item.directory === workspaceDirectory)
     if (currentIndex < 0) return
     const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
@@ -98,16 +108,21 @@ export function useWorkspaces(directory: string | undefined) {
 
     const metas = storage.getWorkspaceMeta()
     const map = new Map<string, StoredWorkspaceMeta>()
-    metas.forEach((meta) => map.set(meta.directory, { ...meta }))
+    metas.forEach((meta) => {
+      map.set(meta.directory, { ...meta })
+    })
+    
     reordered.forEach((workspace, index) => {
       const meta = map.get(workspace.directory) ?? { directory: workspace.directory }
       meta.order = index
       map.set(workspace.directory, meta)
     })
+    
     storage.saveWorkspaceMeta(Array.from(map.values()))
-  }
+    setMetaVersion((v) => v + 1)
+  }, [merged])
 
-  const createWorkspace = useMutation<unknown, unknown, string>({
+  const createWorkspace = useMutation<{ data?: Worktree }, WorktreeCreateError, string>({
     mutationFn: (name: string) => {
       if (!directory) {
         return Promise.reject(new Error("Missing directory"))
@@ -119,7 +134,11 @@ export function useWorkspaces(directory: string | undefined) {
         },
       })
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // response.data contains the Worktree info
+      if (response?.data?.directory) {
+        updateMeta(response.data.directory, { enabled: true })
+      }
       queryClient.invalidateQueries({ queryKey })
     },
   })

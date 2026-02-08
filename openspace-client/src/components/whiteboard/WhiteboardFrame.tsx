@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Excalidraw, exportToBlob } from '@excalidraw/excalidraw';
 import { reconcileGraph } from '../../lib/whiteboard/reconcile';
 import { openCodeService } from '../../services/OpenCodeClient';
@@ -25,10 +25,21 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
   const excalidrawPath = mmdPath.replace('.graph.mmd', '.excalidraw');
 
   // Multi-window sync channel
-  const channel = useMemo(() => new BroadcastChannel(`whiteboard-${excalidrawPath}`), [excalidrawPath]);
+  const channelRef = React.useRef<BroadcastChannel | null>(null);
+  
+  // Keep track of latest state for the event listener to avoid re-creating channel
+  const stateRef = React.useRef({ elements, excalidrawAPI });
+  useEffect(() => {
+    stateRef.current = { elements, excalidrawAPI };
+  }, [elements, excalidrawAPI]);
 
   useEffect(() => {
+    const channel = new BroadcastChannel(`whiteboard-${excalidrawPath}`);
+    channelRef.current = channel;
+
     channel.onmessage = (event) => {
+      const { elements, excalidrawAPI } = stateRef.current;
+      
       if (event.data.type === 'UPDATE_ELEMENTS' && excalidrawAPI) {
         // Only update if elements are different to avoid loops
         if (JSON.stringify(event.data.elements) !== JSON.stringify(elements)) {
@@ -37,8 +48,12 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
         }
       }
     };
-    return () => channel.close();
-  }, [channel, excalidrawAPI, elements]);
+    
+    return () => {
+      channel.close();
+      channelRef.current = null;
+    };
+  }, [excalidrawPath]);
 
   // Load initial data
   useEffect(() => {
@@ -105,7 +120,9 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
     save(nextElements, excalidrawAPI);
     
     // Broadcast to other windows
-    channel.postMessage({ type: 'UPDATE_ELEMENTS', elements: nextElements });
+    if (channelRef.current) {
+      channelRef.current.postMessage({ type: 'UPDATE_ELEMENTS', elements: nextElements });
+    }
   };
 
   const onUserCommit = async () => {

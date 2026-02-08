@@ -14,6 +14,12 @@
   - Low confidence (<20%) = normal conversation
   - No explicit `/router` command needed
 
+- **Internal Hub API Pattern**: For complex artifacts (like whiteboards) that require central storage and multimodal access:
+  - Implement a central `ArtifactStore` (The Spine) in a dedicated hub service.
+  - Expose the store via a local HTTP Internal API (e.g., Express) to allow communication from MCP servers and other tools.
+  - Implement MCP servers (The Hands) that wrap the Internal API as tools (`read_whiteboard`, `update_whiteboard`).
+  - Use ESM for MCP servers and Hub components to leverage modern SDKs and libraries (like `node-fetch`).
+
 ## Coding Standards
 - TDD Mandatory (RED -> GREEN -> REFACTOR).
 - Logical logging (LOG FIRST).

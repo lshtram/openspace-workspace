@@ -1,0 +1,2 @@
+{"ts":"2026-02-08T18:15:42.464Z","artifact":"whiteboards/test-whiteboard-1770574542387.json","action":"CREATE","actor":"user","reason":"test","size_bytes":45}
+{"ts":"2026-02-08T18:16:09.660Z","artifact":"whiteboards/mcp-test-1770574569609.json","action":"CREATE","actor":"agent","reason":"Updated via update_whiteboard tool","size_bytes":79}

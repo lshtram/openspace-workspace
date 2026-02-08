@@ -23,6 +23,7 @@
     "validate": "./scripts/pre-pr.sh"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.17.6",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.10",
@@ -32,9 +33,11 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.20",
     "clsx": "^2.1.1",
+    "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
     "fuzzysort": "^3.1.0",
     "lucide-react": "^0.563.0",
+    "mermaid": "^11.12.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -55,6 +58,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@tsconfig/node22": "^22.0.5",
+    "@types/dagre": "^0.7.53",
     "@types/node": "^24.10.11",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

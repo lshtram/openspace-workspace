@@ -1,5 +1,15 @@
 # Patterns
 
+## MULTIMODAL MODULARITY (CRITICAL)
+ALL MODALITY COMPONENTS MUST BE DECOUPLED, MODULAR, AND DESIGNED TO SURVIVE MAJOR CLIENT-SIDE REFACTORS. MODALITIES ARE PLUGGABLE EXTENSIONS TO THE MULTIMODAL SPINE.
+
+1. **Decoupled Architecture**: Modalities (Whiteboard, Code Annotations, etc.) must not have direct dependencies on the core Client UI framework where possible. Use standardized interfaces (The Spine).
+2. **Stable Persistence**: Modality state must survive even if the Client shell is completely replaced.
+3. **Two-Tier Modality Pattern**: 
+   - **Canonical Layer (Semantic Truth)**: Human/Agent readable logic (e.g., Mermaid, Markdown). Owned by Agent reasoning.
+   - **Projection Layer (Visual State)**: UI-specific metadata (e.g., Excalidraw positions, scroll states). Owned by User interaction.
+4. **The Spine Principle (Single Writer)**: All filesystem writes must be serialized through a central Artifact Store in the Main Process to prevent race conditions.
+
 ## Architectural Patterns
 
 ### Component Architecture

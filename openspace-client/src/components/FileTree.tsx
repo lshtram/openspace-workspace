@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { FileNode } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { useFileStatus } from "../hooks/useFileStatus"
+import { useLayout } from "../context/LayoutContext"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Folder, FolderOpen, File as FileIcon, ChevronRight, ChevronDown } from "lucide-react"
@@ -22,6 +23,7 @@ type FileTreeProps = {
 
 export function FileTree({ directory: directoryProp }: FileTreeProps) {
   const directory = directoryProp ?? openCodeService.directory
+  const { setActiveWhiteboardPath } = useLayout()
   const [state, setState] = useState<NodeState>({
     nodes: {},
     expanded: new Set(["."]),
@@ -101,7 +103,13 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       <div key={node.path}>
         <button
           type="button"
-          onClick={() => (isDir ? void toggle(node.path) : undefined)}
+          onClick={() => {
+            if (isDir) {
+              void toggle(node.path)
+            } else if (node.path.endsWith('.graph.mmd') || node.path.endsWith('.excalidraw')) {
+              setActiveWhiteboardPath(node.path)
+            }
+          }}
           draggable={!isDir}
           onDragStart={(e) => {
              e.dataTransfer.setData("text/plain", node.path)

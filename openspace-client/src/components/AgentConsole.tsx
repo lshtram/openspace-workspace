@@ -14,6 +14,7 @@ import { MessageList } from "./MessageList"
 import { ModelSelector } from "./ModelSelector"
 import { RichPromptInput } from "./RichPromptInput"
 import { SETTINGS_UPDATED_EVENT, loadPreferredAgent } from "../utils/shortcuts"
+import { useLayout } from "../context/LayoutContext"
 import type { Prompt } from "./RichEditor"
 
 const readAsDataUrl = (file: File) =>
@@ -33,6 +34,7 @@ type AgentConsoleProps = {
 export function AgentConsole({ sessionId, onSessionCreated, directory: directoryProp }: AgentConsoleProps) {
   const queryClient = useQueryClient()
   const server = useServer()
+  const { setActiveWhiteboardPath } = useLayout()
   const directory = directoryProp ?? openCodeService.directory
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
@@ -287,6 +289,17 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     const text = prompt.trim()
     const partsToUse = richParts || (text ? [{ type: 'text' as const, content: text }] : [])
     if (partsToUse.length === 0 && attachments.length === 0) return
+
+    // Handle /whiteboard command
+    const firstPart = partsToUse[0]
+    if (firstPart?.type === 'text' && firstPart.content.startsWith('/whiteboard')) {
+      const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
+      const path = `design/${name}.graph.mmd`
+      setActiveWhiteboardPath(path)
+      setPrompt("")
+      return
+    }
+
     if (!selectedModel || !activeAgent) return
 
     let activeSessionId = sessionId

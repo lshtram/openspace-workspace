@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { AgentConsole } from "./components/AgentConsole"
+import { WhiteboardFrame } from "./components/whiteboard/WhiteboardFrame"
 import { FileTree } from "./components/FileTree"
 import { Terminal } from "./components/Terminal"
 import { CommandPalette } from "./components/CommandPalette"
@@ -43,6 +44,8 @@ function App() {
     setRightSidebarExpanded,
     setTerminalExpanded,
     setTerminalHeight,
+    activeWhiteboardPath,
+    setActiveWhiteboardPath,
   } = useLayout()
   const { openPalette, registerCommand } = useCommandPalette()
 
@@ -472,12 +475,30 @@ function App() {
           <main className="flex h-full min-w-0 flex-1 flex-col p-4 pl-2 pr-4 pb-4">
             <div className="flex h-full overflow-hidden rounded-[32px] border border-black/10 bg-white shadow-sm">
               <div className="flex flex-1 flex-col min-w-0 relative">
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <AgentConsole 
-                    directory={activeDirectory}
-                    sessionId={activeSessionId} 
-                    onSessionCreated={setActiveSession} 
-                  />
+                <div className="flex min-h-0 flex-1">
+                  <div className={activeWhiteboardPath ? "w-1/2 border-r" : "w-full"}>
+                    <AgentConsole 
+                      directory={activeDirectory}
+                      sessionId={activeSessionId} 
+                      onSessionCreated={setActiveSession} 
+                    />
+                  </div>
+                  {activeWhiteboardPath && (
+                    <div className="w-1/2 relative bg-gray-50">
+                      <WhiteboardFrame 
+                        filePath={activeWhiteboardPath} 
+                        sessionId={activeSessionId}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setActiveWhiteboardPath(null)}
+                        className="absolute top-2 right-2 p-1 bg-white border rounded shadow hover:bg-gray-100 z-10"
+                        title="Close Whiteboard"
+                      >
+                        <span className="text-xs font-bold px-1">×</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {terminalExpanded && (

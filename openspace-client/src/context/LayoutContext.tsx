@@ -9,6 +9,8 @@ type LayoutContextType = {
   setTerminalExpanded: Dispatch<SetStateAction<boolean>>
   terminalHeight: number
   setTerminalHeight: Dispatch<SetStateAction<number>>
+  activeWhiteboardPath: string | null
+  setActiveWhiteboardPath: Dispatch<SetStateAction<string | null>>
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
@@ -18,6 +20,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(true)
   const [terminalExpanded, setTerminalExpanded] = useState(true)
   const [terminalHeight, setTerminalHeight] = useState(240)
+  const [activeWhiteboardPath, setActiveWhiteboardPath] = useState<string | null>(null)
 
   return (
     <LayoutContext.Provider
@@ -30,6 +33,8 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         setTerminalExpanded,
         terminalHeight,
         setTerminalHeight,
+        activeWhiteboardPath,
+        setActiveWhiteboardPath,
       }}
     >
       {children}

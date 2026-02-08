@@ -12,6 +12,7 @@ import { openCodeService } from "./services/OpenCodeClient"
 import { useSessions, sessionsQueryKey } from "./hooks/useSessions"
 import { DEFAULT_MESSAGE_LIMIT, fetchMessages, messagesQueryKey } from "./hooks/useMessages"
 import { useUpdateSession, useDeleteSession } from "./hooks/useSessionActions"
+import { DialogOpenFile } from "./components/DialogOpenFile"
 import { storage } from "./utils/storage"
 import { useLayout } from "./context/LayoutContext"
 import { useDialog } from "./context/DialogContext"
@@ -198,6 +199,10 @@ function App() {
     createSessionRef.current.mutate()
   }, [])
 
+  const handleOpenFile = useCallback(() => {
+    show(<DialogOpenFile directory={activeDirectory} />)
+  }, [activeDirectory, show])
+
   const handleDeleteSession = useCallback(
     (id: string) => {
       const remaining = sessions.filter((session) => session.id !== id)
@@ -269,6 +274,12 @@ function App() {
         return
       }
 
+      if (matchesShortcut(event, shortcuts.openFile)) {
+        event.preventDefault()
+        handleOpenFile()
+        return
+      }
+
       if (isEditableTarget(event.target)) return
 
       if (matchesShortcut(event, shortcuts.newSession)) {
@@ -295,6 +306,7 @@ function App() {
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [
+    handleOpenFile,
     handleNewSession,
     openPalette,
     setLeftSidebarExpanded,
@@ -316,6 +328,12 @@ function App() {
         title: "New Session",
         shortcut: shortcuts.newSession,
         action: handleNewSession,
+      }),
+      registerCommand({
+        id: "open-file",
+        title: "Open File",
+        shortcut: shortcuts.openFile,
+        action: handleOpenFile,
       }),
       registerCommand({
         id: "toggle-sidebar",
@@ -340,11 +358,13 @@ function App() {
       unregister.forEach((cleanup) => cleanup())
     }
   }, [
+    handleOpenFile,
     handleNewSession,
     registerCommand,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
     setTerminalExpanded,
+    shortcuts.openFile,
     shortcuts.openSettings,
     shortcuts.newSession,
     shortcuts.toggleFileTree,

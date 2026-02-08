@@ -5,6 +5,7 @@ export const OPEN_SETTINGS_EVENT = "openspace:open-settings"
 export type ShortcutAction =
   | "openCommandPalette"
   | "openSettings"
+  | "openFile"
   | "newSession"
   | "toggleSidebar"
   | "toggleTerminal"
@@ -15,6 +16,7 @@ export type ShortcutMap = Record<ShortcutAction, string>
 export const DEFAULT_SHORTCUTS: ShortcutMap = {
   openCommandPalette: "Mod+K",
   openSettings: "Mod+,",
+  openFile: "Mod+O",
   newSession: "Mod+N",
   toggleSidebar: "Mod+B",
   toggleTerminal: "Mod+J",

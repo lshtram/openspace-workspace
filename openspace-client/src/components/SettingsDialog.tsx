@@ -251,6 +251,7 @@ type ShortcutRow = {
 const shortcutRows: ShortcutRow[] = [
   { id: "openCommandPalette", label: "Open Command Palette" },
   { id: "openSettings", label: "Open Settings" },
+  { id: "openFile", label: "Open File" },
   { id: "newSession", label: "New Session" },
   { id: "toggleSidebar", label: "Toggle Sidebar" },
   { id: "toggleTerminal", label: "Toggle Terminal" },
@@ -294,6 +295,7 @@ function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
         <button
           type="button"
           onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
+          data-testid="shortcut-reset-defaults"
           className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
         >
           Reset defaults
@@ -306,9 +308,12 @@ function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
             <button
               type="button"
               onClick={() => setCapturing(row.id)}
+              data-testid={`shortcut-capture-${row.id}`}
               className="min-w-[160px] rounded-md bg-black/[0.04] px-2 py-1 text-center font-mono text-[11px] text-black/70 hover:bg-black/[0.08]"
             >
-              {capturing === row.id ? "Press keys..." : shortcuts[row.id] || "Not set"}
+              <span data-testid={`shortcut-value-${row.id}`}>
+                {capturing === row.id ? "Press keys..." : shortcuts[row.id] || "Not set"}
+              </span>
             </button>
           </div>
         ))}

@@ -163,7 +163,9 @@ describe("useTerminal", () => {
   })
 
   it("sends keepalive cleanup on beforeunload for active PTYs", async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true }))
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<{ ok: boolean }>>(
+      async () => ({ ok: true }),
+    )
     const originalFetch = globalThis.fetch
     vi.stubGlobal("fetch", fetchMock)
 
@@ -185,8 +187,9 @@ describe("useTerminal", () => {
     })
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/pty/pty-keepalive")
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+    const firstFetchCall = fetchMock.mock.calls[0]
+    expect(String(firstFetchCall?.[0])).toContain("/pty/pty-keepalive")
+    expect(firstFetchCall[1]).toMatchObject({
       method: "DELETE",
       keepalive: true,
     })

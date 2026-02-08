@@ -8,6 +8,7 @@ type TestFixtures = {
   sdk: OpencodeClient
   gotoHome: () => Promise<void>
   seedProject: (path: string, name: string) => Promise<void>
+  terminalJanitor: void
 }
 
 // Use dream-news as the default test project
@@ -96,6 +97,28 @@ export const test = base.extend<TestFixtures>({
     }
     await use(gotoHome)
   },
+
+  terminalJanitor: [async ({ sdk }, use) => {
+    await use()
+
+    try {
+      const response = await sdk.pty.list({ directory: testProjectPath })
+      const ptys = response.data ?? []
+      const leaked = ptys.filter(
+        (pty) => typeof pty.title === "string" && pty.title.startsWith("openspace-client-terminal"),
+      )
+      await Promise.allSettled(
+        leaked.map((pty) =>
+          sdk.pty.remove({
+            ptyID: pty.id,
+            directory: testProjectPath,
+          }),
+        ),
+      )
+    } catch {
+      // Best effort cleanup for E2E stability.
+    }
+  }, { auto: true }],
 })
 
 export { expect }

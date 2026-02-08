@@ -10,11 +10,66 @@ type TerminalState = {
   error?: string
 }
 
+export const TERMINAL_PTY_TITLE = "openspace-client-terminal"
+
+type ActivePtyRegistration = {
+  ptyID: string
+  directory: string
+  baseUrl: string
+}
+
+const activeTerminalPtys = new Map<string, ActivePtyRegistration>()
+let cleanupListenersBound = false
+
 const getTerminalTheme = () => {
   const styles = getComputedStyle(document.documentElement)
   const background = styles.getPropertyValue("--terminal-bg").trim() || "#151312"
   const foreground = styles.getPropertyValue("--terminal-fg").trim() || "#f6f3ef"
   return { background, foreground }
+}
+
+const buildPtyDeleteUrl = ({ ptyID, directory, baseUrl }: ActivePtyRegistration) => {
+  const url = new URL(`${baseUrl}/pty/${ptyID}`)
+  url.searchParams.set("directory", directory)
+  return url.toString()
+}
+
+const sendKeepaliveDelete = (registration: ActivePtyRegistration) => {
+  if (typeof fetch !== "function") return
+  try {
+    void fetch(buildPtyDeleteUrl(registration), {
+      method: "DELETE",
+      keepalive: true,
+    }).catch(() => {
+      // Best effort cleanup only.
+    })
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
+const flushActiveTerminalPtys = () => {
+  for (const registration of activeTerminalPtys.values()) {
+    sendKeepaliveDelete(registration)
+  }
+  activeTerminalPtys.clear()
+}
+
+const ensureCleanupListeners = () => {
+  if (cleanupListenersBound || typeof window === "undefined") return
+
+  const onBeforeUnload = () => {
+    flushActiveTerminalPtys()
+  }
+
+  const onPageHide = (event: PageTransitionEvent) => {
+    if (event.persisted) return
+    flushActiveTerminalPtys()
+  }
+
+  window.addEventListener("beforeunload", onBeforeUnload)
+  window.addEventListener("pagehide", onPageHide)
+  cleanupListenersBound = true
 }
 
 export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
@@ -31,6 +86,8 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
   }, [resizeTrigger, state.ready])
 
   useEffect(() => {
+    ensureCleanupListeners()
+
     let disposed = false
     let socket: WebSocket | undefined
     let term: XTerm | undefined
@@ -38,14 +95,25 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
     let resizeCleanup: (() => void) | undefined
     let activePtyID: string | null = null
 
-    const removePty = async () => {
+    const removePty = async (useKeepalive = false) => {
       if (!activePtyID) return
       const ptyID = activePtyID
       activePtyID = null
+      const registration =
+        activeTerminalPtys.get(ptyID) ?? {
+          ptyID,
+          directory,
+          baseUrl: openCodeService.baseUrl,
+        }
+      activeTerminalPtys.delete(ptyID)
+      if (useKeepalive) {
+        sendKeepaliveDelete(registration)
+      }
       try {
-        await openCodeService.pty.remove({ ptyID, directory })
+        await openCodeService.pty.remove({ ptyID, directory: registration.directory })
       } catch {
-        // Best effort: avoid leaking shells on the server.
+        // Best effort: fallback to keepalive delete if API client call fails.
+        sendKeepaliveDelete(registration)
       }
     }
 
@@ -54,10 +122,16 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
 
       const ptyResponse = await openCodeService.pty.create({
         directory,
+        title: TERMINAL_PTY_TITLE,
       })
       const pty = ptyResponse.data
       if (!pty) return
       activePtyID = pty.id
+      activeTerminalPtys.set(pty.id, {
+        ptyID: pty.id,
+        directory,
+        baseUrl: openCodeService.baseUrl,
+      })
       if (disposed) {
         await removePty()
         return

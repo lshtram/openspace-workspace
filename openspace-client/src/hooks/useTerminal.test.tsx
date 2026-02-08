@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { render, waitFor } from "@testing-library/react"
-import { useTerminal } from "./useTerminal"
+import { act, render, waitFor } from "@testing-library/react"
+import { TERMINAL_PTY_TITLE, useTerminal } from "./useTerminal"
 
 type Deferred<T> = {
   promise: Promise<T>
@@ -110,7 +110,10 @@ describe("useTerminal", () => {
     const { unmount } = render(<Harness />)
 
     await waitFor(() => {
-      expect(mocks.createMock).toHaveBeenCalledWith({ directory: "/tmp/workspace" })
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/workspace",
+        title: TERMINAL_PTY_TITLE,
+      })
     })
 
     unmount()
@@ -125,7 +128,10 @@ describe("useTerminal", () => {
     const { rerender, unmount } = render(<Harness />)
 
     await waitFor(() => {
-      expect(mocks.createMock).toHaveBeenCalledWith({ directory: "/tmp/workspace" })
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/workspace",
+        title: TERMINAL_PTY_TITLE,
+      })
     })
 
     createDeferred.resolve({ data: { id: "pty-123" } })
@@ -137,7 +143,10 @@ describe("useTerminal", () => {
     rerender(<Harness directory="/tmp/alternate" />)
 
     await waitFor(() => {
-      expect(mocks.createMock).toHaveBeenCalledWith({ directory: "/tmp/alternate" })
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/alternate",
+        title: TERMINAL_PTY_TITLE,
+      })
     })
 
     await waitFor(() => {
@@ -151,5 +160,42 @@ describe("useTerminal", () => {
     await waitFor(() =>
       expect(mocks.removeMock).toHaveBeenCalledWith({ ptyID: "pty-456", directory: "/tmp/alternate" }),
     )
+  })
+
+  it("sends keepalive cleanup on beforeunload for active PTYs", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }))
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { unmount } = render(<Harness />)
+    await waitFor(() => {
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/workspace",
+        title: TERMINAL_PTY_TITLE,
+      })
+    })
+
+    await act(async () => {
+      createDeferred.resolve({ data: { id: "pty-keepalive" } })
+      await Promise.resolve()
+    })
+
+    act(() => {
+      window.dispatchEvent(new Event("beforeunload"))
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/pty/pty-keepalive")
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "DELETE",
+      keepalive: true,
+    })
+
+    unmount()
+    if (originalFetch) {
+      vi.stubGlobal("fetch", originalFetch)
+    } else {
+      Reflect.deleteProperty(globalThis, "fetch")
+    }
   })
 })

@@ -10,16 +10,45 @@ type TerminalState = {
   error?: string
 }
 
-export const TERMINAL_PTY_TITLE = "openspace-client-terminal"
+const TERMINAL_PTY_CLIENT_ID_KEY = "openspace.terminal-client-id"
+const TERMINAL_PTY_TITLE_PREFIX = "openspace-client-terminal"
+const LEGACY_TERMINAL_PTY_TITLE = TERMINAL_PTY_TITLE_PREFIX
 
 type ActivePtyRegistration = {
+  key: string
   ptyID: string
   directory: string
   baseUrl: string
+  ownerID: string
+  remove: (input: { ptyID: string; directory: string }) => Promise<unknown>
 }
 
 const activeTerminalPtys = new Map<string, ActivePtyRegistration>()
+const pendingPtyRemovals = new Map<string, Promise<void>>()
 let cleanupListenersBound = false
+let terminalOwnerCounter = 0
+
+function getTerminalClientID() {
+  if (typeof window === "undefined") return "server"
+  try {
+    const existing = window.sessionStorage.getItem(TERMINAL_PTY_CLIENT_ID_KEY)
+    if (existing) return existing
+    const next =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    window.sessionStorage.setItem(TERMINAL_PTY_CLIENT_ID_KEY, next)
+    return next
+  } catch {
+    return "unknown"
+  }
+}
+
+export const TERMINAL_PTY_TITLE = `${TERMINAL_PTY_TITLE_PREFIX}:${getTerminalClientID()}`
+
+const registrationKey = (baseUrl: string, ptyID: string) => `${baseUrl}::${ptyID}`
+const isManagedTerminalTitle = (title: string) =>
+  title === TERMINAL_PTY_TITLE || title === LEGACY_TERMINAL_PTY_TITLE
 
 const getTerminalTheme = () => {
   const styles = getComputedStyle(document.documentElement)
@@ -43,6 +72,60 @@ const sendKeepaliveDelete = (registration: ActivePtyRegistration) => {
     }).catch(() => {
       // Best effort cleanup only.
     })
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
+const removeTrackedPty = async (registration: ActivePtyRegistration, useKeepalive = false) => {
+  const existing = pendingPtyRemovals.get(registration.key)
+  if (existing) return existing
+
+  const removal = (async () => {
+    activeTerminalPtys.delete(registration.key)
+    if (useKeepalive) {
+      sendKeepaliveDelete(registration)
+      return
+    }
+    try {
+      await registration.remove({
+        ptyID: registration.ptyID,
+        directory: registration.directory,
+      })
+    } catch {
+      // Best effort fallback if SDK deletion fails.
+      sendKeepaliveDelete(registration)
+    }
+  })().finally(() => {
+    pendingPtyRemovals.delete(registration.key)
+  })
+
+  pendingPtyRemovals.set(registration.key, removal)
+  return removal
+}
+
+const cleanupStaleTerminalPtys = async (params: {
+  baseUrl: string
+  directory: string
+  list: (input: { directory: string }) => Promise<{ data?: Array<{ id: string; title: string }> }>
+  remove: (input: { ptyID: string; directory: string }) => Promise<unknown>
+}) => {
+  try {
+    const response = await params.list({ directory: params.directory })
+    const entries = response.data ?? []
+
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (!entry?.id || !isManagedTerminalTitle(entry.title)) return
+        const key = registrationKey(params.baseUrl, entry.id)
+        if (activeTerminalPtys.has(key)) return
+        try {
+          await params.remove({ ptyID: entry.id, directory: params.directory })
+        } catch {
+          // Best effort cleanup only.
+        }
+      }),
+    )
   } catch {
     // Best effort cleanup only.
   }
@@ -93,51 +176,59 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
     let term: XTerm | undefined
     let fit: FitAddon | undefined
     let resizeCleanup: (() => void) | undefined
-    let activePtyID: string | null = null
+    let dataCleanup: (() => void) | undefined
+    let resizePtyCleanup: (() => void) | undefined
+    let activePtyKey: string | null = null
+    const ownerID = `terminal-owner-${terminalOwnerCounter++}`
+    const baseUrl = server.activeUrl
+    const ptyApi = openCodeService.pty
 
     const removePty = async (useKeepalive = false) => {
-      if (!activePtyID) return
-      const ptyID = activePtyID
-      activePtyID = null
-      const registration =
-        activeTerminalPtys.get(ptyID) ?? {
-          ptyID,
-          directory,
-          baseUrl: openCodeService.baseUrl,
-        }
-      activeTerminalPtys.delete(ptyID)
-      if (useKeepalive) {
-        sendKeepaliveDelete(registration)
-      }
-      try {
-        await openCodeService.pty.remove({ ptyID, directory: registration.directory })
-      } catch {
-        // Best effort: fallback to keepalive delete if API client call fails.
-        sendKeepaliveDelete(registration)
-      }
+      if (!activePtyKey) return
+      const key = activePtyKey
+      activePtyKey = null
+      const registration = activeTerminalPtys.get(key)
+      if (!registration) return
+      if (registration.ownerID !== ownerID) return
+      await removeTrackedPty(registration, useKeepalive)
     }
 
     const connect = async () => {
       setState({ ready: false })
 
-      const ptyResponse = await openCodeService.pty.create({
+      await cleanupStaleTerminalPtys({
+        baseUrl,
+        directory,
+        list: ({ directory: listDirectory }) => ptyApi.list({ directory: listDirectory }),
+        remove: ({ ptyID, directory: removeDirectory }) => ptyApi.remove({ ptyID, directory: removeDirectory }),
+      })
+
+      const ptyResponse = await ptyApi.create({
         directory,
         title: TERMINAL_PTY_TITLE,
       })
       const pty = ptyResponse.data
       if (!pty) return
-      activePtyID = pty.id
-      activeTerminalPtys.set(pty.id, {
+      const key = registrationKey(baseUrl, pty.id)
+      activePtyKey = key
+      activeTerminalPtys.set(key, {
+        key,
         ptyID: pty.id,
         directory,
-        baseUrl: openCodeService.baseUrl,
+        baseUrl,
+        ownerID,
+        remove: ({ ptyID, directory: removeDirectory }) =>
+          ptyApi.remove({
+            ptyID,
+            directory: removeDirectory,
+          }),
       })
       if (disposed) {
         await removePty()
         return
       }
 
-      const url = new URL(`${openCodeService.baseUrl}/pty/${pty.id}/connect`)
+      const url = new URL(`${baseUrl}/pty/${pty.id}/connect`)
       url.searchParams.set("directory", directory)
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
 
@@ -168,7 +259,7 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
         xterm.write(event.data)
       })
       socket.addEventListener("open", () => {
-        void openCodeService.pty.update({
+        void ptyApi.update({
           ptyID: pty.id,
           size: { cols: xterm.cols, rows: xterm.rows },
           directory,
@@ -185,19 +276,21 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
         void removePty()
       })
 
-      xterm.onData((data) => {
+      const dataSubscription = xterm.onData((data) => {
         if (socket?.readyState === WebSocket.OPEN) {
           socket.send(data)
         }
       })
+      dataCleanup = () => dataSubscription.dispose()
 
-      xterm.onResize(({ cols, rows }) => {
-        void openCodeService.pty.update({
+      const resizeSubscription = xterm.onResize(({ cols, rows }) => {
+        void ptyApi.update({
           ptyID: pty.id,
           size: { cols, rows },
           directory,
         })
       })
+      resizePtyCleanup = () => resizeSubscription.dispose()
 
       const handleResize = () => fitAddon.fit()
       window.addEventListener("resize", handleResize)
@@ -213,6 +306,8 @@ export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
     return () => {
       disposed = true
       socket?.close()
+      dataCleanup?.()
+      resizePtyCleanup?.()
       term?.dispose()
       fit?.dispose()
       fitRef.current = null

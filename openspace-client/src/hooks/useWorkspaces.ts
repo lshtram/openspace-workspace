@@ -1,8 +1,9 @@
-import { useMemo, useCallback, useEffect, useState } from "react"
+import { useMemo, useCallback, useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 import { storage, type StoredWorkspaceMeta } from "../utils/storage"
 import type { Worktree, WorktreeCreateError } from "../lib/opencode/v2/gen/types.gen"
+import { useServer } from "../context/ServerContext"
 
 export type WorkspaceItem = {
   directory: string
@@ -13,10 +14,16 @@ export type WorkspaceItem = {
 
 type ReorderDirection = "up" | "down"
 
+export const workspacesQueryKey = (serverUrl?: string, directory?: string) => ["workspaces", serverUrl, directory]
+
 export function useWorkspaces(directory: string | undefined) {
+  const server = useServer()
   const queryClient = useQueryClient()
-  const queryKey = ["workspaces", directory]
+  const queryKey = workspacesQueryKey(server.activeUrl, directory)
   const [metaVersion, setMetaVersion] = useState(0)
+  const createInFlightRef = useRef<Map<string, Promise<{ data?: Worktree }>>>(new Map())
+  const resetInFlightRef = useRef<Map<string, Promise<unknown>>>(new Map())
+  const removeInFlightRef = useRef<Map<string, Promise<unknown>>>(new Map())
 
   const workspacesQuery = useQuery({
     queryKey,
@@ -123,16 +130,26 @@ export function useWorkspaces(directory: string | undefined) {
   }, [merged])
 
   const createWorkspace = useMutation<{ data?: Worktree }, WorktreeCreateError, string>({
+    retry: false,
     mutationFn: (name: string) => {
       if (!directory) {
         return Promise.reject(new Error("Missing directory"))
       }
-      return openCodeService.worktree.create({
-        directory,
-        worktreeCreateInput: {
-          name,
-        },
-      })
+      const dedupeKey = name.trim().toLowerCase() || name
+      const existing = createInFlightRef.current.get(dedupeKey)
+      if (existing) return existing
+      const request = openCodeService.worktree
+        .create({
+          directory,
+          worktreeCreateInput: {
+            name,
+          },
+        })
+        .finally(() => {
+          createInFlightRef.current.delete(dedupeKey)
+        })
+      createInFlightRef.current.set(dedupeKey, request)
+      return request
     },
     onSuccess: (response) => {
       // response.data contains the Worktree info
@@ -141,34 +158,61 @@ export function useWorkspaces(directory: string | undefined) {
       }
       queryClient.invalidateQueries({ queryKey })
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey })
+    },
   })
 
   const resetWorkspace = useMutation<unknown, unknown, string>({
+    retry: false,
     mutationFn: (workspaceDirectory: string) => {
       if (!directory) {
         return Promise.reject(new Error("Missing directory"))
       }
-      return openCodeService.worktree.reset({
-        directory,
-        worktreeResetInput: { directory: workspaceDirectory },
-      })
+      const existing = resetInFlightRef.current.get(workspaceDirectory)
+      if (existing) return existing
+      const request = openCodeService.worktree
+        .reset({
+          directory,
+          worktreeResetInput: { directory: workspaceDirectory },
+        })
+        .finally(() => {
+          resetInFlightRef.current.delete(workspaceDirectory)
+        })
+      resetInFlightRef.current.set(workspaceDirectory, request)
+      return request
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey })
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey })
     },
   })
 
   const removeWorkspace = useMutation<unknown, unknown, string>({
+    retry: false,
     mutationFn: (workspaceDirectory: string) => {
       if (!directory) {
         return Promise.reject(new Error("Missing directory"))
       }
-      return openCodeService.worktree.remove({
-        directory,
-        worktreeRemoveInput: { directory: workspaceDirectory },
-      })
+      const existing = removeInFlightRef.current.get(workspaceDirectory)
+      if (existing) return existing
+      const request = openCodeService.worktree
+        .remove({
+          directory,
+          worktreeRemoveInput: { directory: workspaceDirectory },
+        })
+        .finally(() => {
+          removeInFlightRef.current.delete(workspaceDirectory)
+        })
+      removeInFlightRef.current.set(workspaceDirectory, request)
+      return request
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey })
+    },
+    onError: () => {
       queryClient.invalidateQueries({ queryKey })
     },
   })

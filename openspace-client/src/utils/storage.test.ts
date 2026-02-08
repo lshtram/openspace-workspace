@@ -11,6 +11,9 @@ describe('storage utility', () => {
       setItem: (key: string, value: string) => {
         store[key] = value
       },
+      removeItem: (key: string) => {
+        delete store[key]
+      },
       clear: () => {
         store = {}
       },
@@ -86,6 +89,15 @@ describe('storage utility', () => {
       expect(storage.getProjects()).toEqual([
         { path: '/legacy/project', name: 'Legacy Project', color: 'bg-[#fce7f3]' },
       ])
+    })
+
+    it('should set storage schema version when reading legacy payloads', () => {
+      localStorage.setItem('openspace.projects', JSON.stringify([{ path: '/legacy', name: 'Legacy' }]))
+
+      const projects = storage.getProjects()
+
+      expect(projects).toEqual([{ path: '/legacy', name: 'Legacy', color: 'bg-[#fce7f3]' }])
+      expect(localStorage.getItem('openspace.storage_version')).toBe('1')
     })
   })
 
@@ -250,6 +262,20 @@ describe('storage utility', () => {
         { directory: '/ws/b', label: 'Second', enabled: false, order: 1 },
         { directory: '/ws/a', label: 'First', enabled: false, order: 3 },
       ])
+    })
+
+    it('should normalize malformed workspace payload during schema migration', () => {
+      localStorage.setItem(
+        'openspace.workspaces',
+        JSON.stringify([{ directory: '/ws/a', order: 2 }, { bad: true }, 'junk']),
+      )
+
+      const metas = storage.getWorkspaceMeta()
+      expect(metas).toEqual([{ directory: '/ws/a', label: undefined, enabled: undefined, order: 2 }])
+
+      const normalized = JSON.parse(localStorage.getItem('openspace.workspaces') || '[]')
+      expect(normalized).toEqual([{ directory: '/ws/a', order: 2 }])
+      expect(localStorage.getItem('openspace.storage_version')).toBe('1')
     })
   })
 

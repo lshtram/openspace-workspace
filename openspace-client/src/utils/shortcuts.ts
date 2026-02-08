@@ -1,4 +1,5 @@
 export const SETTINGS_STORAGE_KEY = "openspace.settings"
+export const SETTINGS_SCHEMA_VERSION = 1
 export const SETTINGS_UPDATED_EVENT = "openspace:settings-updated"
 export const OPEN_SETTINGS_EVENT = "openspace:open-settings"
 
@@ -47,7 +48,7 @@ export type AppSettings = {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  colorScheme: "System",
+  colorScheme: "Light",
   theme: "OpenSpace",
   fontFamily: "Space Grotesk",
   notifyOnAgentCompletion: false,
@@ -79,6 +80,11 @@ type StoredSettings = {
   soundNotifications?: boolean
 }
 
+type StoredSettingsEnvelope = {
+  version?: number
+  data?: StoredSettings
+} & Partial<StoredSettings>
+
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"])
 
 const FONT_FAMILY_MAP: Record<FontFamily, string> = {
@@ -102,62 +108,80 @@ export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
     if (!raw) return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
-    const parsed = JSON.parse(raw) as StoredSettings | null
+    const parsed = JSON.parse(raw) as StoredSettingsEnvelope | StoredSettings | null
     if (!parsed || typeof parsed !== "object") {
       return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
     }
+    const isEnvelope = "data" in parsed && parsed.data && typeof parsed.data === "object"
+    const stored: StoredSettings = isEnvelope ? parsed.data! : (parsed as StoredSettings)
 
     const migratedColorScheme =
-      parsed.colorScheme ??
-      (parsed.theme === "Light" || parsed.theme === "Dark" || parsed.theme === "System"
-        ? parsed.theme
+      stored.colorScheme ??
+      (stored.theme === "Light" || stored.theme === "Dark" || stored.theme === "System"
+        ? stored.theme
         : undefined)
     const colorScheme = pickEnum(migratedColorScheme, COLOR_SCHEMES, DEFAULT_SETTINGS.colorScheme)
-    const theme = pickEnum(parsed.theme, THEMES, DEFAULT_SETTINGS.theme)
-    const fontFamily = pickEnum(parsed.fontFamily, FONT_FAMILIES, DEFAULT_SETTINGS.fontFamily)
-    const language = pickEnum(parsed.language, LANGUAGES, DEFAULT_SETTINGS.language)
-    const defaultShell = pickEnum(parsed.defaultShell, SHELLS, DEFAULT_SETTINGS.defaultShell)
+    const theme = pickEnum(stored.theme, THEMES, DEFAULT_SETTINGS.theme)
+    const fontFamily = pickEnum(stored.fontFamily, FONT_FAMILIES, DEFAULT_SETTINGS.fontFamily)
+    const language = pickEnum(stored.language, LANGUAGES, DEFAULT_SETTINGS.language)
+    const defaultShell = pickEnum(stored.defaultShell, SHELLS, DEFAULT_SETTINGS.defaultShell)
     const soundOnAgentCompletion = pickEnum(
-      parsed.soundOnAgentCompletion,
+      stored.soundOnAgentCompletion,
       SOUNDS,
-      parsed.soundNotifications ? "Chime" : DEFAULT_SETTINGS.soundOnAgentCompletion,
+      stored.soundNotifications ? "Chime" : DEFAULT_SETTINGS.soundOnAgentCompletion,
     )
 
-    return {
+    const next: AppSettings = {
       ...DEFAULT_SETTINGS,
       colorScheme,
       theme,
       fontFamily,
       notifyOnAgentCompletion:
-        typeof parsed.notifyOnAgentCompletion === "boolean"
-          ? parsed.notifyOnAgentCompletion
+        typeof stored.notifyOnAgentCompletion === "boolean"
+          ? stored.notifyOnAgentCompletion
           : DEFAULT_SETTINGS.notifyOnAgentCompletion,
       notifyOnPermissionRequests:
-        typeof parsed.notifyOnPermissionRequests === "boolean"
-          ? parsed.notifyOnPermissionRequests
+        typeof stored.notifyOnPermissionRequests === "boolean"
+          ? stored.notifyOnPermissionRequests
           : DEFAULT_SETTINGS.notifyOnPermissionRequests,
       notifyOnErrors:
-        typeof parsed.notifyOnErrors === "boolean" ? parsed.notifyOnErrors : DEFAULT_SETTINGS.notifyOnErrors,
+        typeof stored.notifyOnErrors === "boolean" ? stored.notifyOnErrors : DEFAULT_SETTINGS.notifyOnErrors,
       soundOnAgentCompletion,
       checkForUpdatesOnStartup:
-        typeof parsed.checkForUpdatesOnStartup === "boolean"
-          ? parsed.checkForUpdatesOnStartup
+        typeof stored.checkForUpdatesOnStartup === "boolean"
+          ? stored.checkForUpdatesOnStartup
           : DEFAULT_SETTINGS.checkForUpdatesOnStartup,
       showReleaseNotes:
-        typeof parsed.showReleaseNotes === "boolean"
-          ? parsed.showReleaseNotes
+        typeof stored.showReleaseNotes === "boolean"
+          ? stored.showReleaseNotes
           : DEFAULT_SETTINGS.showReleaseNotes,
       defaultShell,
       language,
-      defaultAgent: typeof parsed.defaultAgent === "string" ? parsed.defaultAgent : DEFAULT_SETTINGS.defaultAgent,
+      defaultAgent: typeof stored.defaultAgent === "string" ? stored.defaultAgent : DEFAULT_SETTINGS.defaultAgent,
       shortcuts: {
         ...DEFAULT_SHORTCUTS,
-        ...(parsed.shortcuts ?? {}),
+        ...(stored.shortcuts ?? {}),
       },
     }
+    if (!isEnvelope) {
+      // Normalize legacy shape into versioned envelope.
+      saveSettings(next)
+    }
+    return next
   } catch {
     return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
   }
+}
+
+export function saveSettings(settings: AppSettings) {
+  localStorage.setItem(
+    SETTINGS_STORAGE_KEY,
+    JSON.stringify({
+      ...settings,
+      version: SETTINGS_SCHEMA_VERSION,
+      data: settings,
+    } satisfies StoredSettingsEnvelope),
+  )
 }
 
 export function applySettingsToDocument(settings: Pick<AppSettings, "colorScheme" | "theme" | "fontFamily">) {

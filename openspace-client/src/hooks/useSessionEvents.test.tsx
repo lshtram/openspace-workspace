@@ -7,9 +7,16 @@ import { messagesQueryKey } from './useMessages'
 import type { ReactNode } from 'react'
 import type { MessageEntry } from '../types/opencode'
 import { pushToastOnce } from '../utils/toastStore'
+import { storage } from '../utils/storage'
 
 vi.mock('../utils/toastStore', () => ({
   pushToastOnce: vi.fn(),
+}))
+
+vi.mock('../utils/storage', () => ({
+  storage: {
+    markSessionSeen: vi.fn(),
+  },
 }))
 
 // Mock openCodeService
@@ -402,5 +409,50 @@ describe('useSessionEvents', () => {
   it('should abort subscription on unmount', () => {
     const { unmount } = renderHook(() => useSessionEvents('session-123'), { wrapper })
     unmount()
+  })
+
+  it('deduplicates rapid duplicate events', () => {
+    let sseCallback: (event: { data: unknown }) => void = () => {}
+    vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
+      const { onSseEvent, signal } = options as {
+        onSseEvent: (e: { data: unknown }) => void
+        signal: AbortSignal
+      }
+      sseCallback = onSseEvent
+      // eslint-disable-next-line require-yield
+      const stream = (async function* () {
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) return resolve()
+          signal.addEventListener("abort", () => resolve(), { once: true })
+        })
+      })()
+      return { stream } as never
+    })
+
+    renderHook(() => useSessionEvents('session-123'), { wrapper })
+
+    const duplicateEvent = {
+      data: {
+        directory: '/test/dir',
+        payload: {
+          type: 'message.updated',
+          properties: {
+            info: {
+              id: 'msg-dup',
+              sessionID: 'session-123',
+              role: 'assistant',
+              time: { created: 123 },
+            },
+          },
+        },
+      },
+    }
+
+    act(() => {
+      sseCallback(duplicateEvent)
+      sseCallback(duplicateEvent)
+    })
+
+    expect(vi.mocked(storage.markSessionSeen)).toHaveBeenCalledTimes(1)
   })
 })

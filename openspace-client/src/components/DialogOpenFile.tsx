@@ -62,24 +62,25 @@ async function collectFiles(directory: string): Promise<FileOption[]> {
 export function DialogOpenFile({ directory, onSelect }: DialogOpenFileProps) {
   const { close } = useDialog()
   const [query, setQuery] = useState("")
-  const [loading, setLoading] = useState(true)
   const [files, setFiles] = useState<FileOption[]>([])
+  const [loadedDirectory, setLoadedDirectory] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    setLoading(true)
     void collectFiles(directory)
       .then((result) => {
         if (!active) return
         setFiles(result)
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active) setLoadedDirectory(directory)
       })
     return () => {
       active = false
     }
   }, [directory])
+
+  const loading = loadedDirectory !== directory
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()

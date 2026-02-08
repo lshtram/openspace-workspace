@@ -1,15 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRef } from "react"
 import type { Session } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { useServer } from "../context/ServerContext"
 import { sessionsQueryKey } from "./useSessions"
 
-export function useUpdateSession() {
+export function useUpdateSession(directoryProp?: string) {
   const queryClient = useQueryClient()
   const server = useServer()
-  const sessionsKey = sessionsQueryKey(server.activeUrl, openCodeService.directory)
+  const directory = directoryProp ?? openCodeService.directory
+  const sessionsKey = sessionsQueryKey(server.activeUrl, directory)
 
   return useMutation({
+    retry: false,
     mutationFn: async ({
       sessionID,
       title,
@@ -21,7 +24,7 @@ export function useUpdateSession() {
     }) => {
       const response = await openCodeService.client.session.update({
         sessionID,
-        directory: openCodeService.directory,
+        directory,
         title,
         time: archived !== undefined ? { archived: archived ? Date.now() : undefined } : undefined,
       })
@@ -71,18 +74,29 @@ export function useUpdateSession() {
   })
 }
 
-export function useDeleteSession() {
+export function useDeleteSession(directoryProp?: string) {
   const queryClient = useQueryClient()
   const server = useServer()
-  const sessionsKey = sessionsQueryKey(server.activeUrl, openCodeService.directory)
+  const directory = directoryProp ?? openCodeService.directory
+  const sessionsKey = sessionsQueryKey(server.activeUrl, directory)
+  const deleteInFlightRef = useRef<Map<string, Promise<unknown>>>(new Map())
 
   return useMutation({
+    retry: false,
     mutationFn: async (sessionID: string) => {
-      const response = await openCodeService.client.session.delete({
-        sessionID,
-        directory: openCodeService.directory,
-      })
-      return response.data
+      const existing = deleteInFlightRef.current.get(sessionID)
+      if (existing) return existing
+      const request = openCodeService.client.session
+        .delete({
+          sessionID,
+          directory,
+        })
+        .then((response) => response.data)
+        .finally(() => {
+          deleteInFlightRef.current.delete(sessionID)
+        })
+      deleteInFlightRef.current.set(sessionID, request)
+      return request
     },
     onMutate: async (sessionID: string) => {
       await queryClient.cancelQueries({ queryKey: sessionsKey })
@@ -99,6 +113,9 @@ export function useDeleteSession() {
       if (context?.previous) {
         queryClient.setQueryData(sessionsKey, context.previous)
       }
+      queryClient.invalidateQueries({
+        queryKey: sessionsKey,
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

@@ -170,8 +170,8 @@ function App() {
 
   const sessionsQuery = useSessions({ directory: activeDirectory })
   const sessions = sessionsQuery.sessions
-  const updateSession = useUpdateSession()
-  const deleteSession = useDeleteSession()
+  const updateSession = useUpdateSession(activeDirectory)
+  const deleteSession = useDeleteSession(activeDirectory)
 
   const createSession = useMutation({
     mutationFn: async () => {

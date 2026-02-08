@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => {
     setCreateDeferred(value: Deferred<{ data: { id: string } }>) {
       currentDeferred = value
     },
+    listMock: vi.fn(async () => ({ data: [] as Array<{ id: string; title: string }> })),
     createMock: vi.fn(() => {
       if (!currentDeferred) throw new Error("Missing create deferred")
       return currentDeferred.promise
@@ -76,6 +77,7 @@ vi.mock("../services/OpenCodeClient", () => ({
     baseUrl: "http://localhost:3000",
     directory: "/tmp/default",
     pty: {
+      list: mocks.listMock,
       create: mocks.createMock,
       remove: mocks.removeMock,
       update: mocks.updateMock,
@@ -100,6 +102,7 @@ describe("useTerminal", () => {
   beforeEach(() => {
     createDeferred = deferred<{ data: { id: string } }>()
     mocks.setCreateDeferred(createDeferred)
+    mocks.listMock.mockResolvedValue({ data: [] })
   })
 
   afterEach(() => {
@@ -195,6 +198,69 @@ describe("useTerminal", () => {
     })
 
     unmount()
+    if (originalFetch) {
+      vi.stubGlobal("fetch", originalFetch)
+    } else {
+      Reflect.deleteProperty(globalThis, "fetch")
+    }
+  })
+
+  it("reaps stale managed PTYs before creating a new one", async () => {
+    mocks.listMock.mockResolvedValueOnce({
+      data: [
+        { id: "stale-1", title: TERMINAL_PTY_TITLE },
+        { id: "not-managed", title: "other-terminal" },
+      ],
+    })
+
+    const { unmount } = render(<Harness />)
+
+    await waitFor(() => {
+      expect(mocks.listMock).toHaveBeenCalledWith({ directory: "/tmp/workspace" })
+    })
+    await waitFor(() => {
+      expect(mocks.removeMock).toHaveBeenCalledWith({ ptyID: "stale-1", directory: "/tmp/workspace" })
+    })
+
+    createDeferred.resolve({ data: { id: "pty-123" } })
+    await waitFor(() =>
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/workspace",
+        title: TERMINAL_PTY_TITLE,
+      }),
+    )
+
+    unmount()
+  })
+
+  it("falls back to keepalive delete when SDK remove fails", async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<{ ok: boolean }>>(
+      async () => ({ ok: true }),
+    )
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal("fetch", fetchMock)
+    mocks.removeMock.mockRejectedValueOnce(new Error("delete failed"))
+
+    const { unmount } = render(<Harness />)
+
+    await waitFor(() => {
+      expect(mocks.createMock).toHaveBeenCalledWith({
+        directory: "/tmp/workspace",
+        title: TERMINAL_PTY_TITLE,
+      })
+    })
+
+    await act(async () => {
+      createDeferred.resolve({ data: { id: "pty-fallback" } })
+      await Promise.resolve()
+    })
+
+    unmount()
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const call = fetchMock.mock.calls.find((item) => String(item[0]).includes("/pty/pty-fallback"))
+    expect(call?.[1]).toMatchObject({ method: "DELETE", keepalive: true })
+
     if (originalFetch) {
       vi.stubGlobal("fetch", originalFetch)
     } else {

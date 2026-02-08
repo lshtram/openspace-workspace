@@ -13,10 +13,10 @@ import { DialogConnectProvider } from "./DialogConnectProvider"
 import {
   applySettingsToDocument,
   DEFAULT_SHORTCUTS,
-  SETTINGS_STORAGE_KEY,
   emitSettingsUpdated,
   formatShortcutFromEvent,
   loadSettings,
+  saveSettings,
   type AgentCompletionSound,
   type AppSettings,
   type AppTheme,
@@ -168,24 +168,24 @@ export function SettingsDialog() {
 
   useEffect(() => {
     applySettingsToDocument(settings)
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    saveSettings(settings)
     emitSettingsUpdated()
   }, [settings])
 
   return (
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" />
-      <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[90vw] max-h-[85vh] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200">
-        <div className="flex h-full">
+      <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[min(85vh,760px)] w-[800px] max-w-[90vw] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+        <div className="flex h-full min-h-0">
           {/* Sidebar */}
-          <div className="w-[200px] border-r border-black/[0.03] bg-[#fafafa] p-4">
+          <div className="flex w-[200px] min-h-0 flex-col border-r border-black/[0.03] bg-[#fafafa] p-4">
             <Dialog.Title className="mb-6 px-2 text-[15px] font-semibold text-[#1d1a17]">
               {labels.settingsTitle}
             </Dialog.Title>
             <Dialog.Description className="sr-only">
               Configure OpenSpace preferences, shortcuts, providers, and agent behavior.
             </Dialog.Description>
-            <nav className="space-y-1">
+            <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
@@ -207,7 +207,7 @@ export function SettingsDialog() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex min-h-0 flex-1 flex-col p-6">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-[17px] font-semibold text-[#1d1a17]">
                 {labels.tabLabels[activeTab] ?? activeTab}
@@ -219,67 +219,69 @@ export function SettingsDialog() {
               </Dialog.Close>
             </div>
 
-            {activeTab === "general" && (
-              <GeneralSettings
-                labels={labels}
-                colorScheme={settings.colorScheme}
-                theme={settings.theme}
-                fontFamily={settings.fontFamily}
-                notifyOnAgentCompletion={settings.notifyOnAgentCompletion}
-                notifyOnPermissionRequests={settings.notifyOnPermissionRequests}
-                notifyOnErrors={settings.notifyOnErrors}
-                soundOnAgentCompletion={settings.soundOnAgentCompletion}
-                checkForUpdatesOnStartup={settings.checkForUpdatesOnStartup}
-                showReleaseNotes={settings.showReleaseNotes}
-                onColorSchemeChange={(colorScheme) => setSettings((prev) => ({ ...prev, colorScheme }))}
-                onThemeChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
-                onFontFamilyChange={(fontFamily) => setSettings((prev) => ({ ...prev, fontFamily }))}
-                onNotifyOnPermissionRequestsChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, notifyOnPermissionRequests: enabled }))
-                }
-                onNotifyOnErrorsChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, notifyOnErrors: enabled }))
-                }
-                onSoundOnAgentCompletionChange={(soundOnAgentCompletion) =>
-                  setSettings((prev) => ({ ...prev, soundOnAgentCompletion }))
-                }
-                onNotifyOnAgentCompletionChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, notifyOnAgentCompletion: enabled }))
-                }
-                onCheckForUpdatesOnStartupChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, checkForUpdatesOnStartup: enabled }))
-                }
-                onShowReleaseNotesChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, showReleaseNotes: enabled }))
-                }
-              />
-            )}
-            {activeTab === "shortcuts" && (
-              <ShortcutsSettings
-                shortcuts={settings.shortcuts}
-                onChange={(shortcuts) => setSettings((prev) => ({ ...prev, shortcuts }))}
-              />
-            )}
-            {activeTab === "providers" && <ProvidersSettings />}
-            {activeTab === "agents" && (
-              <AgentsSettings
-                defaultAgent={settings.defaultAgent}
-                onDefaultAgentChange={(defaultAgent) => setSettings((prev) => ({ ...prev, defaultAgent }))}
-              />
-            )}
-            {activeTab === "terminal" && (
-              <TerminalSettings
-                defaultShell={settings.defaultShell}
-                onDefaultShellChange={(shell) => setSettings((prev) => ({ ...prev, defaultShell: shell }))}
-              />
-            )}
-            {activeTab === "language" && (
-              <LanguageSettings
-                labels={labels}
-                language={settings.language}
-                onLanguageChange={(language) => setSettings((prev) => ({ ...prev, language }))}
-              />
-            )}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              {activeTab === "general" && (
+                <GeneralSettings
+                  labels={labels}
+                  colorScheme={settings.colorScheme}
+                  theme={settings.theme}
+                  fontFamily={settings.fontFamily}
+                  notifyOnAgentCompletion={settings.notifyOnAgentCompletion}
+                  notifyOnPermissionRequests={settings.notifyOnPermissionRequests}
+                  notifyOnErrors={settings.notifyOnErrors}
+                  soundOnAgentCompletion={settings.soundOnAgentCompletion}
+                  checkForUpdatesOnStartup={settings.checkForUpdatesOnStartup}
+                  showReleaseNotes={settings.showReleaseNotes}
+                  onColorSchemeChange={(colorScheme) => setSettings((prev) => ({ ...prev, colorScheme }))}
+                  onThemeChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
+                  onFontFamilyChange={(fontFamily) => setSettings((prev) => ({ ...prev, fontFamily }))}
+                  onNotifyOnPermissionRequestsChange={(enabled) =>
+                    setSettings((prev) => ({ ...prev, notifyOnPermissionRequests: enabled }))
+                  }
+                  onNotifyOnErrorsChange={(enabled) =>
+                    setSettings((prev) => ({ ...prev, notifyOnErrors: enabled }))
+                  }
+                  onSoundOnAgentCompletionChange={(soundOnAgentCompletion) =>
+                    setSettings((prev) => ({ ...prev, soundOnAgentCompletion }))
+                  }
+                  onNotifyOnAgentCompletionChange={(enabled) =>
+                    setSettings((prev) => ({ ...prev, notifyOnAgentCompletion: enabled }))
+                  }
+                  onCheckForUpdatesOnStartupChange={(enabled) =>
+                    setSettings((prev) => ({ ...prev, checkForUpdatesOnStartup: enabled }))
+                  }
+                  onShowReleaseNotesChange={(enabled) =>
+                    setSettings((prev) => ({ ...prev, showReleaseNotes: enabled }))
+                  }
+                />
+              )}
+              {activeTab === "shortcuts" && (
+                <ShortcutsSettings
+                  shortcuts={settings.shortcuts}
+                  onChange={(shortcuts) => setSettings((prev) => ({ ...prev, shortcuts }))}
+                />
+              )}
+              {activeTab === "providers" && <ProvidersSettings />}
+              {activeTab === "agents" && (
+                <AgentsSettings
+                  defaultAgent={settings.defaultAgent}
+                  onDefaultAgentChange={(defaultAgent) => setSettings((prev) => ({ ...prev, defaultAgent }))}
+                />
+              )}
+              {activeTab === "terminal" && (
+                <TerminalSettings
+                  defaultShell={settings.defaultShell}
+                  onDefaultShellChange={(shell) => setSettings((prev) => ({ ...prev, defaultShell: shell }))}
+                />
+              )}
+              {activeTab === "language" && (
+                <LanguageSettings
+                  labels={labels}
+                  language={settings.language}
+                  onLanguageChange={(language) => setSettings((prev) => ({ ...prev, language }))}
+                />
+              )}
+            </div>
           </div>
         </div>
       </Dialog.Content>
@@ -587,7 +589,7 @@ function ProvidersSettings() {
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-black/50">Manage AI provider connections and default models.</p>
-      <div className="space-y-2">
+      <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
         {providers.map((provider) => {
           const isConnected = connectedProviders.has(provider.id)
           const isAuthenticated =
@@ -682,7 +684,7 @@ function AgentsSettings({ defaultAgent, onDefaultAgentChange }: AgentsSettingsPr
             </select>
           </label>
 
-          <div className="space-y-2 rounded-xl border border-black/[0.05] bg-black/[0.01] p-3">
+          <div className="max-h-[300px] space-y-2 overflow-y-auto rounded-xl border border-black/[0.05] bg-black/[0.01] p-3 pr-2">
             {agents.length === 0 ? (
               <p className="text-[13px] text-black/40">No agents available from the active OpenCode server.</p>
             ) : (

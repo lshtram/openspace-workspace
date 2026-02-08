@@ -10,6 +10,7 @@ import {
   loadShortcuts,
   matchesShortcut,
   normalizeShortcut,
+  SETTINGS_SCHEMA_VERSION,
 } from "./shortcuts"
 
 describe("shortcuts", () => {
@@ -53,6 +54,26 @@ describe("shortcuts", () => {
     expect(loadPreferredAgent()).toBe("plan")
   })
 
+  it("loads settings from versioned storage envelope", () => {
+    window.localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        version: SETTINGS_SCHEMA_VERSION,
+        data: {
+          colorScheme: "Dark",
+          shortcuts: {
+            openCommandPalette: "Mod+P",
+          },
+        },
+      }),
+    )
+
+    const settings = loadSettings()
+    expect(settings.colorScheme).toBe("Dark")
+    expect(settings.shortcuts.openCommandPalette).toBe("Mod+P")
+    expect(settings.shortcuts.newSession).toBe(DEFAULT_SHORTCUTS.newSession)
+  })
+
   it("loads full settings with defaults", () => {
     expect(loadSettings()).toEqual({
       ...DEFAULT_SETTINGS,
@@ -71,6 +92,9 @@ describe("shortcuts", () => {
     const settings = loadSettings()
     expect(settings.colorScheme).toBe("Dark")
     expect(settings.theme).toBe("OpenSpace")
+    const stored = JSON.parse(window.localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}")
+    expect(stored.version).toBe(SETTINGS_SCHEMA_VERSION)
+    expect(stored.data?.colorScheme).toBe("Dark")
   })
 
   it("applies visual settings to document root", () => {

@@ -67,6 +67,7 @@ const updateMessageEntries = (
 }
 
 const SESSION_SEEN_EVENT = "openspace:session-seen"
+const EVENT_DEDUP_WINDOW_MS = 1500
 
 const getEnvelopeSessionId = (
   envelope: { type: string; properties?: Record<string, unknown> },
@@ -88,12 +89,32 @@ const getEnvelopeSessionId = (
   return undefined
 }
 
+const getEnvelopeDedupeKey = (envelope: { type: string; properties?: Record<string, unknown> }): string | null => {
+  if (envelope.type === "message.updated") {
+    const info = envelope.properties?.info as Message | undefined
+    if (!info?.id) return null
+    const infoTime = info.time as { updated?: number; created?: number } | undefined
+    const stamp = infoTime?.updated ?? infoTime?.created ?? ""
+    return `${envelope.type}:${info.id}:${stamp}`
+  }
+
+  if (envelope.type === "message.removed") {
+    const messageID = envelope.properties?.messageID as string | undefined
+    const sessionID = envelope.properties?.sessionID as string | undefined
+    if (!messageID) return null
+    return `${envelope.type}:${sessionID ?? ""}:${messageID}`
+  }
+
+  return null
+}
+
 export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   const queryClient = useQueryClient()
   const directory = directoryProp ?? openCodeService.directory
   const server = useServer()
   const lastErrorRef = useRef(0)
   const hasShownErrorRef = useRef(false)
+  const recentEventMapRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     if (!sessionId) return
@@ -124,6 +145,20 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
       if (!data?.payload) return
       if (data.directory !== directory) return
       const envelope = data.payload
+      const dedupeKey = getEnvelopeDedupeKey(envelope)
+      if (dedupeKey) {
+        const now = Date.now()
+        const previous = recentEventMapRef.current.get(dedupeKey)
+        if (typeof previous === "number" && now - previous < EVENT_DEDUP_WINDOW_MS) {
+          return
+        }
+        recentEventMapRef.current.set(dedupeKey, now)
+        for (const [key, timestamp] of recentEventMapRef.current.entries()) {
+          if (now - timestamp > EVENT_DEDUP_WINDOW_MS) {
+            recentEventMapRef.current.delete(key)
+          }
+        }
+      }
       const envelopeSessionId = getEnvelopeSessionId(envelope)
       if (envelopeSessionId) {
         const now = Date.now()
@@ -185,6 +220,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
             return
           }
           hasShownErrorRef.current = false
+          attempt = 0
 
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           for await (const _ of stream) {

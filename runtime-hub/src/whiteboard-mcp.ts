@@ -37,25 +37,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["name"],
         },
       },
-      {
-        name: "update_whiteboard",
-        description: "Create or update a whiteboard artifact with new elements",
-        inputSchema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "The name of the whiteboard",
+        {
+          name: "update_whiteboard",
+          description: "Update the logical structure of a whiteboard using Mermaid flowchart syntax",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "The name of the whiteboard (e.g. 'system-arch')",
+              },
+              mermaid: {
+                type: "string",
+                description: "The Mermaid flowchart code",
+              },
             },
-            elements: {
-              type: "array",
-              items: { type: "object" },
-              description: "The Excalidraw elements array",
-            },
+            required: ["name", "mermaid"],
           },
-          required: ["name", "elements"],
         },
-      },
+
     ],
   };
 });
@@ -65,14 +65,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === "read_whiteboard") {
     const wbName = (args as any).name;
-    const filePath = `whiteboards/${wbName}.json`;
+    const filePath = `design/${wbName}.graph.mmd`;
     
     try {
       const response = await fetch(`${HUB_URL}/artifacts/${filePath}`);
       if (!response.ok) {
         if (response.status === 404) {
           return {
-            content: [{ type: "text", text: `Whiteboard '${wbName}' not found.` }],
+            content: [{ type: "text", text: `Whiteboard '${wbName}' not found (searched for ${filePath}).` }],
             isError: true,
           };
         }
@@ -93,15 +93,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   if (name === "update_whiteboard") {
     const wbName = (args as any).name;
-    const elements = (args as any).elements;
-    const filePath = `whiteboards/${wbName}.json`;
+    const mermaid = (args as any).mermaid;
+    const filePath = `design/${wbName}.graph.mmd`;
 
     try {
       const response = await fetch(`${HUB_URL}/artifacts/${filePath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: JSON.stringify(elements, null, 2),
+          content: mermaid,
           opts: {
             actor: "agent",
             reason: "Updated via update_whiteboard tool",
@@ -115,7 +115,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       return {
-        content: [{ type: "text", text: `Successfully updated whiteboard '${wbName}'.` }],
+        content: [{ type: "text", text: `Successfully updated whiteboard '${wbName}' with new Mermaid logic.` }],
       };
     } catch (error: any) {
       return {

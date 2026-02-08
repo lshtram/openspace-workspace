@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import json
-import sys
 import os
-import shutil
 import glob
 from pathlib import Path
 
@@ -26,7 +24,7 @@ def copy_session():
                     if workspace_root in content:
                         found_session = ses_dir
                         break
-            except:
+            except Exception:
                 continue
         if found_session:
             break
@@ -45,7 +43,7 @@ def copy_session():
         try:
             with open(msg_file, 'r') as f:
                 all_messages.append(json.load(f))
-        except:
+        except Exception:
             continue
             
     session_file = dest_dir / "session.json"

@@ -4,16 +4,17 @@
 - [completed] NSO System Integration & E2E Fixes (2026-02-08)
 - [completed] Memory Optimization & Token Reduction (2026-02-08)
 - [completed] Porting OpenCode Features (Phase 4) (2026-02-08)
-- [completed] Whiteboard Modality (Phase 1-4) (2026-02-08)
+- [completed] Whiteboard Modality (Phase 1-5) (2026-02-08)
 
 ## Active Work
-- **Whiteboard Modality**: Phase 4 (The Hands) COMPLETE. <!-- id: 100 -->
+- **Whiteboard Modality**: COMPLETE. <!-- id: 100 -->
   - [x] Discovery: Requirements Finalized <!-- id: 102 -->
   - [x] Architecture: Tech Spec v2.1 <!-- id: 103 -->
   - [x] Implementation: ArtifactStore (The Spine) <!-- id: 104 -->
   - [x] Implementation: The Bridge (Reconciliation Logic) <!-- id: 105 -->
   - [x] Implementation: The Face (Whiteboard UI) <!-- id: 106 -->
   - [x] Implementation: The Hands (MCP Tools & Hub API) <!-- id: 107 -->
+  - [x] Implementation: Reliability & Polish (Phase 5) <!-- id: 108 -->
 - **Multimodal Spine**: Artifact Store (The Spine) implemented and verified. <!-- id: 101 -->
 - **Porting Features**:
   - [x] Discovery: Rich Prompt Input Requirements <!-- id: 10 -->

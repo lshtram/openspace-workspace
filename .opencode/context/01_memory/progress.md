@@ -15,6 +15,7 @@
   - [x] Implementation: The Face (Whiteboard UI) <!-- id: 106 -->
   - [x] Implementation: The Hands (MCP Tools & Hub API) <!-- id: 107 -->
   - [x] Implementation: Reliability & Polish (Phase 5) <!-- id: 108 -->
+  - [x] Fix: Excalidraw process.env build configuration <!-- id: 109 -->
 - **Multimodal Spine**: Artifact Store (The Spine) implemented and verified. <!-- id: 101 -->
 - **Porting Features**:
   - [x] Discovery: Rich Prompt Input Requirements <!-- id: 10 -->

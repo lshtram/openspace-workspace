@@ -11,77 +11,163 @@ import { providersQueryKey, useProviders } from "../hooks/useProviders"
 import { openCodeService } from "../services/OpenCodeClient"
 import { DialogConnectProvider } from "./DialogConnectProvider"
 import {
+  applySettingsToDocument,
   DEFAULT_SHORTCUTS,
   SETTINGS_STORAGE_KEY,
   emitSettingsUpdated,
   formatShortcutFromEvent,
+  loadSettings,
+  type AgentCompletionSound,
+  type AppSettings,
+  type AppTheme,
+  type ColorScheme,
+  type FontFamily,
+  type Language,
   type ShortcutAction,
   type ShortcutMap,
 } from "../utils/shortcuts"
 
 type SettingsTab = {
   id: string
-  label: string
   icon: React.ComponentType<{ className?: string }>
 }
 
 const tabs: SettingsTab[] = [
-  { id: "general", label: "General", icon: Palette },
-  { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
-  { id: "providers", label: "Providers", icon: Key },
-  { id: "agents", label: "Agents", icon: Bot },
-  { id: "terminal", label: "Terminal", icon: Terminal },
-  { id: "language", label: "Language", icon: Globe },
+  { id: "general", icon: Palette },
+  { id: "shortcuts", icon: Keyboard },
+  { id: "providers", icon: Key },
+  { id: "agents", icon: Bot },
+  { id: "terminal", icon: Terminal },
+  { id: "language", icon: Globe },
 ]
 
-type SettingsState = {
-  theme: "Light" | "Dark" | "System"
-  soundNotifications: boolean
-  notifyOnAgentCompletion: boolean
-  defaultShell: "Default" | "Bash" | "Zsh" | "Fish"
-  language: "English" | "Deutsch" | "Español" | "Français"
-  defaultAgent: string
-  shortcuts: ShortcutMap
-}
+type SettingsState = AppSettings
 
-const defaultSettings: SettingsState = {
-  theme: "Light",
-  soundNotifications: false,
-  notifyOnAgentCompletion: false,
-  defaultShell: "Default",
-  language: "English",
-  defaultAgent: "",
-  shortcuts: { ...DEFAULT_SHORTCUTS },
-}
-
-function loadSettings(): SettingsState {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
-    if (!raw) return defaultSettings
-    const parsed = JSON.parse(raw) as Partial<SettingsState> | null
-    if (!parsed || typeof parsed !== "object") return defaultSettings
-    return {
-      theme: parsed.theme ?? defaultSettings.theme,
-      soundNotifications: Boolean(parsed.soundNotifications),
-      notifyOnAgentCompletion: Boolean(parsed.notifyOnAgentCompletion),
-      defaultShell: parsed.defaultShell ?? defaultSettings.defaultShell,
-      language: parsed.language ?? defaultSettings.language,
-      defaultAgent: typeof parsed.defaultAgent === "string" ? parsed.defaultAgent : defaultSettings.defaultAgent,
-      shortcuts: {
-        ...DEFAULT_SHORTCUTS,
-        ...(parsed.shortcuts ?? {}),
-      },
-    }
-  } catch {
-    return defaultSettings
+const localizedLabels: Record<
+  Language,
+  {
+    settingsTitle: string
+    tabLabels: Record<string, string>
+    appearance: string
+    notifications: string
+    updates: string
+    colorScheme: string
+    theme: string
+    font: string
+    sound: string
+    notifyAgent: string
+    notifyPermissions: string
+    notifyErrors: string
+    updatesStartup: string
+    releaseNotes: string
+    language: string
   }
+> = {
+  English: {
+    settingsTitle: "Settings",
+    tabLabels: {
+      general: "General",
+      shortcuts: "Shortcuts",
+      providers: "Providers",
+      agents: "Agents",
+      terminal: "Terminal",
+      language: "Language",
+    },
+    appearance: "Appearance",
+    notifications: "Notifications",
+    updates: "Updates",
+    colorScheme: "Color scheme",
+    theme: "Theme",
+    font: "Font",
+    sound: "Agent completion sound",
+    notifyAgent: "Notify on agent completion",
+    notifyPermissions: "Notify on permission requests",
+    notifyErrors: "Notify on agent errors",
+    updatesStartup: "Check for updates on startup",
+    releaseNotes: "Show release notes after updates",
+    language: "Language",
+  },
+  Deutsch: {
+    settingsTitle: "Einstellungen",
+    tabLabels: {
+      general: "Allgemein",
+      shortcuts: "Shortcuts",
+      providers: "Anbieter",
+      agents: "Agenten",
+      terminal: "Terminal",
+      language: "Sprache",
+    },
+    appearance: "Darstellung",
+    notifications: "Benachrichtigungen",
+    updates: "Aktualisierungen",
+    colorScheme: "Farbschema",
+    theme: "Thema",
+    font: "Schriftart",
+    sound: "Ton bei Agent-Abschluss",
+    notifyAgent: "Bei Agent-Abschluss benachrichtigen",
+    notifyPermissions: "Bei Berechtigungsanfragen benachrichtigen",
+    notifyErrors: "Bei Agent-Fehlern benachrichtigen",
+    updatesStartup: "Beim Start nach Updates suchen",
+    releaseNotes: "Versionshinweise nach Updates anzeigen",
+    language: "Sprache",
+  },
+  Español: {
+    settingsTitle: "Configuración",
+    tabLabels: {
+      general: "General",
+      shortcuts: "Atajos",
+      providers: "Proveedores",
+      agents: "Agentes",
+      terminal: "Terminal",
+      language: "Idioma",
+    },
+    appearance: "Apariencia",
+    notifications: "Notificaciones",
+    updates: "Actualizaciones",
+    colorScheme: "Esquema de color",
+    theme: "Tema",
+    font: "Fuente",
+    sound: "Sonido al completar agente",
+    notifyAgent: "Notificar al completar agente",
+    notifyPermissions: "Notificar solicitudes de permisos",
+    notifyErrors: "Notificar errores del agente",
+    updatesStartup: "Buscar actualizaciones al iniciar",
+    releaseNotes: "Mostrar notas de versión tras actualizar",
+    language: "Idioma",
+  },
+  Français: {
+    settingsTitle: "Paramètres",
+    tabLabels: {
+      general: "Général",
+      shortcuts: "Raccourcis",
+      providers: "Fournisseurs",
+      agents: "Agents",
+      terminal: "Terminal",
+      language: "Langue",
+    },
+    appearance: "Apparence",
+    notifications: "Notifications",
+    updates: "Mises à jour",
+    colorScheme: "Schéma de couleurs",
+    theme: "Thème",
+    font: "Police",
+    sound: "Son à la fin de l'agent",
+    notifyAgent: "Notifier à la fin de l'agent",
+    notifyPermissions: "Notifier les demandes d'autorisation",
+    notifyErrors: "Notifier les erreurs d'agent",
+    updatesStartup: "Vérifier les mises à jour au démarrage",
+    releaseNotes: "Afficher les notes de version après mise à jour",
+    language: "Langue",
+  },
 }
 
 export function SettingsDialog() {
   const [activeTab, setActiveTab] = useState("general")
   const [settings, setSettings] = useState<SettingsState>(() => loadSettings())
+  const labels = localizedLabels[settings.language] ?? localizedLabels.English
 
   useEffect(() => {
+    applySettingsToDocument(settings)
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
     emitSettingsUpdated()
   }, [settings])
@@ -94,7 +180,7 @@ export function SettingsDialog() {
           {/* Sidebar */}
           <div className="w-[200px] border-r border-black/[0.03] bg-[#fafafa] p-4">
             <Dialog.Title className="mb-6 px-2 text-[15px] font-semibold text-[#1d1a17]">
-              Settings
+              {labels.settingsTitle}
             </Dialog.Title>
             <Dialog.Description className="sr-only">
               Configure OpenSpace preferences, shortcuts, providers, and agent behavior.
@@ -113,7 +199,7 @@ export function SettingsDialog() {
                     }`}
                   >
                     <Icon className="h-4 w-4" />
-                    {tab.label}
+                    {labels.tabLabels[tab.id] ?? tab.id}
                   </button>
                 )
               })}
@@ -124,7 +210,7 @@ export function SettingsDialog() {
           <div className="flex-1 overflow-y-auto p-6">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-[17px] font-semibold text-[#1d1a17]">
-                {tabs.find((t) => t.id === activeTab)?.label}
+                {labels.tabLabels[activeTab] ?? activeTab}
               </h2>
               <Dialog.Close asChild>
                 <button className="rounded-lg p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black/60">
@@ -135,15 +221,36 @@ export function SettingsDialog() {
 
             {activeTab === "general" && (
               <GeneralSettings
+                labels={labels}
+                colorScheme={settings.colorScheme}
                 theme={settings.theme}
-                soundNotifications={settings.soundNotifications}
+                fontFamily={settings.fontFamily}
                 notifyOnAgentCompletion={settings.notifyOnAgentCompletion}
+                notifyOnPermissionRequests={settings.notifyOnPermissionRequests}
+                notifyOnErrors={settings.notifyOnErrors}
+                soundOnAgentCompletion={settings.soundOnAgentCompletion}
+                checkForUpdatesOnStartup={settings.checkForUpdatesOnStartup}
+                showReleaseNotes={settings.showReleaseNotes}
+                onColorSchemeChange={(colorScheme) => setSettings((prev) => ({ ...prev, colorScheme }))}
                 onThemeChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
-                onSoundNotificationsChange={(enabled) =>
-                  setSettings((prev) => ({ ...prev, soundNotifications: enabled }))
+                onFontFamilyChange={(fontFamily) => setSettings((prev) => ({ ...prev, fontFamily }))}
+                onNotifyOnPermissionRequestsChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, notifyOnPermissionRequests: enabled }))
+                }
+                onNotifyOnErrorsChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, notifyOnErrors: enabled }))
+                }
+                onSoundOnAgentCompletionChange={(soundOnAgentCompletion) =>
+                  setSettings((prev) => ({ ...prev, soundOnAgentCompletion }))
                 }
                 onNotifyOnAgentCompletionChange={(enabled) =>
                   setSettings((prev) => ({ ...prev, notifyOnAgentCompletion: enabled }))
+                }
+                onCheckForUpdatesOnStartupChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, checkForUpdatesOnStartup: enabled }))
+                }
+                onShowReleaseNotesChange={(enabled) =>
+                  setSettings((prev) => ({ ...prev, showReleaseNotes: enabled }))
                 }
               />
             )}
@@ -168,6 +275,7 @@ export function SettingsDialog() {
             )}
             {activeTab === "language" && (
               <LanguageSettings
+                labels={labels}
                 language={settings.language}
                 onLanguageChange={(language) => setSettings((prev) => ({ ...prev, language }))}
               />
@@ -180,62 +288,166 @@ export function SettingsDialog() {
 }
 
 type GeneralSettingsProps = {
-  theme: SettingsState["theme"]
-  soundNotifications: boolean
+  labels: (typeof localizedLabels)[Language]
+  colorScheme: ColorScheme
+  theme: AppTheme
+  fontFamily: FontFamily
   notifyOnAgentCompletion: boolean
-  onThemeChange: (theme: SettingsState["theme"]) => void
-  onSoundNotificationsChange: (enabled: boolean) => void
+  notifyOnPermissionRequests: boolean
+  notifyOnErrors: boolean
+  soundOnAgentCompletion: AgentCompletionSound
+  checkForUpdatesOnStartup: boolean
+  showReleaseNotes: boolean
+  onColorSchemeChange: (colorScheme: ColorScheme) => void
+  onThemeChange: (theme: AppTheme) => void
+  onFontFamilyChange: (fontFamily: FontFamily) => void
   onNotifyOnAgentCompletionChange: (enabled: boolean) => void
+  onNotifyOnPermissionRequestsChange: (enabled: boolean) => void
+  onNotifyOnErrorsChange: (enabled: boolean) => void
+  onSoundOnAgentCompletionChange: (sound: AgentCompletionSound) => void
+  onCheckForUpdatesOnStartupChange: (enabled: boolean) => void
+  onShowReleaseNotesChange: (enabled: boolean) => void
 }
 
 function GeneralSettings({
+  labels,
+  colorScheme,
   theme,
-  soundNotifications,
+  fontFamily,
   notifyOnAgentCompletion,
+  notifyOnPermissionRequests,
+  notifyOnErrors,
+  soundOnAgentCompletion,
+  checkForUpdatesOnStartup,
+  showReleaseNotes,
+  onColorSchemeChange,
   onThemeChange,
-  onSoundNotificationsChange,
+  onFontFamilyChange,
   onNotifyOnAgentCompletionChange,
+  onNotifyOnPermissionRequestsChange,
+  onNotifyOnErrorsChange,
+  onSoundOnAgentCompletionChange,
+  onCheckForUpdatesOnStartupChange,
+  onShowReleaseNotesChange,
 }: GeneralSettingsProps) {
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">Appearance</h3>
+        <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">{labels.appearance}</h3>
         <div className="space-y-3">
           <label className="flex items-center justify-between">
-            <span className="text-[13px] text-black/70">Theme</span>
+            <span className="text-[13px] text-black/70">{labels.colorScheme}</span>
             <select
-              value={theme}
-              onChange={(event) => onThemeChange(event.target.value as SettingsState["theme"])}
+              data-testid="settings-color-scheme"
+              value={colorScheme}
+              onChange={(event) => onColorSchemeChange(event.target.value as ColorScheme)}
               className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
             >
+              <option>System</option>
               <option>Light</option>
               <option>Dark</option>
-              <option>System</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] text-black/70">{labels.theme}</span>
+            <select
+              data-testid="settings-theme"
+              value={theme}
+              onChange={(event) => onThemeChange(event.target.value as AppTheme)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
+              <option>OpenSpace</option>
+              <option>Graphite</option>
+              <option>Paper</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] text-black/70">{labels.font}</span>
+            <select
+              data-testid="settings-font-family"
+              value={fontFamily}
+              onChange={(event) => onFontFamilyChange(event.target.value as FontFamily)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
+              <option>Space Grotesk</option>
+              <option>Inter</option>
+              <option>IBM Plex Sans</option>
             </select>
           </label>
         </div>
       </section>
 
       <section>
-        <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">Notifications</h3>
+        <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">{labels.notifications}</h3>
         <div className="space-y-3">
           <label className="flex items-center gap-3">
             <input
-              type="checkbox"
-              checked={soundNotifications}
-              onChange={(event) => onSoundNotificationsChange(event.target.checked)}
-              className="h-4 w-4 rounded border-black/20"
-            />
-            <span className="text-[13px] text-black/70">Enable sound notifications</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input
+              data-testid="settings-notify-agent-completion"
               type="checkbox"
               checked={notifyOnAgentCompletion}
               onChange={(event) => onNotifyOnAgentCompletionChange(event.target.checked)}
               className="h-4 w-4 rounded border-black/20"
             />
-            <span className="text-[13px] text-black/70">Notify on agent completion</span>
+            <span className="text-[13px] text-black/70">{labels.notifyAgent}</span>
+          </label>
+          <label className="flex items-center gap-3">
+            <input
+              data-testid="settings-notify-permissions"
+              type="checkbox"
+              checked={notifyOnPermissionRequests}
+              onChange={(event) => onNotifyOnPermissionRequestsChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
+            <span className="text-[13px] text-black/70">{labels.notifyPermissions}</span>
+          </label>
+          <label className="flex items-center gap-3">
+            <input
+              data-testid="settings-notify-errors"
+              type="checkbox"
+              checked={notifyOnErrors}
+              onChange={(event) => onNotifyOnErrorsChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
+            <span className="text-[13px] text-black/70">{labels.notifyErrors}</span>
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] text-black/70">{labels.sound}</span>
+            <select
+              data-testid="settings-sound-agent-completion"
+              value={soundOnAgentCompletion}
+              onChange={(event) => onSoundOnAgentCompletionChange(event.target.value as AgentCompletionSound)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
+              <option>None</option>
+              <option>Chime</option>
+              <option>Ding</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-[13px] font-semibold text-[#1d1a17]">{labels.updates}</h3>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3">
+            <input
+              data-testid="settings-updates-on-startup"
+              type="checkbox"
+              checked={checkForUpdatesOnStartup}
+              onChange={(event) => onCheckForUpdatesOnStartupChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
+            <span className="text-[13px] text-black/70">{labels.updatesStartup}</span>
+          </label>
+          <label className="flex items-center gap-3">
+            <input
+              data-testid="settings-show-release-notes"
+              type="checkbox"
+              checked={showReleaseNotes}
+              onChange={(event) => onShowReleaseNotesChange(event.target.checked)}
+              className="h-4 w-4 rounded border-black/20"
+            />
+            <span className="text-[13px] text-black/70">{labels.releaseNotes}</span>
           </label>
         </div>
       </section>
@@ -525,19 +737,21 @@ function TerminalSettings({ defaultShell, onDefaultShellChange }: TerminalSettin
 }
 
 type LanguageSettingsProps = {
-  language: SettingsState["language"]
-  onLanguageChange: (language: SettingsState["language"]) => void
+  labels: (typeof localizedLabels)[Language]
+  language: Language
+  onLanguageChange: (language: Language) => void
 }
 
-function LanguageSettings({ language, onLanguageChange }: LanguageSettingsProps) {
+function LanguageSettings({ labels, language, onLanguageChange }: LanguageSettingsProps) {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-black/50">Select your preferred language.</p>
       <label className="flex items-center justify-between">
-        <span className="text-[13px] text-black/70">Language</span>
+        <span className="text-[13px] text-black/70">{labels.language}</span>
         <select
+          data-testid="settings-language"
           value={language}
-          onChange={(event) => onLanguageChange(event.target.value as SettingsState["language"])}
+          onChange={(event) => onLanguageChange(event.target.value as Language)}
           className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
         >
           <option>English</option>

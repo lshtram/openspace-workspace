@@ -9,11 +9,8 @@ async function openSettingsDialog(
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  const bottomButtons = page.locator('aside[class*="w-[68px]"] > div:last-child button')
-  await expect(bottomButtons.first()).toBeVisible()
-  await bottomButtons.first().click()
-
-  const dialog = page.locator('[role="dialog"]').filter({ hasText: "Settings" }).first()
+  await page.getByRole("button", { name: "Open settings" }).click()
+  const dialog = page.locator('[role="dialog"]').first()
   await expect(dialog).toBeVisible()
   return dialog
 }
@@ -58,16 +55,16 @@ test("settings selection persists after reopen", async ({
   seedProject,
 }) => {
   const dialog = await openSettingsDialog(page, gotoHome, seedProject)
-  const themeSelect = dialog.locator("select").first()
+  const colorSchemeSelect = dialog.getByTestId("settings-color-scheme")
 
-  await expect(themeSelect).toBeVisible()
-  await themeSelect.selectOption("Dark")
-  await expect(themeSelect).toHaveValue("Dark")
+  await expect(colorSchemeSelect).toBeVisible()
+  await colorSchemeSelect.selectOption("Dark")
+  await expect(colorSchemeSelect).toHaveValue("Dark")
 
   await page.keyboard.press("Escape")
   await expect(dialog).not.toBeVisible()
 
   const reopened = await openSettingsDialog(page, gotoHome, seedProject)
-  const reopenedTheme = reopened.locator("select").first()
-  await expect(reopenedTheme).toHaveValue("Dark")
+  const reopenedColorScheme = reopened.getByTestId("settings-color-scheme")
+  await expect(reopenedColorScheme).toHaveValue("Dark")
 })

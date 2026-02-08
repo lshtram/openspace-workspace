@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -26,8 +26,41 @@
   --radius-xl: 1.5rem;
   --radius-lg: 1rem;
   --radius-md: 0.75rem;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root[data-color-scheme="System"] {
+  color-scheme: light dark;
+}
+
+:root[data-color-scheme="Light"] {
+  color-scheme: light;
+}
+
+:root[data-color-scheme="Dark"] {
+  color-scheme: dark;
+  --bg: #1f1d1a;
+  --bg-strong: #161411;
+  --surface: #2a2723;
+  --surface-strong: #34302b;
+  --border: #4a443d;
+  --border-strong: #5e574f;
+  --text: #f6f2ed;
+  --text-muted: #d4cbc1;
+  --accent: #6ec8c6;
+  --accent-strong: #8ce4e2;
+}
+
+:root[data-theme="Graphite"] {
+  --accent: #6b7280;
+  --accent-strong: #4b5563;
+}
+
+:root[data-theme="Paper"] {
+  --accent: #7a6d5c;
+  --accent-strong: #625646;
 }
 
 * {
@@ -44,8 +77,8 @@ body,
 }
 
 body {
-  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  background: #f7f5f1;
+  font-family: var(--font-sans);
+  background: var(--bg);
   color: var(--text);
   overflow: hidden;
 }

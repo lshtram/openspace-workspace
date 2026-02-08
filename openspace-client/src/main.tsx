@@ -7,6 +7,7 @@ import { DialogProvider } from "./context/DialogContext"
 import { LayoutProvider } from "./context/LayoutContext"
 import { ServerProvider } from "./context/ServerContext"
 import { CommandPaletteProvider } from "./context/CommandPaletteContext"
+import { applyStoredSettingsToDocument } from "./utils/shortcuts"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,6 +17,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+applyStoredSettingsToDocument()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

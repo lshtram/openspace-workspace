@@ -23,26 +23,159 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   toggleFileTree: "Mod+\\",
 }
 
+export type ColorScheme = "System" | "Light" | "Dark"
+export type AppTheme = "OpenSpace" | "Graphite" | "Paper"
+export type FontFamily = "Space Grotesk" | "Inter" | "IBM Plex Sans"
+export type Language = "English" | "Deutsch" | "Español" | "Français"
+export type DefaultShell = "Default" | "Bash" | "Zsh" | "Fish"
+export type AgentCompletionSound = "None" | "Chime" | "Ding"
+
+export type AppSettings = {
+  colorScheme: ColorScheme
+  theme: AppTheme
+  fontFamily: FontFamily
+  notifyOnAgentCompletion: boolean
+  notifyOnPermissionRequests: boolean
+  notifyOnErrors: boolean
+  soundOnAgentCompletion: AgentCompletionSound
+  checkForUpdatesOnStartup: boolean
+  showReleaseNotes: boolean
+  defaultShell: DefaultShell
+  language: Language
+  defaultAgent: string
+  shortcuts: ShortcutMap
+}
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  colorScheme: "System",
+  theme: "OpenSpace",
+  fontFamily: "Space Grotesk",
+  notifyOnAgentCompletion: false,
+  notifyOnPermissionRequests: false,
+  notifyOnErrors: false,
+  soundOnAgentCompletion: "None",
+  checkForUpdatesOnStartup: true,
+  showReleaseNotes: true,
+  defaultShell: "Default",
+  language: "English",
+  defaultAgent: "",
+  shortcuts: { ...DEFAULT_SHORTCUTS },
+}
+
 type StoredSettings = {
+  colorScheme?: ColorScheme
+  theme?: AppTheme | "Light" | "Dark" | "System"
+  fontFamily?: FontFamily
+  notifyOnAgentCompletion?: boolean
+  notifyOnPermissionRequests?: boolean
+  notifyOnErrors?: boolean
+  soundOnAgentCompletion?: AgentCompletionSound
+  checkForUpdatesOnStartup?: boolean
+  showReleaseNotes?: boolean
+  defaultShell?: DefaultShell
+  language?: Language
   shortcuts?: Partial<ShortcutMap>
   defaultAgent?: string
+  soundNotifications?: boolean
 }
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"])
 
-export function loadShortcuts(): ShortcutMap {
+const FONT_FAMILY_MAP: Record<FontFamily, string> = {
+  "Space Grotesk": '"Space Grotesk", ui-sans-serif, system-ui, sans-serif',
+  Inter: "Inter, ui-sans-serif, system-ui, sans-serif",
+  "IBM Plex Sans": '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
+}
+
+const COLOR_SCHEMES = new Set<ColorScheme>(["System", "Light", "Dark"])
+const THEMES = new Set<AppTheme>(["OpenSpace", "Graphite", "Paper"])
+const FONT_FAMILIES = new Set<FontFamily>(["Space Grotesk", "Inter", "IBM Plex Sans"])
+const LANGUAGES = new Set<Language>(["English", "Deutsch", "Español", "Français"])
+const SHELLS = new Set<DefaultShell>(["Default", "Bash", "Zsh", "Fish"])
+const SOUNDS = new Set<AgentCompletionSound>(["None", "Chime", "Ding"])
+
+function pickEnum<T extends string>(value: unknown, allowed: Set<T>, fallback: T): T {
+  return typeof value === "string" && allowed.has(value as T) ? (value as T) : fallback
+}
+
+export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_SHORTCUTS }
+    if (!raw) return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
     const parsed = JSON.parse(raw) as StoredSettings | null
-    if (!parsed || typeof parsed !== "object") return { ...DEFAULT_SHORTCUTS }
+    if (!parsed || typeof parsed !== "object") {
+      return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
+    }
+
+    const migratedColorScheme =
+      parsed.colorScheme ??
+      (parsed.theme === "Light" || parsed.theme === "Dark" || parsed.theme === "System"
+        ? parsed.theme
+        : undefined)
+    const colorScheme = pickEnum(migratedColorScheme, COLOR_SCHEMES, DEFAULT_SETTINGS.colorScheme)
+    const theme = pickEnum(parsed.theme, THEMES, DEFAULT_SETTINGS.theme)
+    const fontFamily = pickEnum(parsed.fontFamily, FONT_FAMILIES, DEFAULT_SETTINGS.fontFamily)
+    const language = pickEnum(parsed.language, LANGUAGES, DEFAULT_SETTINGS.language)
+    const defaultShell = pickEnum(parsed.defaultShell, SHELLS, DEFAULT_SETTINGS.defaultShell)
+    const soundOnAgentCompletion = pickEnum(
+      parsed.soundOnAgentCompletion,
+      SOUNDS,
+      parsed.soundNotifications ? "Chime" : DEFAULT_SETTINGS.soundOnAgentCompletion,
+    )
+
     return {
-      ...DEFAULT_SHORTCUTS,
-      ...(parsed.shortcuts ?? {}),
+      ...DEFAULT_SETTINGS,
+      colorScheme,
+      theme,
+      fontFamily,
+      notifyOnAgentCompletion:
+        typeof parsed.notifyOnAgentCompletion === "boolean"
+          ? parsed.notifyOnAgentCompletion
+          : DEFAULT_SETTINGS.notifyOnAgentCompletion,
+      notifyOnPermissionRequests:
+        typeof parsed.notifyOnPermissionRequests === "boolean"
+          ? parsed.notifyOnPermissionRequests
+          : DEFAULT_SETTINGS.notifyOnPermissionRequests,
+      notifyOnErrors:
+        typeof parsed.notifyOnErrors === "boolean" ? parsed.notifyOnErrors : DEFAULT_SETTINGS.notifyOnErrors,
+      soundOnAgentCompletion,
+      checkForUpdatesOnStartup:
+        typeof parsed.checkForUpdatesOnStartup === "boolean"
+          ? parsed.checkForUpdatesOnStartup
+          : DEFAULT_SETTINGS.checkForUpdatesOnStartup,
+      showReleaseNotes:
+        typeof parsed.showReleaseNotes === "boolean"
+          ? parsed.showReleaseNotes
+          : DEFAULT_SETTINGS.showReleaseNotes,
+      defaultShell,
+      language,
+      defaultAgent: typeof parsed.defaultAgent === "string" ? parsed.defaultAgent : DEFAULT_SETTINGS.defaultAgent,
+      shortcuts: {
+        ...DEFAULT_SHORTCUTS,
+        ...(parsed.shortcuts ?? {}),
+      },
     }
   } catch {
-    return { ...DEFAULT_SHORTCUTS }
+    return { ...DEFAULT_SETTINGS, shortcuts: { ...DEFAULT_SHORTCUTS } }
   }
+}
+
+export function applySettingsToDocument(settings: Pick<AppSettings, "colorScheme" | "theme" | "fontFamily">) {
+  if (typeof document === "undefined") return
+  const root = document.documentElement
+  root.dataset.colorScheme = settings.colorScheme
+  root.dataset.theme = settings.theme
+  root.style.setProperty("--font-sans", FONT_FAMILY_MAP[settings.fontFamily])
+}
+
+export function applyStoredSettingsToDocument() {
+  if (typeof window === "undefined") return
+  const settings = loadSettings()
+  applySettingsToDocument(settings)
+}
+
+export function loadShortcuts(): ShortcutMap {
+  return loadSettings().shortcuts
 }
 
 export function emitSettingsUpdated() {
@@ -56,16 +189,8 @@ export function emitOpenSettings() {
 }
 
 export function loadPreferredAgent(): string | undefined {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
-    if (!raw) return undefined
-    const parsed = JSON.parse(raw) as StoredSettings | null
-    if (!parsed || typeof parsed !== "object") return undefined
-    const value = parsed.defaultAgent?.trim()
-    return value ? value : undefined
-  } catch {
-    return undefined
-  }
+  const value = loadSettings().defaultAgent.trim()
+  return value ? value : undefined
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {

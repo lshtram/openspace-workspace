@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import {
+  applySettingsToDocument,
+  DEFAULT_SETTINGS,
   DEFAULT_SHORTCUTS,
   SETTINGS_STORAGE_KEY,
   formatShortcutFromEvent,
   loadPreferredAgent,
+  loadSettings,
   loadShortcuts,
   matchesShortcut,
   normalizeShortcut,
@@ -48,6 +51,38 @@ describe("shortcuts", () => {
     )
 
     expect(loadPreferredAgent()).toBe("plan")
+  })
+
+  it("loads full settings with defaults", () => {
+    expect(loadSettings()).toEqual({
+      ...DEFAULT_SETTINGS,
+      shortcuts: { ...DEFAULT_SHORTCUTS },
+    })
+  })
+
+  it("migrates legacy theme values into color scheme", () => {
+    window.localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        theme: "Dark",
+      }),
+    )
+
+    const settings = loadSettings()
+    expect(settings.colorScheme).toBe("Dark")
+    expect(settings.theme).toBe("OpenSpace")
+  })
+
+  it("applies visual settings to document root", () => {
+    applySettingsToDocument({
+      colorScheme: "Dark",
+      theme: "Graphite",
+      fontFamily: "IBM Plex Sans",
+    })
+
+    expect(document.documentElement.dataset.colorScheme).toBe("Dark")
+    expect(document.documentElement.dataset.theme).toBe("Graphite")
+    expect(getComputedStyle(document.documentElement).getPropertyValue("--font-sans")).toContain("IBM Plex Sans")
   })
 
   it("formats keyboard events into shortcut strings", () => {

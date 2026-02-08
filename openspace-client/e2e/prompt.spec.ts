@@ -2,6 +2,8 @@ import { test, expect, testProjectPath } from "./fixtures"
 import { sendMessage, ensureInSession } from "./actions"
 import { promptSelector, newSessionButtonSelector } from "./selectors"
 
+const workspaceValueRegex = (path: string) => new RegExp(`@(?:[^\\s\\/]+\\/)?${path}\\s?`)
+
 test("can send a prompt and receive a reply", async ({ page, gotoHome, seedProject }) => {
   test.setTimeout(120_000)
   
@@ -42,7 +44,7 @@ test("slash open shows file suggestions and inserts selection", async ({ page, g
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Enter")
-  await expect(input).toHaveValue(/@src\/index\.ts\s?/)
+  await expect(input).toHaveValue(workspaceValueRegex("src/index\\.ts"))
 })
 
 test("slash open matches root-prefixed path query", async ({ page, gotoHome, seedProject }) => {
@@ -59,7 +61,7 @@ test("slash open matches root-prefixed path query", async ({ page, gotoHome, see
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Enter")
-  await expect(input).toHaveValue(/@src\/types\/index\.ts\s?/)
+  await expect(input).toHaveValue(workspaceValueRegex("src/types/index\\.ts"))
 })
 
 test("at mention shows file suggestions and inserts selection", async ({ page, gotoHome, seedProject }) => {
@@ -76,7 +78,32 @@ test("at mention shows file suggestions and inserts selection", async ({ page, g
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Tab")
-  await expect(input).toHaveValue(/@src\/index\.ts\s?/)
+  await expect(input).toHaveValue(workspaceValueRegex("src/index\\.ts"))
+})
+
+test("context panel inserts a file suggestion", async ({ page, gotoHome, seedProject }) => {
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
+  await ensureInSession(page)
+
+  const input = page.locator(promptSelector).first()
+  await expect(input).toBeVisible({ timeout: 10000 })
+
+  const contextButton = page.locator('[data-testid="context-panel-button"]').first()
+  await expect(contextButton).toBeVisible({ timeout: 10000 })
+  await contextButton.click()
+
+  const suggestion = page
+    .locator('[data-testid="context-panel-item"]')
+    .filter({ hasText: "README.md" })
+    .first()
+  await expect(suggestion).toBeVisible({ timeout: 20000 })
+  await suggestion.evaluate((el) => {
+    el.scrollIntoView({ block: "center", inline: "nearest" })
+    ;(el as HTMLButtonElement).click()
+  })
+
+  await expect(input).toHaveValue(workspaceValueRegex("README\\.md"))
 })
 
 test("subsequence path query matches file for slash open", async ({ page, gotoHome, seedProject }) => {
@@ -93,5 +120,5 @@ test("subsequence path query matches file for slash open", async ({ page, gotoHo
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Enter")
-  await expect(input).toHaveValue(/@\.opencode\/docs\/TECHDOC1\.md\s?/)
+  await expect(input).toHaveValue(workspaceValueRegex("\\.opencode/docs/TECHDOC1\\.md"))
 })

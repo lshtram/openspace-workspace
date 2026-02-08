@@ -36,7 +36,12 @@ export async function sendMessage(page: Page, text: string) {
 
   const input = page.locator(promptSelector).first()
   await expect(input).toBeVisible({ timeout: 10000 })
-  await input.fill(text)
+  
+  // Use type instead of fill for better compatibility with RichEditor logic
+  await input.click() // Ensure focus
+  await input.press('Control+A') // Clear existing content
+  await input.press('Backspace')
+  await input.type(text)
 
   // Retry send a few times because model/agent defaults can initialize asynchronously.
   const sendButton = page.locator(sendButtonSelector).first()
@@ -48,7 +53,11 @@ export async function sendMessage(page: Page, text: string) {
       await input.press("Enter")
     }
 
-    if ((await input.inputValue()) === "") return
+    // Check if input is cleared
+    const isContentEditable = await input.getAttribute('contenteditable')
+    const value = isContentEditable ? await input.textContent() : await input.inputValue()
+    
+    if (value === "") return
     await page.waitForTimeout(300)
   }
 

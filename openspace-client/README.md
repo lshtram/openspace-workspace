@@ -111,6 +111,9 @@ npx playwright test --headed
 npx playwright test --debug
 ```
 
+Note: use the npm scripts above (or `./scripts/playwright.sh`) instead of calling `npx playwright test` directly in this repo.  
+The wrapper auto-applies an Apple Silicon platform override only when Playwright incorrectly resolves to `mac-x64` in sandboxed/macOS environments.
+
 ## Code Quality
 
 This project enforces code quality through:

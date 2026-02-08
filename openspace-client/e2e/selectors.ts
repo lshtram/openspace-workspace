@@ -1,4 +1,4 @@
-export const promptSelector = 'textarea, [data-testid="prompt-input"], input[placeholder*="Message"]'
+export const promptSelector = 'textarea, [data-testid="prompt-input"], input[placeholder*="Message"], [contenteditable="true"]'
 export const terminalSelector = '[data-testid="terminal"], .xterm, [class*="terminal"]'
 // Status button - more specific to avoid matching file tree items
 export const statusButtonSelector = 'button[class*="rounded-full"]:has-text("Connected"), button[class*="rounded-full"]:has-text("Offline"), [data-testid="status-button"]'

@@ -35,6 +35,13 @@ src/
 - **Constants**: UPPER_SNAKE_CASE for true constants
 - **Files**: kebab-case for non-component files
 
+### NSO Performance & Telemetry
+- **LSP (Lightweight System Profiler)**: Every NSO script call is timed and logged.
+- **Log Location**: `.opencode/logs/system_telemetry.json`
+- **Threshold**: Scripts should ideally complete in < 150ms.
+- **Alerts**: Console warnings are issued if a script takes > 200ms.
+- **Monitoring**: Janitor agent should periodically check telemetry for loops or drift.
+
 ---
 
 ## Coding Standards
@@ -114,6 +121,14 @@ src/
 - **Check active_context.md Status** before routing
 - **Only Oracle routes** - Builder/Janitor don't initiate workflows
 - **Update memory** at session end with progress
+- **Memory Pruning**: Keep `progress.md` and `active_context.md` lean. Archive historical milestones to `progress_archive.md` and move established decisions to `patterns.md` to prevent context bloat.
+
+### Established Decisions & Architecture
+- **E2E Testing Architecture**: Use REAL servers (Vite + OpenCode API), not mocks. Run with `-c e2e/playwright.config.ts`.
+- **UI Layout Pattern**: Two-zone scrollable layout for sidebars (Fixed Header → Content `flex-1 min-h-0` → Fixed Footer).
+- **Requirement Elicitation**: Uses Prometheus-style structured interviews with traceability matrix (REQ-ID → verification).
+- **Architectural Review**: Employs multi-expert pattern (Proponent/Skeptic/Alternative) for complex designs.
+- **Conversation Archiving**: User-initiated via `archive-conversation` skill (Librarian).
 
 ---
 

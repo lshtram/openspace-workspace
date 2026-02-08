@@ -12,8 +12,9 @@ import { AgentSelector } from "./AgentSelector"
 import { ContextMeter } from "./ContextMeter"
 import { MessageList } from "./MessageList"
 import { ModelSelector } from "./ModelSelector"
-import { PromptInput } from "./PromptInput"
+import { RichPromptInput } from "./RichPromptInput"
 import { SETTINGS_UPDATED_EVENT, loadPreferredAgent } from "../utils/shortcuts"
+import type { Prompt } from "./RichEditor"
 
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -40,12 +41,6 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
   const [attachments, setAttachments] = useState<PromptAttachment[]>([])
   const [pendingSessionIds, setPendingSessionIds] = useState<Set<string>>(() => new Set())
   const [fileSuggestions, setFileSuggestions] = useState<string[]>([])
-  const projectRootName = useMemo(() => {
-    if (!directory) return undefined
-    const normalized = directory.replace(/\\/g, "/").replace(/\/+$/, "")
-    const segments = normalized.split("/")
-    return segments[segments.length - 1] || undefined
-  }, [directory])
   const agentsQuery = useAgents(directory)
   const modelsQuery = useModels(directory)
   const messagesQuery = useMessages(sessionId, { directory })
@@ -288,9 +283,10 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     },
   })
 
-  const sendMessage = async () => {
+  const sendMessage = async (richParts?: Prompt, mode: 'normal' | 'shell' = 'normal') => {
     const text = prompt.trim()
-    if (!text && attachments.length === 0) return
+    const partsToUse = richParts || (text ? [{ type: 'text' as const, content: text }] : [])
+    if (partsToUse.length === 0 && attachments.length === 0) return
     if (!selectedModel || !activeAgent) return
 
     let activeSessionId = sessionId
@@ -303,22 +299,48 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     setPrompt("")
     setAttachments([])
 
+    if (mode === 'shell') {
+      const commandText = partsToUse.map(p => ('content' in p ? p.content : '')).join('')
+      openCodeService.client.session.shell({
+        sessionID: activeSessionId,
+        directory,
+        agent: activeAgent,
+        model: {
+          providerID: selectedModel.providerID,
+          modelID: selectedModel.id,
+        },
+        command: commandText,
+      }).catch((err) => {
+        console.error("Shell command failed:", err)
+      })
+      return
+    }
+
     const partsInput = [
-      ...(text
-        ? [
-            {
-              type: "text" as const,
-              text,
-            },
-          ]
-        : []),
+      ...partsToUse.map(p => {
+        if (p.type === 'text') return { type: 'text' as const, text: p.content };
+        if (p.type === 'file') return { 
+          type: 'file' as const, 
+          mime: 'text/plain', // Default mime for file references
+          url: '', // Not used for references
+          source: { type: 'file' as const, path: p.path } 
+        };
+        if (p.type === 'agent') return { 
+          type: 'agent' as const, 
+          name: p.name 
+        };
+        return null;
+      }).filter(Boolean),
       ...attachments.map((file) => ({
         type: "file" as const,
         mime: file.mime,
         filename: file.name,
         url: file.dataUrl,
       })),
-    ]
+    ] as Array<
+      | { type: "text"; text: string }
+      | { type: "file"; mime: string; filename?: string; url: string; source?: { type: "file"; path: string } }
+    >;
 
     promptMutation.mutate({
       id: activeSessionId,
@@ -401,11 +423,12 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
           isFetching={messagesQuery.isFetching}
         />
       </div>
-      <PromptInput
+      <RichPromptInput
+        sessionId={sessionId}
         value={prompt}
         attachments={attachments}
         fileSuggestions={fileSuggestions}
-        projectRootName={projectRootName}
+        agentSuggestions={agentNames}
         onChange={setPrompt}
         onSubmit={sendMessage}
         onAddAttachment={onAddAttachment}

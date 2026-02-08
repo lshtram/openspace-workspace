@@ -25,9 +25,6 @@ test.describe("Projects / Workspaces", () => {
   }
 
   test.beforeEach(async ({ page, seedProject }) => {
-    page.on('request', request => console.log('>>', request.method(), request.url()))
-    page.on('response', response => console.log('<<', response.status(), response.url()))
-    
     await seedProject(testProjectPath, "Workspace Project")
     state.workspaceDirs = [
       `${testProjectPath}/ws-alpha`,
@@ -49,7 +46,8 @@ test.describe("Projects / Workspaces", () => {
       
       if (url.includes("/reset") && method === "POST") {
         const body = parseBody(request.postData())
-        const directory = body?.worktreeResetInput?.directory
+        const resetInput = body?.worktreeResetInput ?? body
+        const directory = resetInput?.directory
         state.lastResetDirectory = typeof directory === "string" ? directory : null
         console.log(`[MOCK] Resetting ${directory}`)
         await route.fulfill({ status: 200, body: "true" })
@@ -68,7 +66,8 @@ test.describe("Projects / Workspaces", () => {
 
       if (method === "POST") {
         const body = parseBody(request.postData())
-        const requestedName = (body?.worktreeCreateInput?.name ?? "").trim() || "workspace"
+        const createInput = body?.worktreeCreateInput ?? body
+        const requestedName = (createInput?.name ?? "").trim() || "workspace"
         const slug = sanitizeSlug(requestedName) || `workspace-${state.workspaceDirs.length + 1}`
         const directory = `${testProjectPath}/${slug}`
         
@@ -93,7 +92,8 @@ test.describe("Projects / Workspaces", () => {
 
       if (method === "DELETE") {
         const body = parseBody(request.postData())
-        const directory = body?.worktreeRemoveInput?.directory
+        const removeInput = body?.worktreeRemoveInput ?? body
+        const directory = removeInput?.directory
         if (typeof directory === "string") {
           state.workspaceDirs = state.workspaceDirs.filter((dir) => dir !== directory)
         }
@@ -128,7 +128,7 @@ test.describe("Projects / Workspaces", () => {
     await expect(page.getByRole("heading", { name: "Alpha" })).toBeVisible()
     await page.getByRole("button", { name: "Select project Beta" }).click()
     await expect(page.getByRole("heading", { name: "Beta" })).toBeVisible()
-    await expect(page.getByText(betaProject)).toBeVisible()
+    await expect(page.locator(`p[title="${betaProject}"]`)).toBeVisible()
   })
 
   test("toggles workspace enabled state", async ({ page, gotoHome }) => {
@@ -161,14 +161,16 @@ test.describe("Projects / Workspaces", () => {
     expect(response.headers()["x-mock-handled"]).toBe("true")
 
     await expect.poll(() => state.lastCreatedDirectory).toBeTruthy()
-    await expect(page.locator(`[data-workspace="${state.lastCreatedDirectory}"]`).first()).toBeVisible()
+    await expect(
+      page.locator(`[data-testid="workspace-card"][data-workspace="${state.lastCreatedDirectory}"]`).first(),
+    ).toBeVisible()
     await expect(page.locator('[data-testid="workspace-card"]')).toHaveCount(4)
   })
 
   test("renames a workspace", async ({ page, gotoHome }) => {
     await gotoHome()
     const target = state.workspaceDirs[1]
-    const card = page.locator(`[data-workspace="${target}"]`)
+    const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
     await card.getByTestId("workspace-rename").click()
     const input = card.locator('input')
     await input.fill("Renamed Beta")
@@ -179,7 +181,7 @@ test.describe("Projects / Workspaces", () => {
   test("calls reset endpoint", async ({ page, gotoHome }) => {
     await gotoHome()
     const target = state.workspaceDirs[2]
-    const card = page.locator(`[data-workspace="${target}"]`)
+    const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
     const resetButton = card.getByTestId("workspace-reset")
     const resetResponse = page.waitForResponse((response) => response.url().includes("/experimental/worktree/reset") && response.status() === 200)
     await resetButton.click()
@@ -190,10 +192,10 @@ test.describe("Projects / Workspaces", () => {
   test("deletes a workspace", async ({ page, gotoHome }) => {
     await gotoHome()
     const toRemove = state.workspaceDirs[0]
-    const card = page.locator(`[data-workspace="${toRemove}"]`)
+    const card = page.locator(`[data-testid="workspace-card"][data-workspace="${toRemove}"]`)
     const initialCount = await page.locator('[data-testid="workspace-card"]').count()
     await card.getByTestId("workspace-delete").click()
-    await expect(page.locator(`[data-workspace="${toRemove}"]`)).toHaveCount(0)
+    await expect(page.locator(`[data-testid="workspace-card"][data-workspace="${toRemove}"]`)).toHaveCount(0)
     await expect(page.locator('[data-testid="workspace-card"]')).toHaveCount(initialCount - 1)
   })
 

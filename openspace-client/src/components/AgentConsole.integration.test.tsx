@@ -33,7 +33,9 @@ describe('AgentConsole Integration', () => {
     renderWithProviders(<AgentConsole />)
     
     // Should render the console but with empty/initial state
-    expect(screen.getByPlaceholderText(/Ask anything/i)).toBeInTheDocument()
+    // Note: RichEditor uses aria-label for placeholder, not placeholder attribute
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveAttribute('aria-label', expect.stringContaining('Ask anything'))
   })
 
   it('should allow typing in prompt input', async () => {
@@ -43,7 +45,8 @@ describe('AgentConsole Integration', () => {
     const textarea = screen.getByRole('textbox')
     await user.type(textarea, 'Test message')
     
-    expect(textarea).toHaveValue('Test message')
+    // Note: RichEditor uses contenteditable div, so textContent contains the value
+    expect(textarea).toHaveTextContent('Test message')
   })
 
   it('should display model selector and agent selector', async () => {

@@ -69,12 +69,19 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
             setElements(savedElements);
             setInitialData({ elements: savedElements });
           }
-        } catch {
-          console.warn('Failed to load or reconcile .mmd, using saved elements if any');
+        } catch (err: any) {
+          console.warn('Failed to load or reconcile .mmd, using saved elements if any', err);
           setElements(savedElements);
           setInitialData({ elements: savedElements });
+          
           if (savedElements.length === 0) {
             setError('Could not load whiteboard data. Please check if the file exists and has valid Mermaid syntax.');
+          } else {
+            pushToast({
+              title: 'Sync Warning',
+              description: 'Could not sync with Mermaid logic. Using last saved whiteboard state.',
+              tone: 'info'
+            });
           }
         }
       } catch (error: any) {

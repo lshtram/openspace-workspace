@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { serializeAsJSON, exportToBlob } from '@excalidraw/excalidraw';
 
-const HUB_URL = 'http://localhost:3001';
+const HUB_URL = import.meta.env.VITE_HUB_URL || 'http://localhost:3001';
 
 export function useDebouncedSave(filePath: string) {
   const [isSaving, setIsSaving] = useState(false);
@@ -31,7 +31,8 @@ export function useDebouncedSave(filePath: string) {
         });
 
         // 2. Generate and save snapshot (.png)
-        const snapshotPath = 'design/whiteboard.snapshot.png';
+        // Derive snapshot path from filePath (e.g. design/system.excalidraw -> design/system.snapshot.png)
+        const snapshotPath = filePath.replace('.excalidraw', '.snapshot.png');
         
         const blob = await exportToBlob({
           elements: elements as any,

@@ -125,6 +125,14 @@ function createExcalidrawArrow(fromNode: any, toNode: any): any {
 export function reconcileGraph(mermaidCode: string, currentElements: any[]): any[] {
   try {
     const { nodes, edges } = parseMermaidToAST(mermaidCode);
+    
+    if (mermaidCode.trim().length > 10 && nodes.length === 0) {
+      // Heuristic: if code is long enough but no nodes found, likely syntax error
+      console.warn('Mermaid code present but no nodes parsed. Possible syntax error.');
+      // We could throw here to trigger the UI error state
+      throw new Error('Failed to parse Mermaid syntax. Please check your graph definition.');
+    }
+
     if (nodes.length === 0) return currentElements;
 
     const g = new dagre.graphlib.Graph();
@@ -172,6 +180,10 @@ export function reconcileGraph(mermaidCode: string, currentElements: any[]): any
       const existing = existingNodesMap.get(node.id);
       const pos = g.node(node.id);
       
+      if (!pos && !existing) {
+        throw new Error(`Layout failed for node ${node.id}`);
+      }
+      
       if (existing) {
         const updatedNode = {
           ...existing,
@@ -205,6 +217,6 @@ export function reconcileGraph(mermaidCode: string, currentElements: any[]): any
     return newElements;
   } catch (error) {
     console.error('Reconciliation failed:', error);
-    return currentElements;
+    throw error;
   }
 }

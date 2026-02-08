@@ -255,3 +255,91 @@ Created during debugging (can be deleted):
 - Test results: All 17 E2E tests passing
 - Validation: `npm run check` and `npm run pre-pr` both pass
 
+
+## NEW: Session Closure Command /close-session (2026-02-08)
+
+### Implementation
+**File**: `~/.config/opencode/nso/scripts/close_session.py`
+
+**Purpose**: Safe session closure with validation and conditional git operations
+
+**Key Features**:
+1. **Git Status Check**: Identifies all modified/new/deleted files
+2. **Test Validation**: Runs test suite (npm run check, pytest, etc.)
+3. **Smart Commit Logic**:
+   - ✅ Code changes + tests pass → Commit and push
+   - ❌ Code changes + tests fail → Ask user for intention
+   - ⚠️ No code changes → Commit only memory files
+   - ℹ️ No changes at all → Skip commit
+
+**Safety Mechanisms**:
+- Never commits failing code without user confirmation
+- Can commit only memory files (skip problematic code)
+- Dry-run mode to preview actions
+- Custom commit messages supported
+- Optional --no-push flag
+
+**User Interaction**:
+```
+/close-session
+→ Checks git status
+→ Runs tests (if code changes)
+→ If tests fail:
+   [1] Fix tests first (recommended)
+   [2] Commit only memory files
+   [3] Commit everything anyway
+   [4] Cancel
+→ Updates memory files
+→ Creates commit
+→ Pushes to remote (if requested)
+```
+
+**Usage**:
+```bash
+/close-session
+/close-session --message "Custom message"
+/close-session --no-push
+/close-session --dry-run
+/close-session --force
+```
+
+**Added to Librarian Skills**:
+- Skill: `close-session`
+- Agent: Librarian
+- Responsibility: Session closure with validation
+
+### Complete NSO Command Set
+- `/router "message"` - Intent detection and workflow routing
+- `/archive [topic]` - Archive high-value conversations
+- `/close-session` - Safe session closure with git operations
+- `/document [topic]` - Document session (archive-conversation)
+
+
+## NEW: Automatic Session Initialization (2026-02-08)
+
+**Feature**: NSO plugin now automatically initializes sessions on first tool call
+
+**Implementation:**
+- Modified: `~/.config/opencode/nso/nso-plugin.js`
+- Added: Automatic `init_session.py` execution on first tool call per session
+- Tracking: Uses session ID to run initialization only once per session
+
+**How it works:**
+1. On first tool call of any session, plugin runs `init_session.py`
+2. Loads all project context and memory automatically
+3. No manual intervention needed from user or Oracle
+4. Session is transparently initialized before any work begins
+
+**Benefits:**
+- ✅ No need to manually run init_session.py
+- ✅ Guaranteed context loading every session
+- ✅ Transparent to the user
+- ✅ Works across all projects with .opencode/ structure
+
+**User Experience:**
+- Before: User had to remember to run `python3 ~/.config/opencode/nso/scripts/init_session.py`
+- After: Just start chatting - initialization happens automatically!
+
+**Documentation Updated:**
+- `~/.config/opencode/nso/instructions.md` - Updated Session Start Protocol section
+

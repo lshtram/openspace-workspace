@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement, ReactNode } from 'react'
 import { DialogProvider } from '../../context/DialogContext'
 import { ServerProvider } from '../../context/ServerContext'
+import { CommandPaletteProvider } from '../../context/CommandPaletteContext'
 
 /**
  * Create a new QueryClient for testing
@@ -42,11 +43,13 @@ function TestProviders({ children, queryClient }: TestProvidersProps) {
   
   return (
     <QueryClientProvider client={client}>
-      <DialogProvider>
-        <ServerProvider>
-          {children}
-        </ServerProvider>
-      </DialogProvider>
+      <ServerProvider>
+        <CommandPaletteProvider>
+          <DialogProvider>
+            {children}
+          </DialogProvider>
+        </CommandPaletteProvider>
+      </ServerProvider>
     </QueryClientProvider>
   )
 }

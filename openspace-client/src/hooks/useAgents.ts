@@ -5,9 +5,9 @@ import { useServer } from "../context/ServerContext"
 
 export const agentsQueryKey = (serverUrl?: string, directory?: string) => ["agents", serverUrl, directory]
 
-export function useAgents() {
+export function useAgents(directoryProp?: string) {
   const server = useServer()
-  const directory = openCodeService.directory
+  const directory = directoryProp ?? openCodeService.directory
   return useQuery<Agent[]>({
     queryKey: agentsQueryKey(server.activeUrl, directory),
     queryFn: async () => {

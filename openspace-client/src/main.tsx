@@ -6,6 +6,7 @@ import App from "./App.tsx"
 import { DialogProvider } from "./context/DialogContext"
 import { LayoutProvider } from "./context/LayoutContext"
 import { ServerProvider } from "./context/ServerContext"
+import { CommandPaletteProvider } from "./context/CommandPaletteContext"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,11 +21,13 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ServerProvider>
-        <DialogProvider>
-          <LayoutProvider>
-            <App />
-          </LayoutProvider>
-        </DialogProvider>
+        <CommandPaletteProvider>
+          <DialogProvider>
+            <LayoutProvider>
+              <App />
+            </LayoutProvider>
+          </DialogProvider>
+        </CommandPaletteProvider>
       </ServerProvider>
     </QueryClientProvider>
   </StrictMode>,

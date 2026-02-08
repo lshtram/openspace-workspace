@@ -3,10 +3,11 @@ import { useTerminal } from "../hooks/useTerminal"
 
 type TerminalProps = {
   resizeTrigger?: number
+  directory?: string
 }
 
-export function Terminal({ resizeTrigger }: TerminalProps) {
-  const { containerRef, state } = useTerminal(resizeTrigger)
+export function Terminal({ resizeTrigger, directory }: TerminalProps) {
+  const { containerRef, state } = useTerminal(resizeTrigger, directory)
 
   return (
     <div data-component="terminal" className="panel-muted h-full w-full rounded-3xl p-3">

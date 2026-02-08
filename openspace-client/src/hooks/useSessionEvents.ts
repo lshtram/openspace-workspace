@@ -88,9 +88,9 @@ const getEnvelopeSessionId = (
   return undefined
 }
 
-export function useSessionEvents(sessionId?: string) {
+export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   const queryClient = useQueryClient()
-  const directory = openCodeService.directory
+  const directory = directoryProp ?? openCodeService.directory
   const server = useServer()
   const lastErrorRef = useRef(0)
   const hasShownErrorRef = useRef(false)

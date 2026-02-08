@@ -25,19 +25,14 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const closePalette = useCallback(() => setIsOpen(false), [])
 
   const registerCommand = useCallback((command: Command) => {
-    setCommands((prev) => [...prev, command])
+    setCommands((prev) => [...prev.filter((item) => item.id !== command.id), command])
     return () => {
       setCommands((prev) => prev.filter((c) => c.id !== command.id))
     }
   }, [])
 
-  // Keyboard shortcut: Cmd/Ctrl + K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        setIsOpen((prev) => !prev)
-      }
       if (e.key === "Escape") {
         setIsOpen(false)
       }

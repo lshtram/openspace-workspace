@@ -7,10 +7,10 @@ export const sessionsQueryKey = (serverUrl?: string, directory?: string) => ["se
 
 export const DEFAULT_SESSION_LIMIT = 50
 
-export function useSessions(options?: { initialLimit?: number; pageSize?: number }) {
+export function useSessions(options?: { initialLimit?: number; pageSize?: number; directory?: string }) {
   const server = useServer()
   const queryClient = useQueryClient()
-  const directory = openCodeService.directory
+  const directory = options?.directory ?? openCodeService.directory
   const initialLimit = options?.initialLimit ?? DEFAULT_SESSION_LIMIT
   const pageSize = options?.pageSize ?? DEFAULT_SESSION_LIMIT
   const [limit, setLimit] = useState(initialLimit)

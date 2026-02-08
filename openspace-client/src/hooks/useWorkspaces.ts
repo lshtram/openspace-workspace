@@ -23,9 +23,8 @@ export function useWorkspaces(directory: string | undefined) {
     retry: 1,
   })
 
-  const directories: string[] = workspacesQuery.data?.data ?? []
-
   const merged = useMemo(() => {
+    const directories: string[] = workspacesQuery.data?.data ?? []
     const metas = storage.getWorkspaceMeta()
     const map = new Map<string, StoredWorkspaceMeta>()
     metas.forEach((meta) => map.set(meta.directory, meta))
@@ -44,7 +43,7 @@ export function useWorkspaces(directory: string | undefined) {
         }
       })
       .sort((a, b) => a.order - b.order)
-  }, [directories])
+  }, [workspacesQuery.data?.data])
 
   const syncMetadata = useCallback(() => {
     if (merged.length === 0) return

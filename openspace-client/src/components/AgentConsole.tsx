@@ -44,10 +44,10 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     const segments = normalized.split("/")
     return segments[segments.length - 1] || undefined
   }, [directory])
-  const agentsQuery = useAgents()
-  const modelsQuery = useModels()
-  const messagesQuery = useMessages(sessionId)
-  useSessionEvents(sessionId)
+  const agentsQuery = useAgents(directory)
+  const modelsQuery = useModels(directory)
+  const messagesQuery = useMessages(sessionId, { directory })
+  useSessionEvents(sessionId, directory)
 
   const models = useMemo(() => modelsQuery.data?.models ?? [], [modelsQuery.data])
   const defaultModelId = modelsQuery.data?.defaultModelId

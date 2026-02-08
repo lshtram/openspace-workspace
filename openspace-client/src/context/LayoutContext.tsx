@@ -1,14 +1,14 @@
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 
 type LayoutContextType = {
   leftSidebarExpanded: boolean
-  setLeftSidebarExpanded: (expanded: boolean) => void
+  setLeftSidebarExpanded: Dispatch<SetStateAction<boolean>>
   rightSidebarExpanded: boolean
-  setRightSidebarExpanded: (expanded: boolean) => void
+  setRightSidebarExpanded: Dispatch<SetStateAction<boolean>>
   terminalExpanded: boolean
-  setTerminalExpanded: (expanded: boolean) => void
+  setTerminalExpanded: Dispatch<SetStateAction<boolean>>
   terminalHeight: number
-  setTerminalHeight: (height: number) => void
+  setTerminalHeight: Dispatch<SetStateAction<number>>
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)

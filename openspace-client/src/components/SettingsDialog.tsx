@@ -1,6 +1,14 @@
 import * as Dialog from "@radix-ui/react-dialog"
 import { X, Keyboard, Globe, Key, Palette, Terminal, Bot } from "lucide-react"
 import { useEffect, useState } from "react"
+import {
+  DEFAULT_SHORTCUTS,
+  SETTINGS_STORAGE_KEY,
+  emitSettingsUpdated,
+  formatShortcutFromEvent,
+  type ShortcutAction,
+  type ShortcutMap,
+} from "../utils/shortcuts"
 
 type SettingsTab = {
   id: string
@@ -23,9 +31,8 @@ type SettingsState = {
   notifyOnAgentCompletion: boolean
   defaultShell: "Default" | "Bash" | "Zsh" | "Fish"
   language: "English" | "Deutsch" | "Español" | "Français"
+  shortcuts: ShortcutMap
 }
-
-const SETTINGS_STORAGE_KEY = "openspace.settings"
 
 const defaultSettings: SettingsState = {
   theme: "Light",
@@ -33,6 +40,7 @@ const defaultSettings: SettingsState = {
   notifyOnAgentCompletion: false,
   defaultShell: "Default",
   language: "English",
+  shortcuts: { ...DEFAULT_SHORTCUTS },
 }
 
 function loadSettings(): SettingsState {
@@ -47,6 +55,10 @@ function loadSettings(): SettingsState {
       notifyOnAgentCompletion: Boolean(parsed.notifyOnAgentCompletion),
       defaultShell: parsed.defaultShell ?? defaultSettings.defaultShell,
       language: parsed.language ?? defaultSettings.language,
+      shortcuts: {
+        ...DEFAULT_SHORTCUTS,
+        ...(parsed.shortcuts ?? {}),
+      },
     }
   } catch {
     return defaultSettings
@@ -59,6 +71,7 @@ export function SettingsDialog() {
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    emitSettingsUpdated()
   }, [settings])
 
   return (
@@ -119,7 +132,12 @@ export function SettingsDialog() {
                 }
               />
             )}
-            {activeTab === "shortcuts" && <ShortcutsSettings />}
+            {activeTab === "shortcuts" && (
+              <ShortcutsSettings
+                shortcuts={settings.shortcuts}
+                onChange={(shortcuts) => setSettings((prev) => ({ ...prev, shortcuts }))}
+              />
+            )}
             {activeTab === "providers" && <ProvidersSettings />}
             {activeTab === "agents" && <AgentsSettings />}
             {activeTab === "terminal" && (
@@ -205,25 +223,72 @@ function GeneralSettings({
   )
 }
 
-function ShortcutsSettings() {
-  const shortcuts = [
-    { key: "New Session", shortcut: "Ctrl+N" },
-    { key: "Send Message", shortcut: "Enter" },
-    { key: "New Line", shortcut: "Shift+Enter" },
-    { key: "Open Settings", shortcut: "Ctrl+," },
-    { key: "Toggle Sidebar", shortcut: "Ctrl+B" },
-  ]
+type ShortcutRow = {
+  id: ShortcutAction
+  label: string
+}
+
+const shortcutRows: ShortcutRow[] = [
+  { id: "openCommandPalette", label: "Open Command Palette" },
+  { id: "newSession", label: "New Session" },
+  { id: "toggleSidebar", label: "Toggle Sidebar" },
+  { id: "toggleTerminal", label: "Toggle Terminal" },
+  { id: "toggleFileTree", label: "Toggle File Tree" },
+]
+
+type ShortcutsSettingsProps = {
+  shortcuts: ShortcutMap
+  onChange: (shortcuts: ShortcutMap) => void
+}
+
+function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
+  const [capturing, setCapturing] = useState<ShortcutAction | null>(null)
+
+  useEffect(() => {
+    if (!capturing) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault()
+      if (event.key === "Escape") {
+        setCapturing(null)
+        return
+      }
+      if (event.key === "Backspace" || event.key === "Delete") {
+        onChange({ ...shortcuts, [capturing]: "" })
+        setCapturing(null)
+        return
+      }
+      const shortcut = formatShortcutFromEvent(event)
+      if (!shortcut) return
+      onChange({ ...shortcuts, [capturing]: shortcut })
+      setCapturing(null)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [capturing, onChange, shortcuts])
 
   return (
     <div className="space-y-4">
-      <p className="text-[13px] text-black/50">Keyboard shortcuts for common actions.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-black/50">Keyboard shortcuts for common actions.</p>
+        <button
+          type="button"
+          onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
+          className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+        >
+          Reset defaults
+        </button>
+      </div>
       <div className="divide-y divide-black/[0.03]">
-        {shortcuts.map(({ key, shortcut }) => (
-          <div key={key} className="flex items-center justify-between py-3">
-            <span className="text-[13px] text-black/70">{key}</span>
-            <kbd className="rounded-md bg-black/[0.04] px-2 py-1 font-mono text-[11px] text-black/60">
-              {shortcut}
-            </kbd>
+        {shortcutRows.map((row) => (
+          <div key={row.id} className="flex items-center justify-between py-3">
+            <span className="text-[13px] text-black/70">{row.label}</span>
+            <button
+              type="button"
+              onClick={() => setCapturing(row.id)}
+              className="min-w-[160px] rounded-md bg-black/[0.04] px-2 py-1 text-center font-mono text-[11px] text-black/70 hover:bg-black/[0.08]"
+            >
+              {capturing === row.id ? "Press keys..." : shortcuts[row.id] || "Not set"}
+            </button>
           </div>
         ))}
       </div>

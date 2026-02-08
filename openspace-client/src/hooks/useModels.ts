@@ -11,9 +11,9 @@ type ModelsResult = {
 
 export const modelsQueryKey = (serverUrl?: string, directory?: string) => ["models", serverUrl, directory]
 
-export function useModels() {
+export function useModels(directoryProp?: string) {
   const server = useServer()
-  const directory = openCodeService.directory
+  const directory = directoryProp ?? openCodeService.directory
   return useQuery<ModelsResult>({
     queryKey: modelsQueryKey(server.activeUrl, directory),
     queryFn: async () => {

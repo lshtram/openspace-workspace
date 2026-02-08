@@ -17,13 +17,12 @@ const getTerminalTheme = () => {
   return { background, foreground }
 }
 
-export function useTerminal(resizeTrigger?: number) {
+export function useTerminal(resizeTrigger?: number, directoryProp?: string) {
   const server = useServer()
-  const directory = openCodeService.directory
+  const directory = directoryProp ?? openCodeService.directory
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [state, setState] = useState<TerminalState>({ ready: false })
   const fitRef = useRef<FitAddon | null>(null)
-  const ptyIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (fitRef.current && state.ready) {
@@ -37,14 +36,32 @@ export function useTerminal(resizeTrigger?: number) {
     let term: XTerm | undefined
     let fit: FitAddon | undefined
     let resizeCleanup: (() => void) | undefined
+    let activePtyID: string | null = null
+
+    const removePty = async () => {
+      if (!activePtyID) return
+      const ptyID = activePtyID
+      activePtyID = null
+      try {
+        await openCodeService.pty.remove({ ptyID, directory })
+      } catch {
+        // Best effort: avoid leaking shells on the server.
+      }
+    }
 
     const connect = async () => {
+      setState({ ready: false })
+
       const ptyResponse = await openCodeService.pty.create({
         directory,
       })
       const pty = ptyResponse.data
-      if (!pty || disposed) return
-      ptyIdRef.current = pty.id
+      if (!pty) return
+      activePtyID = pty.id
+      if (disposed) {
+        await removePty()
+        return
+      }
 
       const url = new URL(`${openCodeService.baseUrl}/pty/${pty.id}/connect`)
       url.searchParams.set("directory", directory)
@@ -64,7 +81,10 @@ export function useTerminal(resizeTrigger?: number) {
       fitRef.current = fitAddon
 
       const container = containerRef.current
-      if (!container) return
+      if (!container) {
+        await removePty()
+        return
+      }
       xterm.open(container)
       fitAddon.fit()
       setState({ ready: true })
@@ -83,10 +103,12 @@ export function useTerminal(resizeTrigger?: number) {
       socket.addEventListener("close", () => {
         if (disposed) return
         setState({ ready: false, error: "Terminal disconnected" })
+        void removePty()
       })
       socket.addEventListener("error", () => {
         if (disposed) return
         setState({ ready: false, error: "Terminal connection failed" })
+        void removePty()
       })
 
       xterm.onData((data) => {
@@ -111,6 +133,7 @@ export function useTerminal(resizeTrigger?: number) {
     void connect().catch((err) => {
       if (disposed) return
       setState({ ready: false, error: err instanceof Error ? err.message : "Terminal init failed" })
+      void removePty()
     })
 
     return () => {
@@ -120,9 +143,7 @@ export function useTerminal(resizeTrigger?: number) {
       fit?.dispose()
       fitRef.current = null
       resizeCleanup?.()
-      if (ptyIdRef.current) {
-        void openCodeService.pty.remove({ ptyID: ptyIdRef.current }).catch(() => {})
-      }
+      void removePty()
     }
   }, [server.activeUrl, directory])
 

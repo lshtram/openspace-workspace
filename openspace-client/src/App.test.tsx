@@ -1,16 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders, createTestQueryClient } from './test/utils'
 import { LayoutProvider } from './context/LayoutContext'
 import App from './App'
 import { storage } from './utils/storage'
 import { openCodeService } from './services/OpenCodeClient'
+import { SETTINGS_STORAGE_KEY } from './utils/shortcuts'
 
 // Mock child components to isolate App logic
 vi.mock('./components/AgentConsole', () => ({
-  AgentConsole: ({ sessionId, onSessionCreated }: { sessionId?: string, onSessionCreated?: (id: string) => void }) => (
-    <div data-testid="agent-console">
+  AgentConsole: ({
+    sessionId,
+    onSessionCreated,
+    directory,
+  }: {
+    sessionId?: string
+    onSessionCreated?: (id: string) => void
+    directory?: string
+  }) => (
+    <div data-testid="agent-console" data-directory={directory}>
       AgentConsole
       {sessionId && <span data-testid="session-id">{sessionId}</span>}
       <button onClick={() => onSessionCreated?.('new-session-123')}>Create Session</button>
@@ -23,8 +32,8 @@ vi.mock('./components/FileTree', () => ({
 }))
 
 vi.mock('./components/Terminal', () => ({
-  Terminal: ({ resizeTrigger }: { resizeTrigger: number }) => (
-    <div data-testid="terminal" data-resize-trigger={resizeTrigger}>Terminal</div>
+  Terminal: ({ resizeTrigger, directory }: { resizeTrigger: number; directory?: string }) => (
+    <div data-testid="terminal" data-resize-trigger={resizeTrigger} data-directory={directory}>Terminal</div>
   ),
 }))
 
@@ -53,8 +62,22 @@ vi.mock('./components/sidebar/ProjectRail', () => ({
 }))
 
 vi.mock('./components/sidebar/SessionSidebar', () => ({
-  SessionSidebar: ({ projectName, sessions, activeSessionId, onSelectSession, onNewSession }: { projectName: string, sessions: Record<string, unknown>[], activeSessionId?: string, onSelectSession: (id: string) => void, onNewSession: () => void }) => (
-    <div data-testid="session-sidebar" data-project={projectName}>
+  SessionSidebar: ({
+    projectName,
+    sessions,
+    activeSessionId,
+    onSelectSession,
+    onNewSession,
+    currentDirectory,
+  }: {
+    projectName: string
+    sessions: Record<string, unknown>[]
+    activeSessionId?: string
+    onSelectSession: (id: string) => void
+    onNewSession: () => void
+    currentDirectory: string
+  }) => (
+    <div data-testid="session-sidebar" data-project={projectName} data-current-directory={currentDirectory}>
       {sessions.map((s) => (
         <button
           key={s.id as string}
@@ -133,6 +156,7 @@ const renderApp = (queryClient = createTestQueryClient()) => {
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     // Reset storage mocks to default
     vi.mocked(storage.getProjects).mockReturnValue([])
     vi.mocked(storage.getLastProjectPath).mockReturnValue(null)
@@ -281,6 +305,9 @@ describe('App', () => {
       
       // Verify the new project is now active
       expect(screen.getByTestId('project-/new/project/path')).toHaveAttribute('data-active', 'true')
+      expect(openCodeService.directory).toBe('/new/project/path')
+      expect(screen.getByTestId('session-sidebar')).toHaveAttribute('data-current-directory', '/new/project/path')
+      expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/new/project/path')
     })
   })
 
@@ -308,6 +335,29 @@ describe('App', () => {
       
       await waitFor(() => {
         expect(screen.getByTestId('session-id')).toHaveTextContent('new-session-123')
+      })
+    })
+
+    it('should create a new session with the configured shortcut', async () => {
+      window.localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify({
+          shortcuts: {
+            newSession: 'Ctrl+N',
+          },
+        })
+      )
+
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
+
+      await waitFor(() => {
+        expect(openCodeService.client.session.create).toHaveBeenCalledWith({ directory: '/default/path' })
       })
     })
   })

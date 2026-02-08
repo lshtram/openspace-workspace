@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import clsx from "clsx"
 import { useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Image, ArrowUp, Square } from "lucide-react"

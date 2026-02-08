@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { AgentConsole } from "./components/AgentConsole"
 import { FileTree } from "./components/FileTree"
 import { Terminal } from "./components/Terminal"
+import { CommandPalette } from "./components/CommandPalette"
 import { ProjectRail, type Project } from "./components/sidebar/ProjectRail"
 import { SessionSidebar } from "./components/sidebar/SessionSidebar"
 import { TopBar } from "./components/TopBar"
@@ -14,8 +15,17 @@ import { useUpdateSession, useDeleteSession } from "./hooks/useSessionActions"
 import { storage } from "./utils/storage"
 import { useLayout } from "./context/LayoutContext"
 import { useDialog } from "./context/DialogContext"
+import { useCommandPalette } from "./context/CommandPaletteContext"
 import { DialogSelectDirectory } from "./components/DialogSelectDirectory"
 import { useServer } from "./context/ServerContext"
+import {
+  DEFAULT_SHORTCUTS,
+  SETTINGS_UPDATED_EVENT,
+  isEditableTarget,
+  loadShortcuts,
+  matchesShortcut,
+  type ShortcutMap,
+} from "./utils/shortcuts"
 import "./App.css"
 
 function App() {
@@ -27,14 +37,20 @@ function App() {
     rightSidebarExpanded,
     terminalExpanded,
     terminalHeight,
+    setLeftSidebarExpanded,
+    setRightSidebarExpanded,
+    setTerminalExpanded,
     setTerminalHeight,
   } = useLayout()
+  const { openPalette, registerCommand } = useCommandPalette()
 
   const [activeProjectId, setActiveProjectId] = useState<string>("")
+  const [activeDirectory, setActiveDirectory] = useState<string>(openCodeService.directory)
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>()
   const [projects, setProjects] = useState<Project[]>([])
   const [isResizingTerminal, setIsResizingTerminal] = useState(false)
   const [seenVersion, setSeenVersion] = useState(0)
+  const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => ({ ...DEFAULT_SHORTCUTS, ...loadShortcuts() }))
   const sessionSeenEvent = "openspace:session-seen"
 
   const setActiveSession = useCallback((id?: string) => {
@@ -43,6 +59,11 @@ function App() {
       storage.markSessionSeen(id)
       setSeenVersion((prev) => prev + 1)
     }
+  }, [])
+
+  const applyActiveDirectory = useCallback((directory: string) => {
+    openCodeService.setDirectory(directory)
+    setActiveDirectory(directory)
   }, [])
 
   // Initialize projects from storage or current directory
@@ -62,10 +83,10 @@ function App() {
       const lastPath = storage.getLastProjectPath()
       if (lastPath && mapped.find(p => p.path === lastPath)) {
         setActiveProjectId(lastPath)
-        openCodeService.setDirectory(lastPath)
+        applyActiveDirectory(lastPath)
       } else {
         setActiveProjectId(mapped[0].path)
-        openCodeService.setDirectory(mapped[0].path)
+        applyActiveDirectory(mapped[0].path)
       }
     } else {
       const initializeFromServer = async () => {
@@ -85,7 +106,7 @@ function App() {
 
           setProjects([defaultProject])
           setActiveProjectId(defaultProject.id)
-          openCodeService.setDirectory(defaultProject.path)
+          applyActiveDirectory(defaultProject.path)
           storage.saveProjects([{ path: defaultProject.path, name: defaultProject.name, color: defaultProject.color }])
         } catch (error) {
           console.error("Failed to load default project from server", error)
@@ -94,14 +115,14 @@ function App() {
 
       void initializeFromServer()
     }
-  }, [])
+  }, [applyActiveDirectory])
 
   const handleSelectProject = (id: string) => {
     setActiveProjectId(id)
     setActiveSession(undefined)
     const project = projects.find(p => p.id === id)
     if (project) {
-      openCodeService.setDirectory(project.path)
+      applyActiveDirectory(project.path)
       storage.saveLastProjectPath(project.path)
       queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, project.path) })
     }
@@ -110,12 +131,12 @@ function App() {
   const handleSwitchWorkspace = useCallback(
     (workspaceDirectory: string) => {
       setActiveSession(undefined)
-      openCodeService.setDirectory(workspaceDirectory)
+      applyActiveDirectory(workspaceDirectory)
       queryClient.invalidateQueries({
         queryKey: sessionsQueryKey(server.activeUrl, workspaceDirectory),
       })
     },
-    [queryClient, server.activeUrl, setActiveSession],
+    [applyActiveDirectory, queryClient, server.activeUrl, setActiveSession],
   )
 
   const handleAddProject = (path: string) => {
@@ -130,7 +151,11 @@ function App() {
     const updated = [...projects, newProject]
     setProjects(updated)
     storage.saveProjects(updated.map(p => ({ path: p.path, name: p.name, color: p.color })))
-    handleSelectProject(path)
+    setActiveProjectId(path)
+    setActiveSession(undefined)
+    applyActiveDirectory(path)
+    storage.saveLastProjectPath(path)
+    queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, path) })
   }
 
   const activeProject = projects.find(p => p.id === activeProjectId)
@@ -141,7 +166,7 @@ function App() {
     refetchInterval: (data) => (data ? false : 3000),
   })
 
-  const sessionsQuery = useSessions()
+  const sessionsQuery = useSessions({ directory: activeDirectory })
   const sessions = sessionsQuery.sessions
   const updateSession = useUpdateSession()
   const deleteSession = useDeleteSession()
@@ -149,7 +174,7 @@ function App() {
   const createSession = useMutation({
     mutationFn: async () => {
       const response = await openCodeService.client.session.create({
-        directory: openCodeService.directory,
+        directory: activeDirectory,
       })
       return response.data
     },
@@ -157,11 +182,20 @@ function App() {
       if (data?.id) {
         setActiveSession(data.id)
         queryClient.invalidateQueries({
-          queryKey: sessionsQueryKey(server.activeUrl, openCodeService.directory),
+          queryKey: sessionsQueryKey(server.activeUrl, activeDirectory),
         })
       }
     },
   })
+
+  const createSessionRef = useRef(createSession)
+  useEffect(() => {
+    createSessionRef.current = createSession
+  }, [createSession])
+
+  const handleNewSession = useCallback(() => {
+    createSessionRef.current.mutate()
+  }, [])
 
   const handleDeleteSession = useCallback(
     (id: string) => {
@@ -211,6 +245,100 @@ function App() {
   const connected = Boolean(connectionQuery.data)
 
   useEffect(() => {
+    const refreshShortcuts = () => {
+      setShortcuts(loadShortcuts())
+    }
+    window.addEventListener(SETTINGS_UPDATED_EVENT, refreshShortcuts)
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, refreshShortcuts)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
+
+      if (matchesShortcut(event, shortcuts.openCommandPalette)) {
+        event.preventDefault()
+        openPalette()
+        return
+      }
+
+      if (isEditableTarget(event.target)) return
+
+      if (matchesShortcut(event, shortcuts.newSession)) {
+        event.preventDefault()
+        handleNewSession()
+        return
+      }
+      if (matchesShortcut(event, shortcuts.toggleSidebar)) {
+        event.preventDefault()
+        setLeftSidebarExpanded((prev) => !prev)
+        return
+      }
+      if (matchesShortcut(event, shortcuts.toggleTerminal)) {
+        event.preventDefault()
+        setTerminalExpanded((prev) => !prev)
+        return
+      }
+      if (matchesShortcut(event, shortcuts.toggleFileTree)) {
+        event.preventDefault()
+        setRightSidebarExpanded((prev) => !prev)
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [
+    handleNewSession,
+    openPalette,
+    setLeftSidebarExpanded,
+    setRightSidebarExpanded,
+    setTerminalExpanded,
+    shortcuts,
+  ])
+
+  useEffect(() => {
+    const unregister = [
+      registerCommand({
+        id: "new-session",
+        title: "New Session",
+        shortcut: shortcuts.newSession,
+        action: handleNewSession,
+      }),
+      registerCommand({
+        id: "toggle-sidebar",
+        title: "Toggle Sidebar",
+        shortcut: shortcuts.toggleSidebar,
+        action: () => setLeftSidebarExpanded((prev) => !prev),
+      }),
+      registerCommand({
+        id: "toggle-terminal",
+        title: "Toggle Terminal",
+        shortcut: shortcuts.toggleTerminal,
+        action: () => setTerminalExpanded((prev) => !prev),
+      }),
+      registerCommand({
+        id: "toggle-file-tree",
+        title: "Toggle File Tree",
+        shortcut: shortcuts.toggleFileTree,
+        action: () => setRightSidebarExpanded((prev) => !prev),
+      }),
+    ]
+    return () => {
+      unregister.forEach((cleanup) => cleanup())
+    }
+  }, [
+    handleNewSession,
+    registerCommand,
+    setLeftSidebarExpanded,
+    setRightSidebarExpanded,
+    setTerminalExpanded,
+    shortcuts.newSession,
+    shortcuts.toggleFileTree,
+    shortcuts.toggleSidebar,
+    shortcuts.toggleTerminal,
+  ])
+
+  useEffect(() => {
     const handleSeen = () => {
       setSeenVersion((prev) => prev + 1)
     }
@@ -248,17 +376,17 @@ function App() {
     const index = sessions.findIndex((s) => s.id === activeSessionId)
     const neighbors = [sessions[index - 1], sessions[index + 1]].filter(Boolean)
     neighbors.forEach((session) => {
-      queryClient.prefetchQuery({
-        queryKey: messagesQueryKey(server.activeUrl, openCodeService.directory, session.id, DEFAULT_MESSAGE_LIMIT),
+        queryClient.prefetchQuery({
+        queryKey: messagesQueryKey(server.activeUrl, activeDirectory, session.id, DEFAULT_MESSAGE_LIMIT),
         queryFn: () =>
           fetchMessages({
             sessionId: session.id,
-            directory: openCodeService.directory,
+            directory: activeDirectory,
             limit: DEFAULT_MESSAGE_LIMIT,
           }),
       })
     })
-  }, [activeSessionId, sessions, server.activeUrl, queryClient])
+  }, [activeDirectory, activeSessionId, sessions, server.activeUrl, queryClient])
 
   return (
     <div className="flex h-full flex-col bg-[#f7f5f1]">
@@ -291,7 +419,7 @@ function App() {
               sessions={sessions}
               activeSessionId={activeSessionId}
               onSelectSession={setActiveSession}
-              onNewSession={() => createSession.mutate()}
+              onNewSession={handleNewSession}
               onLoadMore={sessionsQuery.loadMore}
               hasMore={sessionsQuery.hasMore}
               onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
@@ -302,7 +430,7 @@ function App() {
               onSelectNextUnseen={() => {
                 if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
               }}
-              currentDirectory={openCodeService.directory}
+              currentDirectory={activeDirectory}
               onSwitchWorkspace={handleSwitchWorkspace}
             />
           )}
@@ -312,7 +440,7 @@ function App() {
               <div className="flex flex-1 flex-col min-w-0 relative">
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AgentConsole 
-                    directory={activeProject?.path ?? openCodeService.directory}
+                    directory={activeDirectory}
                     sessionId={activeSessionId} 
                     onSessionCreated={setActiveSession} 
                   />
@@ -326,7 +454,7 @@ function App() {
                       style={{ bottom: terminalHeight - 3 }}
                     />
                     <div className="border-t border-black/[0.03]" style={{ height: terminalHeight }}>
-                      <Terminal resizeTrigger={terminalHeight} />
+                      <Terminal resizeTrigger={terminalHeight} directory={activeDirectory} />
                     </div>
                   </>
                 )}
@@ -334,13 +462,14 @@ function App() {
 
               {rightSidebarExpanded && (
                 <aside className="hidden w-[280px] flex-shrink-0 flex-col border-l border-black/[0.03] md:flex animate-in slide-in-from-right duration-300">
-                  <FileTree directory={activeProject?.path ?? openCodeService.directory} />
+                  <FileTree directory={activeDirectory} />
                 </aside>
               )}
             </div>
           </main>
         </div>
       )}
+      <CommandPalette />
     </div>
   )
 }

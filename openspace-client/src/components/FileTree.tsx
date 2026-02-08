@@ -27,7 +27,7 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
     expanded: new Set(["."]),
     loading: new Set(),
   })
-  const fileStatusQuery = useFileStatus()
+  const fileStatusQuery = useFileStatus(directory)
   const loadingRef = useRef(new Set<string>())
   const loadedRef = useRef(new Set<string>())
 

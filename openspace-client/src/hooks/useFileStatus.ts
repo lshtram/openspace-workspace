@@ -4,9 +4,9 @@ import { useServer } from "../context/ServerContext"
 
 export const fileStatusQueryKey = (serverUrl?: string, directory?: string) => ["file-status", serverUrl, directory]
 
-export function useFileStatus() {
+export function useFileStatus(directoryProp?: string) {
   const server = useServer()
-  const directory = openCodeService.directory
+  const directory = directoryProp ?? openCodeService.directory
   return useQuery({
     queryKey: fileStatusQueryKey(server.activeUrl, directory),
     queryFn: async () => {

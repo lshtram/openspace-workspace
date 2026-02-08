@@ -32,10 +32,10 @@ export async function fetchMessages({
 
 export function useMessages(
   sessionId?: string,
-  options?: { initialLimit?: number; pageSize?: number }
+  options?: { initialLimit?: number; pageSize?: number; directory?: string }
 ) {
   const server = useServer()
-  const directory = openCodeService.directory
+  const directory = options?.directory ?? openCodeService.directory
   const initialLimit = options?.initialLimit ?? DEFAULT_MESSAGE_LIMIT
   const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_LIMIT
   const [limit, setLimit] = useState(initialLimit)

@@ -1,0 +1,27 @@
+# Build/Package Management
+node_modules
+package.json
+bun.lock
+
+# Ephemeral Runtime Logs (Session State)
+logs/session.json
+logs/session_state.json
+logs/session_init.json
+logs/system_telemetry.json
+logs/plugin_*.log
+logs/hook_*.log
+logs/profile.jsonl
+logs/session_init_marker.txt
+
+# Runtime Artifacts
+artifacts/events.ndjson
+artifacts/history/
+
+# Active Task Workspaces (Temporary)
+context/active_tasks/
+
+# Disabled Hooks (Backups)
+hooks_disabled/
+
+# Self
+.gitignore

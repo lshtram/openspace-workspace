@@ -148,15 +148,19 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
     updateScrollSpy()
   }, [updateScrollSpy, updateScrollState])
 
+  const turnCount = turns.length
+
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
     if (isAtBottom) scrollToBottom("auto")
+    if (turnCount === 0) return
     const frame = requestAnimationFrame(updateScrollState)
     return () => cancelAnimationFrame(frame)
-  }, [turns.length, isPending, isAtBottom, scrollToBottom, updateScrollState])
+  }, [turnCount, isAtBottom, scrollToBottom, updateScrollState])
 
   useLayoutEffect(() => {
+    if (turnCount === 0) return
     const pendingBackfill = pendingBackfillRef.current
     const viewport = viewportRef.current
     if (!pendingBackfill || !viewport || isFetching) return
@@ -164,9 +168,10 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
     viewport.scrollTop = pendingBackfill.scrollTop + Math.max(delta, 0)
     pendingBackfillRef.current = null
     updateScrollState()
-  }, [isFetching, turns.length, updateScrollState])
+  }, [isFetching, turnCount, updateScrollState])
 
   useEffect(() => {
+    if (turnCount === 0) return
     const frame = requestAnimationFrame(() => applyHashFocus("auto"))
     const onHashChange = () => applyHashFocus("smooth")
     window.addEventListener("hashchange", onHashChange)
@@ -174,7 +179,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
       cancelAnimationFrame(frame)
       window.removeEventListener("hashchange", onHashChange)
     }
-  }, [applyHashFocus, turns.length])
+  }, [applyHashFocus, turnCount])
 
   return (
     <ScrollArea.Root className="h-full w-full overflow-hidden bg-white">
@@ -317,6 +322,7 @@ function UserMessageItem({ message, parts }: { message: Message; parts: Part[] }
           </div>
           {isLong && (
             <button 
+              type="button"
               onClick={() => setIsExpanded(!isExpanded)}
               className="mt-1 text-[11px] font-bold uppercase tracking-wider text-black/40 hover:text-black/60"
             >
@@ -337,7 +343,19 @@ function UserMessageItem({ message, parts }: { message: Message; parts: Part[] }
 }
 
 function StepsFlow({ parts }: { parts: Part[] }) {
-  const [expanded, setExpanded] = useState(false)
+  const hasPendingQuestion = useMemo(() => {
+    return parts.some((part) => {
+      if (part.type !== "tool") return false
+      if (part.tool !== "question") return false
+      const answers = (part.metadata as { answers?: unknown } | undefined)?.answers
+      return !Array.isArray(answers) || answers.length === 0
+    })
+  }, [parts])
+  const [expanded, setExpanded] = useState(hasPendingQuestion)
+
+  useEffect(() => {
+    if (hasPendingQuestion) setExpanded(true)
+  }, [hasPendingQuestion])
   
   const summary = useMemo(() => {
     const tools = parts.filter(p => p.type === "tool") as ToolPart[]
@@ -362,6 +380,7 @@ function StepsFlow({ parts }: { parts: Part[] }) {
   return (
     <div className="mb-2 flex flex-col items-start">
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         className="flex max-w-full items-center gap-2 rounded-lg py-1 text-[12px] font-bold text-black/30 hover:text-black/50 transition-colors uppercase tracking-tight"
       >
@@ -446,6 +465,7 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
     return (
       <div className="flex flex-col w-full">
         <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
           className={cn(
             "flex w-full items-center gap-2 rounded-lg border border-black/[0.03] bg-black/[0.015] px-3 py-1.5 text-left transition-all hover:bg-black/[0.03]",
@@ -502,7 +522,7 @@ function ToolOutput({ part }: { part: Part }) {
   if (typeof output === "string") {
     if (toolName === "bash" || toolName === "pty") {
       if (output.split('\n').length > 1 && output.trim().split(/\s+/).length > 2) {
-        return <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">{output.trim().split('\n').map((line, i) => <div key={i} className="truncate">{line}</div>)}</div>
+        return <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1">{output.trim().split('\n').map((line) => <div key={`${line}-${line.length}`} className="truncate">{line}</div>)}</div>
       }
     }
     return <pre className="whitespace-pre-wrap">{output}</pre>
@@ -544,6 +564,7 @@ function CopyButton({ text }: { text: string }) {
   }
   return (
     <button
+      type="button"
       onClick={handleCopy}
       className="p-1.5 rounded-lg border border-black/[0.03] bg-white shadow-sm transition-all text-black/30 hover:text-black/60 hover:border-black/10 hover:bg-black/[0.02]"
     >

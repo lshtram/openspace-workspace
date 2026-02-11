@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import type { MessageEntry } from "../types/opencode"
 import type { Message, Part, GlobalEvent } from "../lib/opencode/v2/gen/types.gen"
+import type { QuestionRequest } from "../lib/opencode/v2/gen/types.gen"
 import type { StreamEvent } from "../lib/opencode/gen/core/serverSentEvents.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { sessionsQueryKey } from "./useSessions"
@@ -86,6 +87,19 @@ const getEnvelopeSessionId = (
     return part?.sessionID
   }
 
+  if (envelope.type === "question.asked") {
+    const request = envelope.properties as QuestionRequest | undefined
+    return request?.sessionID
+  }
+
+  if (envelope.type === "question.replied") {
+    return envelope.properties?.sessionID as string | undefined
+  }
+
+  if (envelope.type === "question.rejected") {
+    return envelope.properties?.sessionID as string | undefined
+  }
+
   return undefined
 }
 
@@ -115,6 +129,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   const lastErrorRef = useRef(0)
   const hasShownErrorRef = useRef(false)
   const recentEventMapRef = useRef<Map<string, number>>(new Map())
+  const pendingQuestionMapRef = useRef<Map<string, QuestionRequest>>(new Map())
 
   useEffect(() => {
     if (!sessionId) return
@@ -143,8 +158,146 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
     const onSseEvent = (event: StreamEvent<unknown>) => {
       const data = event.data as GlobalEvent
       if (!data?.payload) return
-      if (data.directory !== directory) return
+      if (directory && data.directory && data.directory !== directory) return
       const envelope = data.payload
+
+      if (envelope.type === "question.asked") {
+        const request = envelope.properties as QuestionRequest | undefined
+        if (!request || request.sessionID !== sessionId) return
+        const tool = request.tool
+        const key = tool ? `${tool.messageID}:${tool.callID}` : null
+        if (key) {
+          pendingQuestionMapRef.current.set(key, request)
+        }
+
+        queryClient.setQueriesData<MessageEntry[]>(
+          {
+            predicate: (query) => {
+              const key = query.queryKey
+              return (
+                Array.isArray(key) &&
+                key[0] === "messages" &&
+                key[1] === server.activeUrl &&
+                key[2] === directory &&
+                key[3] === sessionId
+              )
+            },
+          },
+          (prev) => {
+            const entries = prev ?? []
+            if (!tool) return entries
+            return entries.map((entry) => {
+              if (entry.info.id !== tool.messageID) return entry
+              const updatedParts = entry.parts.map((part) => {
+                if (part.type !== "tool") return part
+                if (part.tool !== "question") return part
+                if (part.callID !== tool.callID) return part
+                return {
+                  ...part,
+                  metadata: {
+                    ...(part.metadata ?? {}),
+                    requestID: request.id,
+                  },
+                }
+              })
+              return { ...entry, parts: updatedParts }
+            })
+          },
+        )
+        return
+      }
+
+      if (envelope.type === "question.replied") {
+        const properties = envelope.properties as { sessionID?: string; requestID?: string; answers?: Array<Array<string>> } | undefined
+        if (!properties?.sessionID || properties.sessionID !== sessionId) return
+        const requestId = properties.requestID
+        if (!requestId) return
+
+        for (const [key, value] of pendingQuestionMapRef.current.entries()) {
+          if (value.id === requestId) pendingQuestionMapRef.current.delete(key)
+        }
+
+        queryClient.setQueriesData<MessageEntry[]>(
+          {
+            predicate: (query) => {
+              const key = query.queryKey
+              return (
+                Array.isArray(key) &&
+                key[0] === "messages" &&
+                key[1] === server.activeUrl &&
+                key[2] === directory &&
+                key[3] === sessionId
+              )
+            },
+          },
+          (prev) => {
+            const entries = prev ?? []
+            return entries.map((entry) => ({
+              ...entry,
+              parts: entry.parts.map((part) => {
+                if (part.type !== "tool") return part
+                if (part.tool !== "question") return part
+                const partRequestId = (part.metadata as { requestID?: string } | undefined)?.requestID
+                if (partRequestId !== requestId) return part
+                return {
+                  ...part,
+                  metadata: {
+                    ...(part.metadata ?? {}),
+                    answers: properties.answers ?? [],
+                  },
+                }
+              }),
+            }))
+          },
+        )
+        return
+      }
+
+      if (envelope.type === "question.rejected") {
+        const properties = envelope.properties as { sessionID?: string; requestID?: string } | undefined
+        if (!properties?.sessionID || properties.sessionID !== sessionId) return
+        const requestId = properties.requestID
+        if (!requestId) return
+
+        for (const [key, value] of pendingQuestionMapRef.current.entries()) {
+          if (value.id === requestId) pendingQuestionMapRef.current.delete(key)
+        }
+
+        queryClient.setQueriesData<MessageEntry[]>(
+          {
+            predicate: (query) => {
+              const key = query.queryKey
+              return (
+                Array.isArray(key) &&
+                key[0] === "messages" &&
+                key[1] === server.activeUrl &&
+                key[2] === directory &&
+                key[3] === sessionId
+              )
+            },
+          },
+          (prev) => {
+            const entries = prev ?? []
+            return entries.map((entry) => ({
+              ...entry,
+              parts: entry.parts.map((part) => {
+                if (part.type !== "tool") return part
+                if (part.tool !== "question") return part
+                const partRequestId = (part.metadata as { requestID?: string } | undefined)?.requestID
+                if (partRequestId !== requestId) return part
+                return {
+                  ...part,
+                  metadata: {
+                    ...(part.metadata ?? {}),
+                    rejected: true,
+                  },
+                }
+              }),
+            }))
+          },
+        )
+        return
+      }
       const dedupeKey = getEnvelopeDedupeKey(envelope)
       if (dedupeKey) {
         const now = Date.now()
@@ -159,7 +312,31 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
           }
         }
       }
-      const envelopeSessionId = getEnvelopeSessionId(envelope)
+      let effectiveEnvelope = envelope
+      if (envelope.type === "message.part.updated") {
+        const part = envelope.properties?.part as Part | undefined
+        if (part?.type === "tool" && part.tool === "question") {
+          const key = `${part.messageID}:${part.callID}`
+          const pending = pendingQuestionMapRef.current.get(key)
+          if (pending) {
+            effectiveEnvelope = {
+              ...envelope,
+              properties: {
+                ...envelope.properties,
+                part: {
+                  ...part,
+                  metadata: {
+                    ...(part.metadata ?? {}),
+                    requestID: pending.id,
+                  },
+                },
+              },
+            }
+          }
+        }
+      }
+
+      const envelopeSessionId = getEnvelopeSessionId(effectiveEnvelope)
       if (envelopeSessionId) {
         const now = Date.now()
         queryClient.setQueriesData(
@@ -198,7 +375,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
             )
           },
         },
-        (prev) => updateMessageEntries(prev ?? [], sessionId, envelope),
+        (prev) => updateMessageEntries(prev ?? [], sessionId, effectiveEnvelope),
       )
     }
 

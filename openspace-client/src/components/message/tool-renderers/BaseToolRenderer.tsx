@@ -11,6 +11,7 @@ interface BaseToolRendererProps {
   children: React.ReactNode;
   isStep?: boolean;
   defaultExpanded?: boolean;
+  bodyClassName?: string;
 }
 
 export function BaseToolRenderer({
@@ -21,6 +22,7 @@ export function BaseToolRenderer({
   children,
   isStep,
   defaultExpanded = false,
+  bodyClassName,
 }: BaseToolRendererProps) {
   if (!part) {
     throw new Error('BaseToolRenderer requires tool part');
@@ -53,7 +55,10 @@ export function BaseToolRenderer({
       {expanded && (
         <div
           data-scrollable="true"
-          className="mt-1 rounded-xl border border-black/5 bg-[#151312] p-3 font-mono text-[12px] text-[#f6f3ef] overflow-x-auto shadow-inner"
+          className={cn(
+            "mt-1 rounded-xl border border-black/5 bg-[#151312] p-3 font-mono text-[12px] text-[#f6f3ef] overflow-x-auto shadow-inner",
+            bodyClassName,
+          )}
         >
           {status === "error" && (
             <div className="mb-2 rounded border border-red-500/20 bg-red-500/10 p-2 text-red-400">

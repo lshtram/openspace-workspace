@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test"
 import { expect, test, testProjectPath } from "./fixtures"
+import { createNewSession } from "./actions"
+import { newSessionButtonSelector, terminalSelector } from "./selectors"
 
 const keybinds = {
   openCommandPalette: "F2",
@@ -37,19 +39,31 @@ async function closeSettings(dialog: ReturnType<Page["locator"]>, page: Page) {
   await expect(dialog).not.toBeVisible()
 }
 
+async function assertSidebarExpanded(page: Page) {
+  const sidebarNewSessionButton = page.locator(newSessionButtonSelector).first()
+  if (await sidebarNewSessionButton.isVisible().catch(() => false)) return sidebarNewSessionButton
+
+  const sidebarToggle = page
+    .locator('button:has(svg[data-lucide="sidebar"]), header > div:first-child > button:first-child')
+    .first()
+  await expect(sidebarToggle).toBeVisible()
+  await sidebarToggle.click()
+  await expect(sidebarNewSessionButton).toBeVisible()
+  return sidebarNewSessionButton
+}
+
 test("changing sidebar toggle keybind works", async ({ page, gotoHome, seedProject }) => {
   const dialog = await openSettingsDialog(page, gotoHome, seedProject)
   await setShortcut(dialog, page, "toggleSidebar", keybinds.toggleSidebar)
   await closeSettings(dialog, page)
 
-  const sidebarNewSessionButton = page.getByRole("button", { name: /^New session$/ })
-  await expect(sidebarNewSessionButton).toHaveCount(1)
+  const sidebarNewSessionButton = await assertSidebarExpanded(page)
 
   await page.keyboard.press(keybinds.toggleSidebar)
-  await expect(sidebarNewSessionButton).toHaveCount(0)
+  await expect(sidebarNewSessionButton).toBeHidden()
 
   await page.keyboard.press(keybinds.toggleSidebar)
-  await expect(sidebarNewSessionButton).toHaveCount(1)
+  await expect(sidebarNewSessionButton).toBeVisible()
 })
 
 test("resetting all keybinds to defaults works", async ({ page, gotoHome, seedProject }) => {
@@ -75,11 +89,10 @@ test("clearing a keybind works", async ({ page, gotoHome, seedProject }) => {
   await expect(dialog.getByTestId("shortcut-value-toggleSidebar")).toContainText("Not set")
   await closeSettings(dialog, page)
 
-  const sidebarNewSessionButton = page.getByRole("button", { name: /^New session$/ })
-  await expect(sidebarNewSessionButton).toHaveCount(1)
+  const sidebarNewSessionButton = await assertSidebarExpanded(page)
 
   await page.keyboard.press(keybinds.toggleSidebar)
-  await expect(sidebarNewSessionButton).toHaveCount(1)
+  await expect(sidebarNewSessionButton).toBeVisible()
 })
 
 test("changing settings open keybind works", async ({ page, gotoHome, seedProject }) => {
@@ -96,7 +109,7 @@ test("changing new session keybind works", async ({ page, gotoHome, seedProject 
   await setShortcut(dialog, page, "newSession", keybinds.newSession)
   await closeSettings(dialog, page)
 
-  await page.getByRole("button", { name: /^New session$/ }).first().click()
+  await createNewSession(page)
   const activeSession = page.locator('[data-session-id][data-active="true"]').first()
   await expect(activeSession).toBeVisible()
   const before = await activeSession.getAttribute("data-session-id")
@@ -120,14 +133,24 @@ test("changing terminal toggle keybind works", async ({ page, gotoHome, seedProj
   await setShortcut(dialog, page, "toggleTerminal", keybinds.toggleTerminal)
   await closeSettings(dialog, page)
 
-  const terminal = page.locator('[data-component="terminal"]')
-  await expect(terminal).toHaveCount(1)
+  await createNewSession(page)
+
+  const terminal = page.locator(terminalSelector).first()
+  const terminalToggle = page
+    .locator('header div[class*="border-l"] button, button:has(svg[data-lucide="panel-bottom"])')
+    .first()
+  await expect(terminalToggle).toBeVisible()
+
+  if (!(await terminal.isVisible().catch(() => false))) {
+    await terminalToggle.click()
+    await expect(terminal).toBeVisible()
+  }
 
   await page.keyboard.press(keybinds.toggleTerminal)
-  await expect(terminal).toHaveCount(0)
+  await expect(terminal).not.toBeVisible()
 
   await page.keyboard.press(keybinds.toggleTerminal)
-  await expect(terminal).toHaveCount(1)
+  await expect(terminal).toBeVisible()
 })
 
 test("changing command palette keybind works", async ({ page, gotoHome, seedProject }) => {

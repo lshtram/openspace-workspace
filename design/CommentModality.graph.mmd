@@ -1,0 +1,61 @@
+flowchart TD
+  subgraph User["User"]
+    U1["Open artifact context"]
+    U2["Create/reply thread"]
+    U3["Resolve/reopen/delete"]
+    U4["Send thread context to agent"]
+    U5["Convert annotation to comment"]
+  end
+
+  subgraph Client["OpenSpace Client"]
+    P["CommentPanel"]
+    L["ThreadList"]
+    V["ThreadView"]
+    C["CommentComposer"]
+    X["Context Adapter (path/type/location)"]
+    B["Annotation Bridge Adapter"]
+  end
+
+  subgraph Runtime["Runtime Hub"]
+    H["/artifacts API"]
+    E["/events (SSE)"]
+    S["ArtifactStore"]
+    CTX["/context/active-comment-target"]
+  end
+
+  subgraph MCP["Comment MCP"]
+    M["comment-mcp.ts"]
+    O["list/read/create/reply/resolve/reopen/delete tools"]
+    R["active://comments"]
+  end
+
+  subgraph FS["Filesystem"]
+    T[".opencode/comments/threads/*.json"]
+    I[".opencode/comments/index.json (optional)"]
+  end
+
+  U1 --> X
+  X --> CTX
+
+  U2 --> C
+  U3 --> V
+  U5 --> B
+  B --> C
+
+  P --> L
+  P --> V
+  C --> H
+  V --> H
+  L --> H
+
+  H --> S
+  S --> T
+  S --> I
+  S -->|FILE_CHANGED| E
+  E --> P
+
+  M --> O
+  M --> R
+  M --> H
+
+  U4 --> M

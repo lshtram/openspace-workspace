@@ -17,6 +17,12 @@ test("can create new session", async ({ page, gotoHome, seedProject }) => {
 
   // Click new session button
   const newSessionBtn = page.locator(newSessionButtonSelector).first()
+  if (!(await newSessionBtn.isVisible())) {
+    await page.keyboard.press("Meta+B")
+    if (!(await newSessionBtn.isVisible())) {
+      await page.keyboard.press("Control+B")
+    }
+  }
   await expect(newSessionBtn).toBeVisible()
   await newSessionBtn.click()
 

@@ -1,0 +1,933 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "http://localhost:5173",
+  "elements": [
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 910259831,
+      "isDeleted": false,
+      "id": "arg6isd7loa6vueyxt",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 155,
+      "y": 95,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 81537395,
+      "groupIds": [
+        "t72j601c5kmbgyty06"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Vehicle"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 745539521,
+      "isDeleted": false,
+      "id": "3bm9t0g8hp2yur06fs",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 155,
+      "y": 145,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 326471116,
+      "groupIds": [
+        "t72j601c5kmbgyty06"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Vehicle"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 1253424611,
+      "isDeleted": false,
+      "id": "jpgofkfdwtk7uf53u8",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 40,
+      "y": 255,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 758250992,
+      "groupIds": [
+        "b9atvn95495soz680v"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Car"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 568410148,
+      "isDeleted": false,
+      "id": "86h61aafyrwpa4hte7",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 40,
+      "y": 305,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 735200234,
+      "groupIds": [
+        "b9atvn95495soz680v"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Car"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 1339615913,
+      "isDeleted": false,
+      "id": "v5by1impx5o75341g6",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 270,
+      "y": 255,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1425533705,
+      "groupIds": [
+        "2r5ydab3l1drdjw2qg"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Truck"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 740668998,
+      "isDeleted": false,
+      "id": "3qdt7wp0mwgd38r4b4",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 270,
+      "y": 305,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 137534887,
+      "groupIds": [
+        "2r5ydab3l1drdjw2qg"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636428485,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Truck"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "rectangle",
+      "version": 66,
+      "versionNonce": 818697079,
+      "isDeleted": false,
+      "id": "t72j601c5kmbgyty06",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 155,
+      "y": 40,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 60,
+      "seed": 448938441,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [
+        {
+          "id": "5su14860lb83nterxu",
+          "type": "text"
+        },
+        {
+          "id": "ayoatr0hhz7k7qowkp",
+          "type": "arrow"
+        },
+        {
+          "id": "vpheewtzvfkgdh5qix",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "nodeId": "Vehicle",
+        "type": "class-container",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "type": "text",
+      "version": 82,
+      "versionNonce": 431030353,
+      "isDeleted": false,
+      "id": "5su14860lb83nterxu",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 167.82005310058594,
+      "y": 45,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "width": 124.35989379882812,
+      "height": 50,
+      "seed": 1297813880,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "fontSize": 20,
+      "fontFamily": 1,
+      "text": "Vehicle",
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "t72j601c5kmbgyty06",
+      "originalText": "Vehicle",
+      "lineHeight": 1.25,
+      "baseline": 18
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 219783970,
+      "isDeleted": false,
+      "id": "56wtm51iyd6tqnpwcy",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 155,
+      "y": 95,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1532157223,
+      "groupIds": [
+        "t72j601c5kmbgyty06"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Vehicle"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 1931191498,
+      "isDeleted": false,
+      "id": "mdvl1hfrru1pq1vyaj",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 155,
+      "y": 145,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1692831152,
+      "groupIds": [
+        "t72j601c5kmbgyty06"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Vehicle"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "rectangle",
+      "version": 17,
+      "versionNonce": 64888478,
+      "isDeleted": false,
+      "id": "b9atvn95495soz680v",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 40,
+      "y": 200,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 60,
+      "seed": 254936128,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [
+        {
+          "id": "l8li7941c4btktqmax",
+          "type": "text"
+        },
+        {
+          "id": "ayoatr0hhz7k7qowkp",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "nodeId": "Car",
+        "type": "class-container",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "type": "text",
+      "version": 16,
+      "versionNonce": 509385814,
+      "isDeleted": false,
+      "id": "l8li7941c4btktqmax",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 87,
+      "y": 212.5,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "width": 56,
+      "height": 35,
+      "seed": 1997268882,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "fontSize": 20,
+      "fontFamily": 1,
+      "text": "Car",
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "b9atvn95495soz680v",
+      "originalText": "Car",
+      "lineHeight": 1.25,
+      "baseline": 18
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 137860565,
+      "isDeleted": false,
+      "id": "23gssm3s8dqcvnu32x",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 40,
+      "y": 255,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 999658607,
+      "groupIds": [
+        "b9atvn95495soz680v"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Car"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 608386784,
+      "isDeleted": false,
+      "id": "q1obp0drl6889msam2",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 40,
+      "y": 305,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1499508200,
+      "groupIds": [
+        "b9atvn95495soz680v"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Car"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "rectangle",
+      "version": 17,
+      "versionNonce": 1807318590,
+      "isDeleted": false,
+      "id": "2r5ydab3l1drdjw2qg",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 270,
+      "y": 200,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 60,
+      "seed": 1622787738,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [
+        {
+          "id": "au27dx3n1gua69gdxp",
+          "type": "text"
+        },
+        {
+          "id": "vpheewtzvfkgdh5qix",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "nodeId": "Truck",
+        "type": "class-container",
+        "shape": "rectangle"
+      }
+    },
+    {
+      "type": "text",
+      "version": 16,
+      "versionNonce": 1846435153,
+      "isDeleted": false,
+      "id": "au27dx3n1gua69gdxp",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 305,
+      "y": 212.5,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "width": 80,
+      "height": 35,
+      "seed": 203599035,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "fontSize": 20,
+      "fontFamily": 1,
+      "text": "Truck",
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "2r5ydab3l1drdjw2qg",
+      "originalText": "Truck",
+      "lineHeight": 1.25,
+      "baseline": 18
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 440286498,
+      "isDeleted": false,
+      "id": "6bnmz8cw0908tf2hoh",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 270,
+      "y": 255,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1451503728,
+      "groupIds": [
+        "2r5ydab3l1drdjw2qg"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Truck"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "version": 1,
+      "versionNonce": 590284834,
+      "isDeleted": false,
+      "id": "whl0g4lhm19btfmqav",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 270,
+      "y": 305,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 150,
+      "height": 1,
+      "seed": 1582231615,
+      "groupIds": [
+        "2r5ydab3l1drdjw2qg"
+      ],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": true,
+      "customData": {
+        "type": "class-separator",
+        "ownerId": "Truck"
+      },
+      "startBinding": null,
+      "endBinding": null,
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": null,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          150,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "arrow",
+      "version": 115,
+      "versionNonce": 356860512,
+      "isDeleted": false,
+      "id": "ayoatr0hhz7k7qowkp",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 208.4375,
+      "y": 100,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 71.875,
+      "height": 100,
+      "seed": 461417113,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439428,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "edgeId": "Vehicle->Car_0",
+        "from": "Vehicle",
+        "to": "Car"
+      },
+      "startBinding": {
+        "elementId": "t72j601c5kmbgyty06",
+        "focus": 0,
+        "gap": 1
+      },
+      "endBinding": {
+        "elementId": "b9atvn95495soz680v",
+        "focus": 0,
+        "gap": 1
+      },
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": "triangle",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -71.875,
+          100
+        ]
+      ]
+    },
+    {
+      "type": "arrow",
+      "version": 115,
+      "versionNonce": 1520449867,
+      "isDeleted": false,
+      "id": "vpheewtzvfkgdh5qix",
+      "fillStyle": "hachure",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 1,
+      "opacity": 100,
+      "angle": 0,
+      "x": 251.5625,
+      "y": 100,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#ffffff",
+      "width": 71.875,
+      "height": 100,
+      "seed": 92478496,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "boundElements": [],
+      "updated": 1770636439429,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "edgeId": "Vehicle->Truck_1",
+        "from": "Vehicle",
+        "to": "Truck"
+      },
+      "startBinding": {
+        "elementId": "t72j601c5kmbgyty06",
+        "focus": 0,
+        "gap": 1
+      },
+      "endBinding": {
+        "elementId": "2r5ydab3l1drdjw2qg",
+        "focus": 0,
+        "gap": 1
+      },
+      "lastCommittedPoint": null,
+      "startArrowhead": null,
+      "endArrowhead": "triangle",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          71.875,
+          100
+        ]
+      ]
+    }
+  ],
+  "appState": {
+    "gridSize": null,
+    "viewBackgroundColor": "#ffffff"
+  },
+  "files": {}
+}

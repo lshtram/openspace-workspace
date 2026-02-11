@@ -1,5 +1,6 @@
 import path from "path"
 import { test, expect, testProjectPath, ensureTestProject } from "./fixtures"
+import { ensureNewSessionButtonVisible } from "./actions"
 
 const parseBody = (payload?: string | null) => {
   if (!payload) return {}
@@ -106,6 +107,17 @@ test.describe("Projects / Workspaces", () => {
     })
   })
 
+  const gotoHomeWithWorkspaceSidebar = async (
+    gotoHome: () => Promise<void>,
+    page: Parameters<typeof ensureNewSessionButtonVisible>[0],
+  ) => {
+    await gotoHome()
+    await ensureNewSessionButtonVisible(page)
+    await expect(page.getByText("Workspaces", { exact: true })).toBeVisible()
+    await expect(page.getByTestId("workspace-new")).toBeVisible()
+    await expect(page.locator('[data-testid="workspace-card"]').first()).toBeVisible()
+  }
+
   test("switches between stored projects", async ({ page, gotoHome }) => {
     const alphaProject = path.join(testProjectPath, "alpha")
     const betaProject = path.join(testProjectPath, "beta")
@@ -123,7 +135,7 @@ test.describe("Projects / Workspaces", () => {
       ],
     })
 
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
 
     await expect(page.getByRole("heading", { name: "Alpha" })).toBeVisible()
     await page.getByRole("button", { name: "Select project Beta" }).click()
@@ -132,7 +144,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("toggles workspace enabled state", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const card = page.locator('[data-testid="workspace-card"]').first()
     const toggle = card.getByTestId("workspace-toggle")
     await expect(toggle).toBeVisible()
@@ -143,7 +155,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("creates a new workspace", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     await page.click('[data-testid="workspace-new"]')
     const input = page.getByRole("textbox", { name: "Name" })
     await expect(input).toBeVisible()
@@ -168,7 +180,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("renames a workspace", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const target = state.workspaceDirs[1]
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
     await card.getByTestId("workspace-rename").click()
@@ -179,7 +191,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("calls reset endpoint", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const target = state.workspaceDirs[2]
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
     const resetButton = card.getByTestId("workspace-reset")
@@ -190,7 +202,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("deletes a workspace", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const toRemove = state.workspaceDirs[0]
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${toRemove}"]`)
     const initialCount = await page.locator('[data-testid="workspace-card"]').count()
@@ -200,7 +212,7 @@ test.describe("Projects / Workspaces", () => {
   })
 
   test("reorders workspaces", async ({ page, gotoHome }) => {
-    await gotoHome()
+    await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const labels = await page.locator('[data-testid="workspace-card"] [data-testid="workspace-label"]').allTextContents()
     expect(labels).toEqual(["ws-alpha", "ws-beta", "ws-gamma"])
     const firstCard = page.locator('[data-testid="workspace-card"]').first()

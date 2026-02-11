@@ -1,5 +1,5 @@
 import { test, expect, testProjectPath } from "./fixtures"
-import { newSessionButtonSelector } from "./selectors"
+import { newSessionButtonSelector, chatInterfaceSelector, promptSelector } from "./selectors"
 import type { Locator } from "@playwright/test"
 
 test("can abort generation with stop button", async ({ page, gotoHome, seedProject }) => {
@@ -8,16 +8,26 @@ test("can abort generation with stop button", async ({ page, gotoHome, seedProje
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  // Create a new session
+  // Enter chat from either landing or already-active session state
   const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await newSessionBtn.click()
-
-  await page.waitForTimeout(1500)
+  const hasNewSessionButton = await newSessionBtn.isVisible({ timeout: 2000 }).catch(() => false)
+  if (hasNewSessionButton) {
+    await newSessionBtn.click()
+  }
+  await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
 
   // Type a message in the prompt textarea
-  const input = page.locator('textarea[placeholder*="Ask"], textarea').first()
+  const input = page.locator(promptSelector).first()
   await expect(input).toBeVisible({ timeout: 10000 })
-  await input.fill("Explain quantum computing in detail")
+  const isContentEditable = await input.getAttribute("contenteditable")
+  if (isContentEditable) {
+    await input.click()
+    await input.press("Control+A")
+    await input.press("Backspace")
+    await input.type("Explain quantum computing in detail")
+  } else {
+    await input.fill("Explain quantum computing in detail")
+  }
 
   // Find all buttons on the page and filter for the send button
   const allButtons = page.locator('button')

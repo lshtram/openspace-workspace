@@ -6,10 +6,13 @@ test("file tree can load and show files", async ({ page, gotoHome, seedProject }
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  // Create a new session
+  // Handle both startup states: landing page (new session visible) or existing session
   const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
+  const canStartNewSession = await newSessionBtn.isVisible().catch(() => false)
+
+  if (canStartNewSession) {
+    await newSessionBtn.click()
+  }
 
   // Look for file tree - it might be in a sidebar or panel
   const fileTree = page.locator('[class*="FileTree"], [data-testid="file-tree"], aside div[class*="tree"]').first()

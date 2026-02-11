@@ -1,8 +1,9 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, testProjectPath } from "./fixtures"
 
-test("debug - find project rail", async ({ page }) => {
+test("debug - find project rail", async ({ page, gotoHome, seedProject }) => {
   console.log("Loading page...")
-  await page.goto("http://127.0.0.1:5173/")
+  await seedProject(testProjectPath, "openspace-e2e")
+  await gotoHome()
   
   // Wait a bit for any loading
   await page.waitForTimeout(2000)

@@ -1,6 +1,6 @@
 import { test, expect, testProjectPath } from "./fixtures"
 import { sendMessage, ensureInSession } from "./actions"
-import { promptSelector, newSessionButtonSelector } from "./selectors"
+import { promptSelector } from "./selectors"
 
 test("can send a prompt and receive a reply", async ({ page, gotoHome, seedProject }) => {
   test.setTimeout(120_000)
@@ -9,12 +9,7 @@ test("can send a prompt and receive a reply", async ({ page, gotoHome, seedProje
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
   
-  // Create a new session
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
-  
-  // Wait for chat interface to load
+  await ensureInSession(page)
   await expect(page.locator(promptSelector).first()).toBeVisible({ timeout: 10000 })
 
   const token = `E2E_REACT_${Date.now()}`

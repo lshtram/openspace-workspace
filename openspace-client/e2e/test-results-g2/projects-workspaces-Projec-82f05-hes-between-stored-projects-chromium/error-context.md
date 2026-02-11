@@ -1,0 +1,67 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button [ref=e6] [cursor=pointer]:
+        - img [ref=e7]
+      - generic [ref=e9]:
+        - button [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+        - button [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+    - generic [ref=e17]:
+      - img [ref=e18]
+      - textbox "Search openspace" [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]: ⌘
+        - generic [ref=e24]: P
+    - generic [ref=e25]:
+      - button "Connected" [ref=e27] [cursor=pointer]:
+        - generic [ref=e29]: Connected
+      - button "Share" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+        - generic [ref=e34]: Share
+      - generic [ref=e35]:
+        - button [ref=e36] [cursor=pointer]:
+          - img [ref=e37]
+        - button [ref=e39] [cursor=pointer]:
+          - img [ref=e40]
+  - generic [ref=e42]:
+    - complementary [ref=e43]:
+      - generic [ref=e44]:
+        - button "Select project Alpha" [ref=e45] [cursor=pointer]:
+          - generic [ref=e46]: A
+        - button "Select project Beta" [ref=e47] [cursor=pointer]:
+          - generic [ref=e48]: B
+        - button [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+      - generic [ref=e51]:
+        - button "Open settings" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+        - button [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+    - main [ref=e60]:
+      - generic [ref=e72]:
+        - textbox "Ask anything... \"Review my code\"" [ref=e75]
+        - generic [ref=e76]:
+          - generic [ref=e78]:
+            - button "build" [ref=e79] [cursor=pointer]:
+              - generic [ref=e80]: build
+              - img [ref=e81]
+            - button "Gemini 3 Pro Preview" [ref=e83] [cursor=pointer]:
+              - img [ref=e84]
+              - generic [ref=e87]: Gemini 3 Pro Preview
+              - img [ref=e88]
+            - generic [ref=e90]: Default
+          - generic [ref=e91]:
+            - button [ref=e92] [cursor=pointer]:
+              - img [ref=e93]
+            - button "Open context panel" [ref=e96] [cursor=pointer]:
+              - img [ref=e97]
+            - button [ref=e101] [cursor=pointer]:
+              - img [ref=e102]
+            - button [disabled] [ref=e106]:
+              - img [ref=e107]
+```

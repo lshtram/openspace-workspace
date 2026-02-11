@@ -21,6 +21,8 @@ npm run check
 npm run pre-pr
 ```
 
+If you already run OpenCode separately, set `VITE_AUTOSTART_OPENCODE=false` to prevent Vite from trying to start another server on port `3000`.
+
 ## Development Scripts
 
 | Script | Description | Time |

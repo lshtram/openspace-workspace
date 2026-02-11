@@ -1,6 +1,7 @@
 import { test, expect, testProjectPath } from "./fixtures"
 import type { Page } from "@playwright/test"
-import { terminalSelector, newSessionButtonSelector } from "./selectors"
+import { terminalSelector } from "./selectors"
+import { createNewSession } from "./actions"
 
 async function openSession(
   page: Page,
@@ -9,10 +10,7 @@ async function openSession(
 ) {
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
-
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
+  await createNewSession(page)
 }
 
 test("terminal is visible when expanded", async ({ page, gotoHome, seedProject }) => {
@@ -20,18 +18,18 @@ test("terminal is visible when expanded", async ({ page, gotoHome, seedProject }
 
   const terminal = page.locator(terminalSelector).first()
   const isVisible = await terminal.isVisible().catch(() => false)
+  const terminalToggle = page
+    .locator('header div[class*="border-l"] button, button:has(svg[data-lucide="panel-bottom"])')
+    .first()
+  await expect(terminalToggle).toBeVisible()
 
   if (!isVisible) {
-    const terminalToggle = page.locator('button:has-text("Terminal"), button[aria-label*="terminal"]').first()
-    const hasToggle = await terminalToggle.isVisible().catch(() => false)
-
-    if (hasToggle) {
-      await terminalToggle.click()
-    }
+    await terminalToggle.click()
+    await expect(terminal).toBeVisible({ timeout: 10000 })
+    return
   }
 
-  const terminalExists = await terminal.count() > 0
-  expect(terminalExists).toBe(true)
+  await expect(terminal).toBeVisible()
 })
 
 test("terminal can be toggled open and closed", async ({ page, gotoHome, seedProject }) => {

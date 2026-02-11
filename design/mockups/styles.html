@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSpace - 5 Design Style Variations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&family=SF+Pro+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Base tokens */
+            --duration-instant: 0ms;
+            --duration-fast: 150ms;
+            --duration-normal: 300ms;
+            --duration-slow: 500ms;
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-out: cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            padding: 60px 40px;
+        }
+
+        .page-header {
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .page-header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #a5a5a5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.6);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .styles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .style-card {
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .style-header {
+            padding: 24px 28px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .style-header h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .style-header p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.5;
+        }
+
+        .style-preview {
+            height: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           STYLE 1: AETHER (Glass / Vision Pro Style)
+           ============================================ */
+        .aether-theme {
+            --aether-bg: #000000;
+            --aether-surface: rgba(255, 255, 255, 0.08);
+            --aether-surface-hover: rgba(255, 255, 255, 0.12);
+            --aether-surface-active: rgba(255, 255, 255, 0.15);
+            --aether-border: rgba(255, 255, 255, 0.1);
+            --aether-border-strong: rgba(255, 255, 255, 0.2);
+            --aether-accent: #5E5CE6;
+            --aether-accent-glow: rgba(94, 92, 230, 0.5);
+            --aether-text-primary: rgba(255, 255, 255, 0.95);
+            --aether-text-secondary: rgba(255, 255, 255, 0.6);
+            --aether-text-tertiary: rgba(255, 255, 255, 0.4);
+            --aether-blur: blur(40px) saturate(180%);
+            --aether-radius: 20px;
+            --aether-radius-sm: 14px;
+            
+            background: var(--aether-bg);
+        }
+
+        .aether-theme .style-preview {
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(94, 92, 230, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(175, 82, 222, 0.1) 0%, transparent 50%),
+                var(--aether-bg);
+        }
+
+        .aether-activity-ribbon {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            background: var(--aether-surface);
+            backdrop-filter: var(--aether-blur);
+            border: 1px solid var(--aether-border);
+            border-radius: var(--aether-radius);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .aether-activity-item {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--aether-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--aether-text-secondary);
+            transition: all var(--duration-fast) var(--ease-smooth);
+            position: relative;
+        }
+
+        .aether-activity-item:hover {
+            background: var(--aether-surface-hover);
+            color: var(--aether-text-primary);
+        }
+
+        .aether-activity-item.active {
+            background: var(--aether-surface-active);
+            color: var(--aether-text-primary);
+            box-shadow: inset 0 0 0 1px var(--aether-border-strong);
+        }
+
+        .aether-activity-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--aether-accent);
+            box-shadow: 0 0 8px var(--aether-accent-glow);
+        }
+
+        .aether-nav {
+            position: absolute;
+            left: 20px;
+            top: 80px;
+            bottom: 20px;
+            width: 64px;
+            background: var(--aether-surface);
+            backdrop-filter: var(--aether-blur);
+            border: 1px solid var(--aether-border);
+            border-radius: var(--aether-radius);
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .aether-nav-item {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--aether-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--aether-text-secondary);
+            transition: all var(--duration-fast) var(--ease-smooth);
+        }
+
+        .aether-nav-item:hover {
+            background: var(--aether-surface-hover);
+            color: var(--aether-text-primary);
+        }
+
+        .aether-nav-item.active {
+            background: var(--aether-surface-active);
+            color: var(--aether-accent);
+            box-shadow: 0 0 0 1px var(--aether-accent);
+        }
+
+        .aether-workspace {
+            position: absolute;
+            left: 104px;
+            right: 20px;
+            top: 80px;
+            bottom: 20px;
+            background: var(--aether-surface);
+            backdrop-filter: var(--aether-blur);
+            border: 1px solid var(--aether-border);
+            border-radius: var(--aether-radius);
+            overflow: hidden;
+        }
+
+        .aether-agent {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 56px;
+            height: 56px;
+            background: var(--aether-surface);
+            backdrop-filter: var(--aether-blur);
+            border: 1px solid var(--aether-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--aether-accent);
+            font-size: 24px;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 0 20px var(--aether-accent-glow);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .aether-agent:hover {
+            transform: scale(1.1);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.15),
+                0 0 30px var(--aether-accent-glow);
+        }
+
+        .aether-agent.pulsing {
+            animation: aether-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes aether-pulse {
+            0%, 100% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 20px var(--aether-accent-glow); }
+            50% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 40px var(--aether-accent-glow); }
+        }
+
+        /* ============================================
+           STYLE 2: OBSIDIAN (Deep Void / Minimal)
+           ============================================ */
+        .obsidian-theme {
+            --obsidian-bg: #050505;
+            --obsidian-elev-1: #0a0a0a;
+            --obsidian-elev-2: #0f0f0f;
+            --obsidian-elev-3: #141414;
+            --obsidian-accent: #fff;
+            --obsidian-accent-soft: rgba(255, 255, 255, 0.8);
+            --obsidian-text: rgba(255, 255, 255, 0.9);
+            --obsidian-text-muted: rgba(255, 255, 255, 0.5);
+            --obsidian-border: rgba(255, 255, 255, 0.06);
+            --obsidian-border-strong: rgba(255, 255, 255, 0.12);
+            --obsidian-radius: 4px;
+            
+            background: var(--obsidian-bg);
+        }
+
+        .obsidian-theme .style-preview {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .obsidian-ribbon {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: var(--obsidian-elev-1);
+            border-bottom: 1px solid var(--obsidian-border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 32px;
+        }
+
+        .obsidian-ribbon-brand {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--obsidian-text);
+        }
+
+        .obsidian-ribbon-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--obsidian-border-strong);
+        }
+
+        .obsidian-ribbon-items {
+            display: flex;
+            gap: 4px;
+        }
+
+        .obsidian-ribbon-item {
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--obsidian-text-muted);
+            cursor: pointer;
+            border-radius: var(--obsidian-radius);
+            transition: all var(--duration-fast) var(--ease-smooth);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .obsidian-ribbon-item:hover {
+            color: var(--obsidian-text);
+            background: var(--obsidian-elev-2);
+        }
+
+        .obsidian-ribbon-item.active {
+            color: var(--obsidian-accent);
+            background: var(--obsidian-elev-3);
+            box-shadow: inset 0 -2px 0 0 var(--obsidian-accent);
+        }
+
+        .obsidian-workspace {
+            position: absolute;
+            top: 48px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+        }
+
+        .obsidian-nav {
+            width: 280px;
+            background: var(--obsidian-elev-1);
+            border-right: 1px solid var(--obsidian-border);
+            padding: 24px;
+        }
+
+        .obsidian-nav-header {
+            font-size: 11px;
+            color: var(--obsidian-text-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--obsidian-border);
+        }
+
+        .obsidian-nav-item {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--obsidian-text-muted);
+            cursor: pointer;
+            border-radius: var(--obsidian-radius);
+            transition: all var(--duration-fast) var(--ease-smooth);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .obsidian-nav-item:hover {
+            color: var(--obsidian-text);
+            background: var(--obsidian-elev-2);
+        }
+
+        .obsidian-nav-item.active {
+            color: var(--obsidian-accent);
+            background: var(--obsidian-elev-3);
+            box-shadow: inset 2px 0 0 0 var(--obsidian-accent);
+        }
+
+        .obsidian-nav-icon {
+            font-size: 14px;
+            opacity: 0.6;
+        }
+
+        .obsidian-nav-item.active .obsidian-nav-icon {
+            opacity: 1;
+        }
+
+        .obsidian-content {
+            flex: 1;
+            background: var(--obsidian-bg);
+            padding: 32px;
+        }
+
+        .obsidian-content-header {
+            font-size: 11px;
+            color: var(--obsidian-text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .obsidian-code-line {
+            font-size: 14px;
+            line-height: 2;
+            color: var(--obsidian-text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .obsidian-code-line .keyword { color: rgba(255, 255, 255, 0.7); }
+        .obsidian-code-line .function { color: var(--obsidian-accent-soft); }
+        .obsidian-code-line .string { color: rgba(255, 255, 255, 0.5); }
+
+        .obsidian-agent {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            background: var(--obsidian-elev-3);
+            border: 1px solid var(--obsidian-border-strong);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--obsidian-accent);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .obsidian-agent:hover {
+            border-color: var(--obsidian-accent);
+            transform: scale(1.05);
+        }
+
+        /* ============================================
+           STYLE 3: STRATUM (Layered Elevation)
+           ============================================ */
+        .stratum-theme {
+            --stratum-bg: #0c0c0e;
+            --stratum-1: #131316;
+            --stratum-2: #1a1a1f;
+            --stratum-3: #212128;
+            --stratum-4: #282830;
+            --stratum-accent: #6366f1;
+            --stratum-accent-soft: #818cf8;
+            --stratum-text: #f1f1f4;
+            --stratum-text-muted: #8b8b9a;
+            --stratum-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+            --stratum-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+            --stratum-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+            --stratum-radius: 12px;
+            
+            background: var(--stratum-bg);
+        }
+
+        .stratum-ribbon {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            height: 56px;
+            background: var(--stratum-1);
+            border-radius: var(--stratum-radius);
+            box-shadow: var(--stratum-shadow-md);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 8px;
+        }
+
+        .stratum-activity-item {
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: var(--stratum-text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--duration-fast) var(--ease-smooth);
+        }
+
+        .stratum-activity-item:hover {
+            background: var(--stratum-2);
+            color: var(--stratum-text);
+        }
+
+        .stratum-activity-item.active {
+            background: var(--stratum-3);
+            color: var(--stratum-accent-soft);
+            box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.3);
+        }
+
+        .stratum-workspace {
+            position: absolute;
+            top: 88px;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .stratum-panel {
+            background: var(--stratum-1);
+            border-radius: var(--stratum-radius);
+            box-shadow: var(--stratum-shadow-md);
+            overflow: hidden;
+        }
+
+        .stratum-nav {
+            width: 240px;
+            padding: 16px;
+        }
+
+        .stratum-nav-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--stratum-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            padding: 0 12px;
+        }
+
+        .stratum-nav-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--stratum-text-muted);
+            cursor: pointer;
+            transition: all var(--duration-fast) var(--ease-smooth);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .stratum-nav-item:hover {
+            background: var(--stratum-2);
+            color: var(--stratum-text);
+        }
+
+        .stratum-nav-item.active {
+            background: var(--stratum-3);
+            color: var(--stratum-text);
+            box-shadow: var(--stratum-shadow-sm);
+        }
+
+        .stratum-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stratum-tabs {
+            height: 44px;
+            background: var(--stratum-2);
+            display: flex;
+            align-items: flex-end;
+            padding: 0 8px;
+            gap: 4px;
+        }
+
+        .stratum-tab {
+            height: 36px;
+            padding: 0 16px;
+            background: var(--stratum-1);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--stratum-text-muted);
+            cursor: pointer;
+            transition: all var(--duration-fast) var(--ease-smooth);
+        }
+
+        .stratum-tab:hover {
+            background: var(--stratum-3);
+            color: var(--stratum-text);
+        }
+
+        .stratum-tab.active {
+            background: var(--stratum-3);
+            color: var(--stratum-accent-soft);
+            box-shadow: 0 -2px 0 0 var(--stratum-accent);
+        }
+
+        .stratum-content {
+            flex: 1;
+            background: var(--stratum-2);
+            padding: 24px;
+        }
+
+        .stratum-agent {
+            position: absolute;
+            bottom: 32px;
+            right: 32px;
+            width: 52px;
+            height: 52px;
+            background: var(--stratum-3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--stratum-accent-soft);
+            font-size: 22px;
+            box-shadow: var(--stratum-shadow-lg);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .stratum-agent:hover {
+            transform: scale(1.1) translateY(-4px);
+            box-shadow: 
+                var(--stratum-shadow-lg),
+                0 0 30px rgba(99, 102, 241, 0.3);
+        }
+
+        /* ============================================
+           STYLE 4: CHROMA (Gradient Accents)
+           ============================================ */
+        .chroma-theme {
+            --chroma-bg: #0a0a0b;
+            --chroma-surface: #131316;
+            --chroma-surface-light: #1c1c21;
+            --chroma-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --chroma-gradient-soft: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            --chroma-text: #ffffff;
+            --chroma-text-muted: #9ca3af;
+            --chroma-border: rgba(255, 255, 255, 0.08);
+            --chroma-radius: 16px;
+            
+            background: var(--chroma-bg);
+        }
+
+        .chroma-theme .style-preview {
+            background: 
+                radial-gradient(circle at 0% 0%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+                var(--chroma-bg);
+        }
+
+        .chroma-ribbon {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 100px;
+            height: 52px;
+            background: var(--chroma-surface);
+            border: 1px solid var(--chroma-border);
+            border-radius: var(--chroma-radius);
+            display: flex;
+            align-items: center;
+            padding: 6px;
+            gap: 6px;
+        }
+
+        .chroma-activity-item {
+            height: 40px;
+            padding: 0 18px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: var(--chroma-text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--duration-fast) var(--ease-smooth);
+        }
+
+        .chroma-activity-item:hover {
+            background: var(--chroma-surface-light);
+            color: var(--chroma-text);
+        }
+
+        .chroma-activity-item.active {
+            background: var(--chroma-gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .chroma-workspace {
+            position: absolute;
+            top: 92px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            background: var(--chroma-surface);
+            border: 1px solid var(--chroma-border);
+            border-radius: var(--chroma-radius);
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chroma-nav {
+            width: 64px;
+            background: var(--chroma-surface-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            gap: 12px;
+        }
+
+        .chroma-nav-item {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--chroma-text-muted);
+            font-size: 20px;
+            transition: all var(--duration-fast) var(--ease-smooth);
+        }
+
+        .chroma-nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--chroma-text);
+        }
+
+        .chroma-nav-item.active {
+            background: var(--chroma-gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .chroma-content {
+            flex: 1;
+            padding: 32px;
+        }
+
+        .chroma-content-header {
+            height: 3px;
+            width: 60px;
+            background: var(--chroma-gradient);
+            border-radius: 2px;
+            margin-bottom: 24px;
+        }
+
+        .chroma-code-line {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 2;
+            color: var(--chroma-text-muted);
+        }
+
+        .chroma-code-line .accent { 
+            background: var(--chroma-gradient-soft);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #c4b5fd;
+        }
+
+        .chroma-agent {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 52px;
+            height: 52px;
+            background: var(--chroma-gradient);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .chroma-agent:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        /* ============================================
+           STYLE 5: MONO PRO (Monochrome / High Contrast)
+           ============================================ */
+        .mono-theme {
+            --mono-bg: #fafafa;
+            --mono-surface: #ffffff;
+            --mono-surface-hover: #f5f5f5;
+            --mono-accent: #000000;
+            --mono-text: #111111;
+            --mono-text-muted: #666666;
+            --mono-border: #e5e5e5;
+            --mono-border-strong: #000000;
+            --mono-radius: 8px;
+            
+            background: var(--mono-bg);
+        }
+
+        .mono-theme .style-preview {
+            color: var(--mono-text);
+        }
+
+        .mono-ribbon {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--mono-surface);
+            border-bottom: 1px solid var(--mono-border);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            gap: 48px;
+        }
+
+        .mono-brand {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .mono-ribbon-items {
+            display: flex;
+            gap: 32px;
+        }
+
+        .mono-ribbon-item {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--mono-text-muted);
+            cursor: pointer;
+            transition: color var(--duration-fast) var(--ease-smooth);
+            position: relative;
+        }
+
+        .mono-ribbon-item:hover {
+            color: var(--mono-text);
+        }
+
+        .mono-ribbon-item.active {
+            color: var(--mono-accent);
+            font-weight: 600;
+        }
+
+        .mono-ribbon-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -22px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--mono-accent);
+        }
+
+        .mono-workspace {
+            position: absolute;
+            top: 64px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+        }
+
+        .mono-nav {
+            width: 260px;
+            background: var(--mono-surface);
+            border-right: 1px solid var(--mono-border);
+            padding: 24px;
+        }
+
+        .mono-nav-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--mono-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        .mono-nav-item {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--mono-text-muted);
+            cursor: pointer;
+            border-radius: var(--mono-radius);
+            transition: all var(--duration-fast) var(--ease-smooth);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .mono-nav-item:hover {
+            background: var(--mono-surface-hover);
+            color: var(--mono-text);
+        }
+
+        .mono-nav-item.active {
+            background: var(--mono-accent);
+            color: white;
+            font-weight: 500;
+        }
+
+        .mono-content {
+            flex: 1;
+            padding: 32px;
+        }
+
+        .mono-breadcrumb {
+            font-size: 13px;
+            color: var(--mono-text-muted);
+            margin-bottom: 24px;
+        }
+
+        .mono-breadcrumb span {
+            color: var(--mono-text);
+        }
+
+        .mono-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 2;
+        }
+
+        .mono-code .line {
+            color: var(--mono-text-muted);
+        }
+
+        .mono-code .line:hover {
+            background: var(--mono-surface-hover);
+            margin: 0 -32px;
+            padding: 0 32px;
+        }
+
+        .mono-code .keyword { color: var(--mono-text); font-weight: 600; }
+        .mono-code .comment { color: #999; font-style: italic; }
+
+        .mono-agent {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            background: var(--mono-accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-spring);
+        }
+
+        .mono-agent:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Icons (Lucide-style) */
+        .icon {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>OpenSpace Design Styles</h1>
+        <p>Five distinct visual directions for the multi-modal workspace. Each offers a unique approach to glassmorphism, elevation, color, and typography.</p>
+    </div>
+
+    <div class="styles-grid">
+        
+        <!-- STYLE 1: AETHER (Glass/Vision Pro) -->
+        <div class="style-card aether-theme">
+            <div class="style-header">
+                <h2>Aether</h2>
+                <p>Apple Vision Pro-inspired glassmorphism. Translucent layers with backdrop blur, subtle depth, and floating elements. Perfect for immersive, futuristic feel.</p>
+            </div>
+            <div class="style-preview">
+                <!-- Activity Ribbon -->
+                <div class="aether-activity-ribbon">
+                    <div class="aether-activity-item" title="Voice">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v10M8 8v4a4 4 0 0 0 8 0V8M6 16h12"/></svg>
+                    </div>
+                    <div class="aether-activity-item" title="Sketch">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                    </div>
+                    <div class="aether-activity-item" title="Dashboard">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    </div>
+                    <div class="aether-activity-item active" title="Build">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    </div>
+                    <div class="aether-activity-item" title="Review">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="aether-nav">
+                    <div class="aether-nav-item active">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="aether-nav-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <div class="aether-nav-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.8 17.8l-4.24-4.24M6.34 17.66l-4.24 4.24"/></svg>
+                    </div>
+                </div>
+
+                <!-- Workspace -->
+                <div class="aether-workspace">
+                    <div style="padding: 40px; color: rgba(255,255,255,0.3); font-size: 14px; text-align: center;">
+                        <svg class="icon" style="width: 48px; height: 48px; margin: 0 auto 16px; opacity: 0.3;" viewBox="0 0 24 24" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        <p>Drag files here or start a conversation</p>
+                        <p style="font-size: 12px; margin-top: 8px; opacity: 0.5;">Press Cmd+O to open file</p>
+                    </div>
+                </div>
+
+                <!-- Agent -->
+                <div class="aether-agent pulsing">
+                    <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- STYLE 2: OBSIDIAN (Deep Void/Minimal) -->
+        <div class="style-card obsidian-theme">
+            <div class="style-header">
+                <h2>Obsidian</h2>
+                <p>Ultra-minimal, brutalist aesthetic. No blur, no gradients, pure geometric forms. High information density with subtle elevation changes. For power users who want zero distraction.</p>
+            </div>
+            <div class="style-preview">
+                <div class="obsidian-ribbon">
+                    <div class="obsidian-ribbon-brand">OPENCODE</div>
+                    <div class="obsidian-ribbon-divider"></div>
+                    <div class="obsidian-ribbon-items">
+                        <div class="obsidian-ribbon-item">Voice</div>
+                        <div class="obsidian-ribbon-item">Sketch</div>
+                        <div class="obsidian-ribbon-item">Dashboard</div>
+                        <div class="obsidian-ribbon-item active">Build</div>
+                        <div class="obsidian-ribbon-item">Review</div>
+                    </div>
+                </div>
+
+                <div class="obsidian-workspace">
+                    <div class="obsidian-nav">
+                        <div class="obsidian-nav-header">Explorer</div>
+                        <div class="obsidian-nav-item active">
+                            <span class="obsidian-nav-icon">›</span>
+                            openspace
+                        </div>
+                        <div class="obsidian-nav-item" style="padding-left: 32px;">
+                            <span class="obsidian-nav-icon">›</span>
+                            src
+                        </div>
+                        <div class="obsidian-nav-item" style="padding-left: 48px; color: rgba(255,255,255,0.9);">
+                            auth.service.ts
+                        </div>
+                        <div class="obsidian-nav-item" style="padding-left: 48px;">
+                            user.controller.ts
+                        </div>
+                    </div>
+
+                    <div class="obsidian-content">
+                        <div class="obsidian-content-header">auth.service.ts</div>
+                        <div class="obsidian-code-line"><span class="keyword">@Injectable</span>()</div>
+                        <div class="obsidian-code-line"><span class="keyword">export class</span> <span class="function">AuthService</span> {</div>
+                        <div class="obsidian-code-line">  <span class="keyword">constructor</span>(</div>
+                        <div class="obsidian-code-line">    <span class="keyword">private</span> jwtService: JwtService,</div>
+                        <div class="obsidian-code-line">  ) {}</div>
+                        <div class="obsidian-code-line"></div>
+                        <div class="obsidian-code-line">  <span class="comment">// JWT authentication</span></div>
+                    </div>
+                </div>
+
+                <div class="obsidian-agent">
+                    <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- STYLE 3: STRATUM (Layered Elevation) -->
+        <div class="style-card stratum-theme">
+            <div class="style-header">
+                <h2>Stratum</h2>
+                <p>Clear depth hierarchy with distinct elevation levels. Each layer casts shadows, creating a sense of physical space. Rounded corners and soft transitions for a friendly yet professional feel.</p>
+            </div>
+            <div class="style-preview">
+                <div class="stratum-ribbon">
+                    <div class="stratum-activity-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v10M8 8v4a4 4 0 0 0 8 0V8M6 16h12"/></svg>
+                        Voice
+                    </div>
+                    <div class="stratum-activity-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+                        Sketch
+                    </div>
+                    <div class="stratum-activity-item active">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        Build
+                    </div>
+                </div>
+
+                <div class="stratum-workspace">
+                    <div class="stratum-panel stratum-nav">
+                        <div class="stratum-nav-header">Files</div>
+                        <div class="stratum-nav-item active">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            src
+                        </div>
+                        <div class="stratum-nav-item">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            auth.service.ts
+                        </div>
+                    </div>
+
+                    <div class="stratum-main">
+                        <div class="stratum-tabs">
+                            <div class="stratum-tab active">auth.service.ts</div>
+                            <div class="stratum-tab">user.controller.ts</div>
+                        </div>
+                        <div class="stratum-content">
+                            <div style="color: #6b7280; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 2;">
+                                <div>export class AuthService {</div>
+                                <div style="padding-left: 24px;">constructor(private jwt: JwtService) {}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stratum-agent">
+                    <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- STYLE 4: CHROMA (Gradient Accents) -->
+        <div class="style-card chroma-theme">
+            <div class="style-header">
+                <h2>Chroma</h2>
+                <p>Bold gradient accents on a dark canvas. Purple-to-blue gradients highlight active states and important elements. Modern, vibrant, and energetic without being overwhelming.</p>
+            </div>
+            <div class="style-preview">
+                <div class="chroma-ribbon">
+                    <div class="chroma-activity-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v10M8 8v4a4 4 0 0 0 8 0V8M6 16h12"/></svg>
+                        Voice
+                    </div>
+                    <div class="chroma-activity-item active">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        Build
+                    </div>
+                    <div class="chroma-activity-item">
+                        <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                        Dashboard
+                    </div>
+                </div>
+
+                <div class="chroma-workspace">
+                    <div class="chroma-nav">
+                        <div class="chroma-nav-item active">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="chroma-nav-item">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="chroma-nav-item">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="chroma-content">
+                        <div class="chroma-content-header"></div>
+                        <div class="chroma-code-line">
+                            <span class="accent">@Injectable</span>()
+                        </div>
+                        <div class="chroma-code-line" style="margin-top: 8px;">
+                            export class AuthService {
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chroma-agent">
+                    <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- STYLE 5: MONO PRO (Monochrome) -->
+        <div class="style-card mono-theme">
+            <div class="style-header">
+                <h2>Mono Pro</h2>
+                <p>Light theme with high contrast. Pure black on white with clear typographic hierarchy. Professional, print-inspired, and exceptionally readable. Inverted color psychology.</p>
+            </div>
+            <div class="style-preview">
+                <div class="mono-ribbon">
+                    <div class="mono-brand">OpenSpace</div>
+                    <div class="mono-ribbon-items">
+                        <div class="mono-ribbon-item">Voice</div>
+                        <div class="mono-ribbon-item">Sketch</div>
+                        <div class="mono-ribbon-item active">Build</div>
+                        <div class="mono-ribbon-item">Review</div>
+                    </div>
+                </div>
+
+                <div class="mono-workspace">
+                    <div class="mono-nav">
+                        <div class="mono-nav-header">Explorer</div>
+                        <div class="mono-nav-item active">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" style="width: 16px; height: 16px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            openspace
+                        </div>
+                        <div class="mono-nav-item">
+                            <svg class="icon" viewBox="0 0 24 24" stroke="currentColor" style="width: 16px; height: 16px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            src
+                        </div>
+                    </div>
+
+                    <div class="mono-content">
+                        <div class="mono-breadcrumb">src › <span>auth.service.ts</span></div>
+                        <div class="mono-code">
+                            <div class="line"><span class="keyword">@Injectable</span>()</div>
+                            <div class="line"><span class="keyword">export class</span> AuthService {</div>
+                            <div class="line" style="padding-left: 24px;"><span class="comment">// Authentication logic</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mono-agent">
+                    <svg class="icon" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

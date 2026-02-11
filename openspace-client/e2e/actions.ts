@@ -18,16 +18,41 @@ export async function closeStatusPopover(page: Page) {
   await page.keyboard.press("Escape")
 }
 
-export async function ensureInSession(page: Page) {
-  // Check if we need to create a new session
+export async function ensureNewSessionButtonVisible(page: Page) {
   const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  const isNewSessionVisible = await newSessionBtn.isVisible().catch(() => false)
+  const sidebarToggleBtn = page
+    .locator('button:has(svg[data-lucide="sidebar"]), header > div:first-child > button:first-child')
+    .first()
 
-  if (isNewSessionVisible) {
-    await newSessionBtn.click()
-    // Wait for chat interface to appear (textarea, message list, etc.)
-    await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
+  if (await newSessionBtn.isVisible().catch(() => false)) return
+
+  if (await sidebarToggleBtn.isVisible().catch(() => false)) {
+    await sidebarToggleBtn.click()
+    if (await newSessionBtn.isVisible().catch(() => false)) return
   }
+
+  await page.keyboard.press("Meta+B")
+  if (await newSessionBtn.isVisible().catch(() => false)) return
+
+  await page.keyboard.press("Control+B")
+  await expect(newSessionBtn).toBeVisible({ timeout: 5000 })
+}
+
+export async function createNewSession(page: Page) {
+  await ensureNewSessionButtonVisible(page)
+
+  const newSessionBtn = page.locator(newSessionButtonSelector).first()
+  await newSessionBtn.click()
+  await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
+}
+
+export async function ensureInSession(page: Page) {
+  const chatInterface = page.locator(chatInterfaceSelector).first()
+  const isInChat = await chatInterface.isVisible().catch(() => false)
+
+  if (isInChat) return
+
+  await createNewSession(page)
 }
 
 export async function sendMessage(page: Page, text: string) {

@@ -1,11 +1,9 @@
 import { test, expect, testProjectPath } from "./fixtures"
-import { newSessionButtonSelector, chatInterfaceSelector, promptSelector, sendButtonSelector } from "./selectors"
+import { promptSelector, sendButtonSelector, chatInterfaceSelector } from "./selectors"
+import { createNewSession } from "./actions"
 
 async function clickNewSession(page: import("@playwright/test").Page) {
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
-  await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
+  await createNewSession(page)
 }
 
 async function sendPrompt(page: import("@playwright/test").Page, text: string) {
@@ -122,7 +120,7 @@ test("multiple sessions can be pending independently", async ({ page, gotoHome, 
   const count = await rows.count()
   expect(count).toBeGreaterThanOrEqual(2)
   await rows.nth(Math.min(1, count - 1)).click()
-  await expect(page.locator(promptSelector).first()).toBeVisible()
+  await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
 })
 
 test("timeline shows load earlier and resume scroll controls", async ({ page, gotoHome, seedProject }) => {

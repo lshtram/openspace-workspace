@@ -11,6 +11,9 @@ type TestFixtures = {
   terminalJanitor: void
 }
 
+const MIN_INTERVAL_MS = 1000
+const MAX_NAVIGATION_ATTEMPTS = 5
+
 // Use dream-news as the default test project
 export const testProjectPath =
   process.env.OPENCODE_E2E_DIR || "/Users/Shared/dev/dream-news"
@@ -57,8 +60,32 @@ export async function ensureTestProject(dir: string) {
   }
 }
 
+export async function gotoAppWithRetry(page: Page, url: string) {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= MAX_NAVIGATION_ATTEMPTS; attempt += 1) {
+    try {
+      await page.goto(url)
+      await page.waitForTimeout(MIN_INTERVAL_MS)
+      return
+    } catch (error) {
+      lastError = error
+      const message = error instanceof Error ? error.message : String(error)
+      const isConnectionRefused = message.includes("ERR_CONNECTION_REFUSED")
+
+      await page.waitForTimeout(MIN_INTERVAL_MS)
+
+      if (!isConnectionRefused || attempt === MAX_NAVIGATION_ATTEMPTS) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError
+}
+
 export const test = base.extend<TestFixtures>({
-  sdk: async ({}, use) => {
+  sdk: async ({ browserName: _browserName }, use) => {
     const sdk = createOpencodeClient({
       baseUrl: process.env.VITE_OPENCODE_URL || "http://localhost:3000",
       directory: process.env.VITE_OPENCODE_DIRECTORY || testProjectPath,
@@ -89,10 +116,14 @@ export const test = base.extend<TestFixtures>({
   
   gotoHome: async ({ page }, use) => {
     const gotoHome = async () => {
-      await page.goto("/")
-      // Wait for the app to load - look for project rail, model selector, or new session button
+      await gotoAppWithRetry(page, "/")
+      // Wait for the app shell to load using stable, user-facing controls.
       await expect(
-        page.locator('[class*="ProjectRail"], button:has-text("model"), button:has-text("New session")').first()
+        page
+          .locator(
+            '[placeholder*="Ask anything"], button:has-text("Connected"), button:has-text("New session"), [data-testid="new-session"]',
+          )
+          .first()
       ).toBeVisible({ timeout: 15000 })
     }
     await use(gotoHome)

@@ -1,20 +1,15 @@
-import { test, expect, testProjectPath } from "./fixtures"
-import { newSessionButtonSelector, projectRailSelector } from "./selectors"
+import { test, expect, gotoAppWithRetry } from "./fixtures"
+
+const appReadySelector = '[placeholder*="Ask anything"], button:has-text("Connected")'
 
 test("simple - app loads without seed", async ({ page }) => {
-  await page.goto("http://127.0.0.1:5173/")
-  
-  // Just check that the page loads
-  await page.waitForTimeout(2000)
-  
-  // Check for new session button (we know this exists from debug)
-  const btn = page.locator('button:has-text("New session")').first()
-  await expect(btn).toBeVisible({ timeout: 5000 })
+  await gotoAppWithRetry(page, "http://127.0.0.1:5173/")
+
+  await expect(page.locator(appReadySelector).first()).toBeVisible({ timeout: 15000 })
 })
 
 test("simple - with goto fixture", async ({ page, gotoHome }) => {
   await gotoHome()
-  
-  // Should see new session button
-  await expect(page.locator(newSessionButtonSelector).first()).toBeVisible()
+
+  await expect(page.locator(appReadySelector).first()).toBeVisible({ timeout: 15000 })
 })

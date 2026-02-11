@@ -1,5 +1,5 @@
 import { test, expect, testProjectPath } from "./fixtures"
-import { newSessionButtonSelector } from "./selectors"
+import { createNewSession } from "./actions"
 
 async function openSessionMenu(page: import("@playwright/test").Page, row: import("@playwright/test").Locator) {
   const actionButton = row.locator('[data-testid="session-actions"]').first()
@@ -15,9 +15,7 @@ test("can rename a session", async ({ page, gotoHome, seedProject }) => {
   await gotoHome()
 
   // Create a new session first
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
+  await createNewSession(page)
   
   // Wait for session to appear in sidebar
   await page.waitForTimeout(2000)
@@ -59,8 +57,7 @@ test("can archive and unarchive a session", async ({ page, gotoHome, seedProject
   await gotoHome()
 
   // Create a new session
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await newSessionBtn.click()
+  await createNewSession(page)
   
   await page.waitForTimeout(2000)
   
@@ -91,8 +88,7 @@ test("can delete a session", async ({ page, gotoHome, seedProject }) => {
   await gotoHome()
 
   // Create a new session
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await newSessionBtn.click()
+  await createNewSession(page)
   
   await page.waitForTimeout(2000)
   

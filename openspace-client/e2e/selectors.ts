@@ -10,4 +10,4 @@ export const fileTreeSelector = 'div:has-text("Workspace"), [data-testid="file-t
 export const newSessionButtonSelector = 'button:has-text("New session"), button:has-text("+"), [data-testid="new-session"]'
 export const projectRailSelector = '[class*="ProjectRail"], aside[class*="w-\\[68px\\]"]'
 // The chat interface appears after clicking "New session"
-export const chatInterfaceSelector = 'textarea, [class*="MessageList"], [class*="PromptInput"]'
+export const chatInterfaceSelector = `${promptSelector}, [role="textbox"][aria-label*="Ask anything"], [class*="MessageList"], [data-testid="message-list"]`

@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSpace UI Mockups</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --os-bg-primary: #0A0A0B;
+            --os-bg-secondary: #141416;
+            --os-bg-tertiary: #1C1C1F;
+            --os-bg-quaternary: #242428;
+            --os-accent-primary: #6366F1;
+            --os-accent-secondary: #8B5CF6;
+            --os-accent-tertiary: #A855F7;
+            --os-success: #22C55E;
+            --os-warning: #F59E0B;
+            --os-error: #EF4444;
+            --os-text-primary: #FAFAFA;
+            --os-text-secondary: #A1A1AA;
+            --os-text-tertiary: #71717A;
+            --os-border-default: rgba(255, 255, 255, 0.1);
+            --os-border-subtle: rgba(255, 255, 255, 0.06);
+            --os-radius-md: 6px;
+            --os-radius-lg: 8px;
+            --os-radius-xl: 12px;
+            --os-radius-full: 9999px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--os-bg-primary);
+            color: var(--os-text-primary);
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .mockup-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(800px, 1fr));
+            gap: 40px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .mockup-container {
+            background: var(--os-bg-secondary);
+            border-radius: var(--os-radius-lg);
+            border: 1px solid var(--os-border-default);
+            overflow: hidden;
+        }
+
+        .mockup-header {
+            padding: 16px 20px;
+            background: var(--os-bg-tertiary);
+            border-bottom: 1px solid var(--os-border-default);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--os-text-primary);
+        }
+
+        .mockup-content {
+            position: relative;
+        }
+
+        /* === ACTIVITY RIBBON === */
+        .activity-ribbon {
+            height: 40px;
+            background: var(--os-bg-primary);
+            border-bottom: 1px solid var(--os-border-default);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 4px;
+        }
+
+        .activity-item {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--os-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s ease-out;
+            color: var(--os-text-secondary);
+            opacity: 0.6;
+            font-size: 18px;
+        }
+
+        .activity-item:hover {
+            opacity: 0.9;
+            background: var(--os-bg-tertiary);
+            color: var(--os-text-primary);
+        }
+
+        .activity-item.active {
+            opacity: 1;
+            color: var(--os-accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .ribbon-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .ribbon-btn {
+            padding: 6px 12px;
+            border-radius: var(--os-radius-md);
+            background: var(--os-bg-tertiary);
+            border: 1px solid var(--os-border-default);
+            color: var(--os-text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .ribbon-btn:hover {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+        }
+
+        /* === NAVIGATION PANEL === */
+        .nav-panel {
+            width: 240px;
+            background: var(--os-bg-secondary);
+            border-right: 1px solid var(--os-border-default);
+            height: calc(600px - 40px);
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            padding: 12px 0;
+        }
+
+        .nav-section-header {
+            padding: 4px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--os-text-tertiary);
+        }
+
+        .nav-item {
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--os-text-secondary);
+            transition: all 0.1s ease;
+        }
+
+        .nav-item:hover {
+            background: var(--os-bg-tertiary);
+            color: var(--os-text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+            border-left: 2px solid var(--os-accent-primary);
+            padding-left: 14px;
+        }
+
+        .nav-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .nav-item:hover .nav-icon,
+        .nav-item.active .nav-icon {
+            opacity: 1;
+        }
+
+        .file-tree {
+            padding-left: 8px;
+        }
+
+        .file-item {
+            padding: 4px 16px 4px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            position: relative;
+        }
+
+        .file-item::before {
+            content: '';
+            position: absolute;
+            left: 16px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--os-border-subtle);
+        }
+
+        .mod-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-left: auto;
+        }
+
+        .mod-added { background: var(--os-success); }
+        .mod-modified { background: var(--os-warning); }
+
+        /* === EDITOR PANE === */
+        .workspace-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .pane-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+            border-right: 1px solid var(--os-border-default);
+        }
+
+        .pane:last-child {
+            border-right: none;
+        }
+
+        .pane-header {
+            height: 36px;
+            background: var(--os-bg-tertiary);
+            border-bottom: 1px solid var(--os-border-default);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .pane-title {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--os-text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pane-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .pane-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--os-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--os-text-tertiary);
+            font-size: 12px;
+            transition: all 0.1s ease;
+        }
+
+        .pane-btn:hover {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+        }
+
+        .pane-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            background: var(--os-bg-primary);
+        }
+
+        /* === CODE EDITOR STYLING === */
+        .code-content {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .code-line {
+            display: flex;
+            gap: 16px;
+        }
+
+        .line-number {
+            color: var(--os-text-tertiary);
+            text-align: right;
+            min-width: 32px;
+            user-select: none;
+        }
+
+        .line-content {
+            color: var(--os-text-primary);
+        }
+
+        .code-keyword { color: var(--os-accent-tertiary); }
+        .code-string { color: var(--os-success); }
+        .code-function { color: var(--os-accent-primary); }
+        .code-comment { color: var(--os-text-tertiary); font-style: italic; }
+
+        /* === AGENT COMPANION === */
+        .agent-companion {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+        }
+
+        .agent-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--os-radius-full);
+            background: linear-gradient(135deg, var(--os-accent-primary) 0%, var(--os-accent-tertiary) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4), 0 0 30px rgba(99, 102, 241, 0.2);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .agent-avatar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 30px rgba(99, 102, 241, 0.5), 0 0 40px rgba(99, 102, 241, 0.3);
+        }
+
+        .agent-status-ring {
+            position: absolute;
+            inset: -3px;
+            border-radius: var(--os-radius-full);
+            border: 2px solid var(--os-success);
+        }
+
+        .agent-status-ring.working {
+            border-color: var(--os-accent-primary);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        .agent-chat {
+            position: absolute;
+            bottom: 60px;
+            right: 0;
+            width: 320px;
+            min-height: 200px;
+            max-height: 400px;
+            background: var(--os-bg-secondary);
+            border: 1px solid var(--os-border-default);
+            border-radius: var(--os-radius-xl);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .agent-chat-header {
+            height: 44px;
+            background: var(--os-bg-tertiary);
+            border-bottom: 1px solid var(--os-border-default);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 10px;
+        }
+
+        .agent-chat-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--os-radius-full);
+            background: linear-gradient(135deg, var(--os-accent-primary) 0%, var(--os-accent-tertiary) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .agent-info {
+            flex: 1;
+        }
+
+        .agent-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--os-text-primary);
+        }
+
+        .agent-status {
+            font-size: 11px;
+            color: var(--os-text-tertiary);
+        }
+
+        .agent-chat-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .agent-chat-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--os-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--os-text-tertiary);
+            font-size: 10px;
+            transition: all 0.1s ease;
+        }
+
+        .agent-chat-btn:hover {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+        }
+
+        .agent-messages {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message {
+            padding: 8px 12px;
+            border-radius: var(--os-radius-md);
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 90%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+        }
+
+        .message.agent {
+            align-self: flex-start;
+            background: var(--os-bg-tertiary);
+            color: var(--os-text-primary);
+        }
+
+        .agent-input-area {
+            padding: 12px;
+            border-top: 1px solid var(--os-border-default);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .voice-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--os-radius-full);
+            background: var(--os-bg-quaternary);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--os-text-secondary);
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .voice-btn:hover {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+        }
+
+        .voice-btn.active {
+            background: var(--os-accent-primary);
+            color: white;
+            animation: voice-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes voice-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+        }
+
+        .text-input {
+            flex: 1;
+            background: var(--os-bg-quaternary);
+            border: 1px solid var(--os-border-default);
+            border-radius: var(--os-radius-md);
+            padding: 8px 12px;
+            color: var(--os-text-primary);
+            font-size: 13px;
+            outline: none;
+            resize: none;
+            min-height: 36px;
+            max-height: 100px;
+        }
+
+        .text-input::placeholder {
+            color: var(--os-text-tertiary);
+        }
+
+        .text-input:focus {
+            border-color: var(--os-accent-primary);
+        }
+
+        /* === TAB BAR === */
+        .tab-bar {
+            height: 36px;
+            background: var(--os-bg-secondary);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 4px;
+            border-bottom: 1px solid var(--os-border-default);
+        }
+
+        .tab {
+            height: 32px;
+            padding: 0 12px;
+            border-radius: var(--os-radius-sm);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--os-text-secondary);
+            transition: all 0.1s ease;
+            min-width: 100px;
+            max-width: 180px;
+        }
+
+        .tab:hover {
+            background: var(--os-bg-tertiary);
+        }
+
+        .tab.active {
+            background: var(--os-bg-quaternary);
+            color: var(--os-text-primary);
+            border-top: 2px solid var(--os-accent-primary);
+            margin-top: -1px;
+        }
+
+        .tab-close {
+            width: 16px;
+            height: 16px;
+            border-radius: var(--os-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.1s ease;
+            font-size: 10px;
+        }
+
+        .tab:hover .tab-close,
+        .tab.active .tab-close {
+            opacity: 1;
+        }
+
+        .tab-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .new-tab-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--os-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--os-text-tertiary);
+            font-size: 16px;
+            transition: all 0.1s ease;
+        }
+
+        .new-tab-btn:hover {
+            background: var(--os-bg-tertiary);
+            color: var(--os-text-primary);
+        }
+
+        /* === LAYOUT STRUCTURE === */
+        .workspace-layout {
+            display: flex;
+            height: 560px;
+        }
+
+        /* === DASHBOARD WIDGETS === */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .widget {
+            background: var(--os-bg-secondary);
+            border-radius: var(--os-radius-lg);
+            border: 1px solid var(--os-border-default);
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .widget-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--os-text-primary);
+        }
+
+        .widget-menu {
+            color: var(--os-text-tertiary);
+            cursor: pointer;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--os-text-primary);
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--os-text-secondary);
+            margin-top: 4px;
+        }
+
+        .trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--os-success);
+            margin-top: 8px;
+        }
+
+        /* === WHITEBOARD TOOLBAR === */
+        .toolbar-vertical {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--os-bg-secondary);
+            border-radius: var(--os-radius-lg);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--os-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--os-text-secondary);
+            font-size: 18px;
+            transition: all 0.1s ease;
+            position: relative;
+        }
+
+        .tool-btn:hover {
+            background: var(--os-bg-tertiary);
+            color: var(--os-text-primary);
+        }
+
+        .tool-btn.active {
+            background: var(--os-accent-primary);
+            color: white;
+        }
+
+        .tool-shortcut {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 9px;
+            color: var(--os-text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* === VOICE SPACE === */
+        .voice-interface {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 32px;
+        }
+
+        .waveform-container {
+            width: 400px;
+            height: 120px;
+            position: relative;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .record-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: var(--os-radius-full);
+            background: var(--os-error);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            font-size: 28px;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 30px rgba(239, 68, 68, 0.5);
+        }
+
+        .record-btn.recording {
+            animation: recording-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes recording-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .recording-time {
+            font-size: 48px;
+            font-weight: 300;
+            color: var(--os-text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.05em;
+        }
+
+        /* === MULTI-PANE DIVIDERS === */
+        .pane-divider {
+            width: 4px;
+            background: transparent;
+            cursor: col-resize;
+            position: relative;
+            transition: background 0.1s ease;
+        }
+
+        .pane-divider:hover {
+            background: rgba(99, 102, 241, 0.3);
+        }
+
+        .pane-divider::after {
+            content: '';
+            position: absolute;
+            left: 1px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--os-border-default);
+        }
+    </style>
+</head>
+<body>
+    <h1 style="font-family: 'Space Grotesk', sans-serif; font-size: 32px; margin-bottom: 8px; font-weight: 700;">OpenSpace UI Mockups</h1>
+    <p style="color: var(--os-text-secondary); margin-bottom: 40px; font-size: 14px;">Visual design system and interface concepts</p>
+
+    <div class="mockup-grid">
+        
+        <!-- Mockup 1: Default Editor Workspace -->
+        <div class="mockup-container">
+            <div class="mockup-header">Mockup 1: Default Editor Workspace</div>
+            <div class="mockup-content">
+                <!-- Activity Ribbon -->
+                <div class="activity-ribbon">
+                    <div class="activity-item" title="Voice">🎙️</div>
+                    <div class="activity-item" title="Sketch">✏️</div>
+                    <div class="activity-item" title="Dashboard">📊</div>
+                    <div class="activity-item" title="Present">🎬</div>
+                    <div class="activity-item active" title="Build">💻</div>
+                    <div class="activity-item" title="Review">🔍</div>
+                    <div class="activity-item" title="Settings">⚙️</div>
+                    <div class="ribbon-actions">
+                        <button class="ribbon-btn">+ New Pane</button>
+                        <button class="ribbon-btn">Tab View ▤</button>
+                    </div>
+                </div>
+
+                <!-- Workspace -->
+                <div class="workspace-layout">
+                    <!-- Navigation Panel -->
+                    <div class="nav-panel">
+                        <div class="nav-section">
+                            <div class="nav-section-header">Explorer</div>
+                            <div class="nav-item">
+                                <span class="nav-icon">📁</span>
+                                <span>openspace</span>
+                            </div>
+                            <div class="file-tree">
+                                <div class="nav-item active">
+                                    <span class="nav-icon">📄</span>
+                                    <span>auth.service.ts</span>
+                                    <div class="mod-indicator mod-modified"></div>
+                                </div>
+                                <div class="nav-item">
+                                    <span class="nav-icon">📄</span>
+                                    <span>user.controller.ts</span>
+                                </div>
+                                <div class="nav-item">
+                                    <span class="nav-icon">📄</span>
+                                    <span>database.ts</span>
+                                    <div class="mod-indicator mod-added"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="nav-section">
+                            <div class="nav-section-header">Sessions</div>
+                            <div class="nav-item">
+                                <span class="nav-icon">💬</span>
+                                <span>Auth refactor</span>
+                            </div>
+                            <div class="nav-item">
+                                <span class="nav-icon">💬</span>
+                                <span>API design</span>
+                            </div>
+                        </div>
+                        <div class="nav-section">
+                            <div class="nav-section-header">Agents</div>
+                            <div class="nav-item">
+                                <span style="color: var(--os-accent-primary);">●</span>
+                                <span>Builder</span>
+                            </div>
+                            <div class="nav-item">
+                                <span style="color: var(--os-text-tertiary);">○</span>
+                                <span style="color: var(--os-text-tertiary);">Oracle</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Area -->
+                    <div class="workspace-area">
+                        <div class="tab-bar">
+                            <div class="tab active">
+                                <span>💻 auth.service.ts</span>
+                                <div class="tab-close">×</div>
+                            </div>
+                            <div class="tab">
+                                <span>💻 user.controller.ts</span>
+                                <div class="tab-close">×</div>
+                            </div>
+                            <div class="new-tab-btn">+</div>
+                        </div>
+
+                        <div class="pane-container">
+                            <div class="pane">
+                                <div class="pane-header">
+                                    <span class="pane-title">auth.service.ts</span>
+                                    <div class="pane-actions">
+                                        <div class="pane-btn">🗖</div>
+                                        <div class="pane-btn">⧉</div>
+                                        <div class="pane-btn">×</div>
+                                    </div>
+                                </div>
+                                <div class="pane-content">
+                                    <div class="code-content">
+                                        <div class="code-line">
+                                            <span class="line-number">1</span>
+                                            <span class="line-content"><span class="code-keyword">import</span> { Injectable } <span class="code-keyword">from</span> <span class="code-string">'@nestjs/common'</span>;</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">2</span>
+                                            <span class="line-content"><span class="code-keyword">import</span> { JwtService } <span class="code-keyword">from</span> <span class="code-string">'@nestjs/jwt'</span>;</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">3</span>
+                                            <span class="line-content"></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">4</span>
+                                            <span class="line-content"><span class="code-keyword">@Injectable</span>()</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">5</span>
+                                            <span class="line-content"><span class="code-keyword">export class</span> <span class="code-function">AuthService</span> {</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">6</span>
+                                            <span class="line-content">  <span class="code-keyword">constructor</span>(</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">7</span>
+                                            <span class="line-content">    <span class="code-keyword">private</span> jwtService: JwtService,</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">8</span>
+                                            <span class="line-content">  ) {}</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">9</span>
+                                            <span class="line-content"></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">10</span>
+                                            <span class="line-content">  <span class="code-comment">// JWT authentication implementation</span></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">11</span>
+                                            <span class="line-content">  <span class="code-keyword">async</span> <span class="code-function">login</span>(user: <span class="code-function">User</span>) {</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">12</span>
+                                            <span class="line-content">    <span class="code-keyword">const</span> payload = { sub: user.id, email: user.email };</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">13</span>
+                                            <span class="line-content">    <span class="code-keyword">return</span> {</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">14</span>
+                                            <span class="line-content">      access_token: <span class="code-keyword">this</span>.jwtService.<span class="code-function">sign</span>(payload),</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">15</span>
+                                            <span class="line-content">    };</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">16</span>
+                                            <span class="line-content">  }</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">17</span>
+                                            <span class="line-content">}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mockup 2: Multi-Pane Layout -->
+        <div class="mockup-container">
+            <div class="mockup-header">Mockup 2: Multi-Pane Layout</div>
+            <div class="mockup-content">
+                <div class="activity-ribbon">
+                    <div class="activity-item" title="Voice">🎙️</div>
+                    <div class="activity-item active" title="Sketch">✏️</div>
+                    <div class="activity-item" title="Dashboard">📊</div>
+                    <div class="activity-item" title="Present">🎬</div>
+                    <div class="activity-item" title="Build">💻</div>
+                    <div class="activity-item" title="Review">🔍</div>
+                    <div class="activity-item" title="Settings">⚙️</div>
+                    <div class="ribbon-actions">
+                        <button class="ribbon-btn">Pane View ▦</button>
+                    </div>
+                </div>
+
+                <div class="workspace-layout">
+                    <div class="nav-panel" style="width: 48px;">
+                        <div class="nav-section" style="padding: 8px 0;">
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">📁</span>
+                            </div>
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">💬</span>
+                            </div>
+                            <div class="nav-item" style="justify-content: center; padding: 8px; background: var(--os-bg-quaternary);">
+                                <span style="font-size: 20px;">🤖</span>
+                            </div>
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">🔍</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="workspace-area">
+                        <div class="pane-container">
+                            <div class="pane" style="flex: 1.2;">
+                                <div class="pane-header">
+                                    <span class="pane-title">✏️ Architecture Diagram</span>
+                                    <div class="pane-actions">
+                                        <div class="pane-btn">🗖</div>
+                                        <div class="pane-btn">⧉</div>
+                                        <div class="pane-btn">×</div>
+                                    </div>
+                                </div>
+                                <div class="pane-content" style="position: relative; background: var(--os-bg-primary);">
+                                    <!-- Whiteboard Toolbar -->
+                                    <div class="toolbar-vertical">
+                                        <div class="tool-btn active" title="Select (V)">✋<span class="tool-shortcut">V</span></div>
+                                        <div class="tool-btn" title="Rectangle (R)">⬜<span class="tool-shortcut">R</span></div>
+                                        <div class="tool-btn" title="Ellipse (E)">⭕<span class="tool-shortcut">E</span></div>
+                                        <div class="tool-btn" title="Arrow (A)">➡️<span class="tool-shortcut">A</span></div>
+                                        <div class="tool-btn" title="Text (T)">T<span class="tool-shortcut">T</span></div>
+                                        <div class="tool-btn" title="Image (I)">🖼️<span class="tool-shortcut">I</span></div>
+                                    </div>
+
+                                    <!-- Mock Canvas Content -->
+                                    <div style="position: absolute; inset: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="display: flex; gap: 60px; align-items: center;">
+                                            <div style="width: 140px; height: 90px; background: var(--os-bg-tertiary); border: 2px solid var(--os-accent-primary); border-radius: var(--os-radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                                                <div style="font-size: 24px;">🔐</div>
+                                                <div style="font-size: 12px; color: var(--os-text-secondary);">Auth Service</div>
+                                                <div style="font-size: 10px; color: var(--os-text-tertiary);">JWT OAuth</div>
+                                            </div>
+                                            <div style="font-size: 32px; color: var(--os-text-tertiary);">→</div>
+                                            <div style="width: 140px; height: 90px; background: var(--os-bg-tertiary); border: 2px solid var(--os-border-default); border-radius: var(--os-radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                                                <div style="font-size: 24px;">⚡</div>
+                                                <div style="font-size: 12px; color: var(--os-text-secondary);">API Gateway</div>
+                                                <div style="font-size: 10px; color: var(--os-text-tertiary);">Rate Limit</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pane-divider"></div>
+
+                            <div class="pane" style="flex: 1;">
+                                <div class="pane-header">
+                                    <span class="pane-title">💻 auth.service.ts</span>
+                                    <div class="pane-actions">
+                                        <div class="pane-btn">🗖</div>
+                                        <div class="pane-btn">⧉</div>
+                                        <div class="pane-btn">×</div>
+                                    </div>
+                                </div>
+                                <div class="pane-content">
+                                    <div class="code-content">
+                                        <div class="code-line">
+                                            <span class="line-number">1</span>
+                                            <span class="line-content"><span class="code-keyword">@Injectable</span>()</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">2</span>
+                                            <span class="line-content"><span class="code-keyword">export class</span> <span class="code-function">AuthService</span> {</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">3</span>
+                                            <span class="line-content">  <span class="code-keyword">constructor</span>(</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">4</span>
+                                            <span class="line-content">    <span class="code-keyword">private</span> jwtService: JwtService,</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">5</span>
+                                            <span class="line-content">  ) {}</span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">6</span>
+                                            <span class="line-content"></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">7</span>
+                                            <span class="line-content">  <span style="background: rgba(99, 102, 241, 0.2); padding: 2px 0;"><span class="code-keyword">async</span> <span class="code-function">login</span>(user: <span class="code-function">User</span>) {</span></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">8</span>
+                                            <span class="line-content">    <span style="background: rgba(99, 102, 241, 0.2); padding: 2px 0;"><span class="code-comment">// Builder is working here...</span></span></span>
+                                        </div>
+                                        <div class="code-line">
+                                            <span class="line-number">9</span>
+                                            <span class="line-content">  }</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pane-divider"></div>
+
+                            <div class="pane" style="flex: 0.8;">
+                                <div class="pane-header">
+                                    <span class="pane-title">🌐 Preview</span>
+                                    <div class="pane-actions">
+                                        <div class="pane-btn">🗖</div>
+                                        <div class="pane-btn">×</div>
+                                    </div>
+                                </div>
+                                <div class="pane-content" style="padding: 0; background: white;">
+                                    <div style="height: 100%; display: flex; flex-direction: column;">
+                                        <div style="height: 32px; background: var(--os-bg-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 8px;">
+                                            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-error);"></div>
+                                            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-warning);"></div>
+                                            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-success);"></div>
+                                            <div style="flex: 1; background: var(--os-bg-quaternary); border-radius: 4px; padding: 4px 8px; font-size: 11px; color: var(--os-text-secondary);">localhost:3000/auth</div>
+                                        </div>
+                                        <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <div style="background: white; padding: 32px 48px; border-radius: var(--os-radius-lg); box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;">
+                                                <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+                                                <div style="font-size: 18px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px;">Welcome Back</div>
+                                                <div style="width: 200px; height: 36px; background: #f1f1f1; border-radius: 6px; margin-bottom: 12px;"></div>
+                                                <div style="width: 200px; height: 36px; background: #f1f1f1; border-radius: 6px; margin-bottom: 16px;"></div>
+                                                <div style="width: 200px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 6px;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mockup 3: Dashboard Space -->
+        <div class="mockup-container">
+            <div class="mockup-header">Mockup 3: Dashboard Space</div>
+            <div class="mockup-content">
+                <div class="activity-ribbon">
+                    <div class="activity-item" title="Voice">🎙️</div>
+                    <div class="activity-item" title="Sketch">✏️</div>
+                    <div class="activity-item active" title="Dashboard">📊</div>
+                    <div class="activity-item" title="Present">🎬</div>
+                    <div class="activity-item" title="Build">💻</div>
+                    <div class="activity-item" title="Review">🔍</div>
+                    <div class="activity-item" title="Settings">⚙️</div>
+                    <div class="ribbon-actions">
+                        <button class="ribbon-btn">+ Add Widget</button>
+                    </div>
+                </div>
+
+                <div class="workspace-layout">
+                    <div class="nav-panel" style="width: 48px;">
+                        <div class="nav-section" style="padding: 8px 0;">
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">📁</span>
+                            </div>
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">💬</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="workspace-area">
+                        <div class="dashboard-grid">
+                            <div class="widget">
+                                <div class="widget-header">
+                                    <span class="widget-title">🎯 Sprint Progress</span>
+                                    <span class="widget-menu">···</span>
+                                </div>
+                                <div class="stat-value">73%</div>
+                                <div class="stat-label">8 of 11 stories complete</div>
+                                <div class="trend">↑ 12% from last week</div>
+                            </div>
+
+                            <div class="widget">
+                                <div class="widget-header">
+                                    <span class="widget-title">📈 Code Velocity</span>
+                                    <span class="widget-menu">···</span>
+                                </div>
+                                <div class="stat-value">42</div>
+                                <div class="stat-label">Commits this week</div>
+                                <div class="trend">↑ 8 from last week</div>
+                            </div>
+
+                            <div class="widget">
+                                <div class="widget-header">
+                                    <span class="widget-title">🤖 Agent Activity</span>
+                                    <span class="widget-menu">···</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-accent-primary); animation: pulse 1.5s infinite;"></div>
+                                        <span style="font-size: 13px; color: var(--os-text-primary);">Builder working on auth</span>
+                                        <span style="font-size: 11px; color: var(--os-text-tertiary); margin-left: auto;">2m ago</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-success);"></div>
+                                        <span style="font-size: 13px; color: var(--os-text-secondary);">Janitor completed review</span>
+                                        <span style="font-size: 11px; color: var(--os-text-tertiary); margin-left: auto;">5m ago</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--os-text-tertiary);"></div>
+                                        <span style="font-size: 13px; color: var(--os-text-tertiary);">Oracle created requirements</span>
+                                        <span style="font-size: 11px; color: var(--os-text-tertiary); margin-left: auto;">1h ago</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="widget">
+                                <div class="widget-header">
+                                    <span class="widget-title">🔥 Active Sessions</span>
+                                    <span class="widget-menu">···</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                                    <div style="padding: 12px; background: var(--os-bg-tertiary); border-radius: var(--os-radius-md); cursor: pointer;">
+                                        <div style="font-size: 13px; color: var(--os-text-primary); font-weight: 500;">Auth Service Refactor</div>
+                                        <div style="font-size: 11px; color: var(--os-text-secondary); margin-top: 4px;">Builder • 3 files modified</div>
+                                    </div>
+                                    <div style="padding: 12px; background: var(--os-bg-tertiary); border-radius: var(--os-radius-md); cursor: pointer;">
+                                        <div style="font-size: 13px; color: var(--os-text-primary); font-weight: 500;">API Design Review</div>
+                                        <div style="font-size: 11px; color: var(--os-text-secondary); margin-top: 4px;">Oracle • Whiteboard updated</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mockup 4: Voice Space -->
+        <div class="mockup-container">
+            <div class="mockup-header">Mockup 4: Voice Space</div>
+            <div class="mockup-content">
+                <div class="activity-ribbon">
+                    <div class="activity-item active" title="Voice">🎙️</div>
+                    <div class="activity-item" title="Sketch">✏️</div>
+                    <div class="activity-item" title="Dashboard">📊</div>
+                    <div class="activity-item" title="Present">🎬</div>
+                    <div class="activity-item" title="Build">💻</div>
+                    <div class="activity-item" title="Review">🔍</div>
+                    <div class="activity-item" title="Settings">⚙️</div>
+                </div>
+
+                <div class="workspace-layout">
+                    <div class="nav-panel" style="width: 48px;">
+                        <div class="nav-section" style="padding: 8px 0;">
+                            <div class="nav-item" style="justify-content: center; padding: 8px;">
+                                <span style="font-size: 20px;">🎙️</span>
+                            </div>
+                            <div class="nav-item" style="justify-content: center; padding: 8px; background: var(--os-bg-quaternary);">
+                                <span style="font-size: 20px;">💬</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="workspace-area">
+                        <div class="voice-interface">
+                            <div class="recording-indicator">
+                                <button class="record-btn recording">⏹</button>
+                            </div>
+                            
+                            <div class="recording-time">02:34</div>
+                            
+                            <div class="waveform-container">
+                                <svg width="400" height="120" viewBox="0 0 400 120">
+                                    <defs>
+                                        <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" style="stop-color:#6366F1;stop-opacity:0.3" />
+                                            <stop offset="50%" style="stop-color:#A855F7;stop-opacity:1" />
+                                            <stop offset="100%" style="stop-color:#6366F1;stop-opacity:0.3" />
+                                        </linearGradient>
+                                    </defs>
+                                    <!-- Simulated waveform bars -->
+                                    <rect x="10" y="50" width="6" height="20" rx="3" fill="url(#waveGradient)" opacity="0.7"/>
+                                    <rect x="22" y="40" width="6" height="40" rx="3" fill="url(#waveGradient)" opacity="0.9"/>
+                                    <rect x="34" y="30" width="6" height="60" rx="3" fill="url(#waveGradient)"/>
+                                    <rect x="46" y="45" width="6" height="30" rx="3" fill="url(#waveGradient)" opacity="0.8"/>
+                                    <rect x="58" y="55" width="6" height="10" rx="3" fill="url(#waveGradient)" opacity="0.6"/>
+                                    <rect x="70" y="35" width="6" height="50" rx="3" fill="url(#waveGradient)" opacity="0.9"/>
+                                    <rect x="82" y="48" width="6" height="24" rx="3" fill="url(#waveGradient)" opacity="0.7"/>
+                                    <rect x="94" y="25" width="6" height="70" rx="3" fill="url(#waveGradient)"/>
+                                    <rect x="106" y="42" width="6" height="36" rx="3" fill="url(#waveGradient)" opacity="0.85"/>
+                                    <rect x="118" y="52" width="6" height="16" rx="3" fill="url(#waveGradient)" opacity="0.65"/>
+                                    <rect x="130" y="38" width="6" height="44" rx="3" fill="url(#waveGradient)" opacity="0.9"/>
+                                    <rect x="142" y="48" width="6" height="24" rx="3" fill="url(#waveGradient)" opacity="0.75"/>
+                                    <rect x="154" y="30" width="6" height="60" rx="3" fill="url(#waveGradient)"/>
+                                    <rect x="166" y="45" width="6" height="30" rx="3" fill="url(#waveGradient)" opacity="0.8"/>
+                                    <rect x="178" y="55" width="6" height="10" rx="3" fill="url(#waveGradient)" opacity="0.6"/>
+                                    <rect x="190" y="32" width="6" height="56" rx="3" fill="url(#waveGradient)" opacity="0.95"/>
+                                    <rect x="202" y="50" width="6" height="20" rx="3" fill="url(#waveGradient)" opacity="0.7"/>
+                                    <rect x="214" y="28" width="6" height="64" rx="3" fill="url(#waveGradient)"/>
+                                    <rect x="226" y="44" width="6" height="32" rx="3" fill="url(#waveGradient)" opacity="0.85"/>
+                                    <rect x="238" y="54" width="6" height="12" rx="3" fill="url(#waveGradient)" opacity="0.65"/>
+                                    <rect x="250" y="36" width="6" height="48" rx="3" fill="url(#waveGradient)" opacity="0.9"/>
+                                    <rect x="262" y="46" width="6" height="28" rx="3" fill="url(#waveGradient)" opacity="0.75"/>
+                                    <rect x="274" y="33" width="6" height="54" rx="3" fill="url(#waveGradient)" opacity="0.95"/>
+                                    <rect x="286" y="50" width="6" height="20" rx="3" fill="url(#waveGradient)" opacity="0.7"/>
+                                    <rect x="298" y="40" width="6" height="40" rx="3" fill="url(#waveGradient)" opacity="0.85"/>
+                                    <rect x="310" y="55" width="6" height="10" rx="3" fill="url(#waveGradient)" opacity="0.6"/>
+                                    <rect x="322" y="30" width="6" height="60" rx="3" fill="url(#waveGradient)"/>
+                                    <rect x="334" y="47" width="6" height="26" rx="3" fill="url(#waveGradient)" opacity="0.8"/>
+                                    <rect x="346" y="52" width="6" height="16" rx="3" fill="url(#waveGradient)" opacity="0.65"/>
+                                    <rect x="358" y="38" width="6" height="44" rx="3" fill="url(#waveGradient)" opacity="0.9"/>
+                                    <rect x="370" y="48" width="6" height="24" rx="3" fill="url(#waveGradient)" opacity="0.75"/>
+                                    <rect x="382" y="42" width="6" height="36" rx="3" fill="url(#waveGradient)" opacity="0.85"/>
+                                </svg>
+                            </div>
+
+                            <div style="display: flex; gap: 16px; align-items: center; margin-top: 16px;">
+                                <div style="padding: 12px 20px; background: var(--os-bg-tertiary); border-radius: var(--os-radius-md); border: 1px solid var(--os-border-default);">
+                                    <div style="font-size: 11px; color: var(--os-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Detected Entities</div>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: var(--os-radius-full); font-size: 12px; color: var(--os-accent-primary);">auth</span>
+                                        <span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: var(--os-radius-full); font-size: 12px; color: var(--os-accent-primary);">OAuth</span>
+                                        <span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: var(--os-radius-full); font-size: 12px; color: var(--os-accent-primary);">JWT</span>
+                                        <span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: var(--os-radius-full); font-size: 12px; color: var(--os-accent-primary);">API Gateway</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Agent Companion (Fixed Position) -->
+    <div class="agent-companion">
+        <div class="agent-chat">
+            <div class="agent-chat-header">
+                <div class="agent-chat-avatar">🤖</div>
+                <div class="agent-info">
+                    <div class="agent-name">Builder</div>
+                    <div class="agent-status">Working on auth.service.ts</div>
+                </div>
+                <div class="agent-chat-actions">
+                    <div class="agent-chat-btn">🗕</div>
+                    <div class="agent-chat-btn">🗗</div>
+                    <div class="agent-chat-btn">×</div>
+                </div>
+            </div>
+            <div class="agent-messages">
+                <div class="message agent">I've started refactoring the auth service. Should I also update the tests?</div>
+                <div class="message user">Yes, please update the unit tests as well.</div>
+                <div class="message agent">Working on it...</div>
+            </div>
+            <div class="agent-input-area">
+                <button class="voice-btn">🎙️</button>
+                <textarea class="text-input" placeholder="Type a message..."></textarea>
+            </div>
+        </div>
+        <div class="agent-avatar">
+            <div class="agent-status-ring working"></div>
+            🤖
+        </div>
+    </div>
+
+</body>
+</html>

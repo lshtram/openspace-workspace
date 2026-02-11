@@ -1,0 +1,46 @@
+flowchart TD
+  subgraph UserSide["User + Agent Workflow"]
+    User["User edits markdown deck"]
+    Agent["Agent edits same markdown deck"]
+  end
+
+  subgraph Client["OpenSpace Client"]
+    Frame["PresentationFrame"]
+    Reveal["Reveal.js Renderer"]
+    Controls["Pace Controls (start/pause/resume/stop)"]
+  end
+
+  subgraph Runtime["Runtime Hub"]
+    Hub["hub-server.ts"]
+    Store["ArtifactStore (single writer)"]
+    SSE["/events (SSE)"]
+    Ctx["/context/active-presentation"]
+  end
+
+  subgraph MCP["Presentation MCP"]
+    PMCP["presentation-mcp.ts"]
+    Tools["list/read/update deck + slide tools"]
+    Resource["active://presentation"]
+  end
+
+  subgraph FS["Filesystem"]
+    Deck["docs/deck/X.deck.md (canonical text)"]
+  end
+
+  User --> Frame
+  Agent --> PMCP
+
+  Frame --> Reveal
+  Controls --> Frame
+
+  Frame -->|read/write| Hub
+  Frame -->|set active| Ctx
+
+  PMCP --> Tools
+  PMCP --> Resource
+  PMCP -->|read/write| Hub
+
+  Hub --> Store
+  Store --> Deck
+  Store -->|FILE_CHANGED| SSE
+  SSE -->|reload deck| Frame

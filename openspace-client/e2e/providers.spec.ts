@@ -1,6 +1,7 @@
 import { test, expect, testProjectPath } from "./fixtures"
 import type { Page } from "@playwright/test"
-import { newSessionButtonSelector, chatInterfaceSelector } from "./selectors"
+import { chatInterfaceSelector, promptSelector } from "./selectors"
+import { ensureInSession } from "./actions"
 
 async function openSession(
   page: Page,
@@ -10,11 +11,9 @@ async function openSession(
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
+  await ensureInSession(page)
   await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
-  await expect(page.locator("textarea").first()).toBeVisible({ timeout: 10000 })
+  await expect(page.locator(promptSelector).first()).toBeVisible({ timeout: 10000 })
 }
 
 async function openModelPicker(page: Page) {

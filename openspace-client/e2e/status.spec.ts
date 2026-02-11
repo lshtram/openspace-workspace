@@ -1,7 +1,6 @@
 import { test, expect, testProjectPath } from "./fixtures"
 import type { Page } from "@playwright/test"
-import { openStatusPopover } from "./actions"
-import { newSessionButtonSelector } from "./selectors"
+import { openStatusPopover, ensureInSession } from "./actions"
 
 async function openSession(
   page: Page,
@@ -10,11 +9,7 @@ async function openSession(
 ) {
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
-
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  await expect(newSessionBtn).toBeVisible()
-  await newSessionBtn.click()
-  await page.waitForTimeout(1000)
+  await ensureInSession(page)
 }
 
 test("status popover opens and shows connection info", async ({ page, gotoHome, seedProject }) => {

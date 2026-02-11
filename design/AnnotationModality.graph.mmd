@@ -1,0 +1,46 @@
+flowchart TD
+  subgraph User["User"]
+    U1["Open image/PDF"]
+    U2["Annotate in Excalidraw"]
+    U3["Save Snapshot"]
+    U4["Send to Agent"]
+  end
+
+  subgraph Client["OpenSpace Client"]
+    F["ExcalidrawAnnotationFrame"]
+    P["PDF/Image Loader"]
+    E["Excalidraw Scene"]
+    A["AnnotationActionsBar"]
+    X["exportToBlob (flatten PNG)"]
+  end
+
+  subgraph Runtime["Runtime Hub"]
+    H["/artifacts API"]
+    S["ArtifactStore"]
+  end
+
+  subgraph Agent["Agent Session"]
+    M["session.prompt (file part)"]
+  end
+
+  subgraph FS["Filesystem"]
+    SRC["Source: image/pdf"]
+    OUT["design/annotations/*.annotated.<ts>.png"]
+  end
+
+  U1 --> F
+  F --> P
+  SRC --> P
+  P --> E
+
+  U2 --> E
+  A --> E
+
+  U3 --> X
+  E --> X
+  X --> H
+  H --> S
+  S --> OUT
+
+  U4 --> M
+  X --> M

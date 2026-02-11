@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph Legend["🎨 Design System Legend"]
+        direction LR
+        L1["--os-bg-primary: #0A0A0B"]
+        L2["--os-bg-secondary: #141416"]
+        L3["--os-bg-tertiary: #1C1C1F"]
+        L4["--os-accent-primary: #6366F1"]
+        L5["--os-text-primary: #FAFAFA"]
+        L6["--os-text-secondary: #A1A1AA"]
+        L7["--os-border-default: rgba(255,255,255,0.1)"]
+    end
+    
+    subgraph Mockup1["Mockup 1: Default Editor Workspace"]
+        direction TB
+        M1_Top["🎙️ ✏️ 📊 🎬 💻 🔍 ⚙️ [+ New Pane] [Tab View ▤]"]
+        M1_Main["Navigation | Editor Pane | Agent"]
+        M1_Agent["🤖 Agent Companion (bottom-right)"]
+    end
+    
+    subgraph Mockup2["Mockup 2: Multi-Pane Layout"]
+        direction TB
+        M2_Top["Activity Ribbon"]
+        M2_Main["Navigation | Whiteboard | Editor | Browser"]
+        M2_Agent["🤖 Agent"]
+    end
+    
+    subgraph Mockup3["Mockup 3: Agent Companion States"]
+        direction LR
+        A1["Collapsed: 🤖●"]
+        A2["Default: Chat interface"]
+        A3["Voice: Pulsing ring"]
+        A4["Working: Animated..."]
+    end
+    
+    subgraph Components["Key Components"]
+        direction TB
+        C1["Activity Ribbon - 40px height"]
+        C2["Navigation Panel - 240px default"]
+        C3["Pane Window Chrome - 36px header"]
+        C4["Agent Companion - Floating widget"]
+        C5["Tab Bar - 36px height"]
+    end
+    
+    Legend --> Mockup1
+    Legend --> Mockup2
+    Legend --> Mockup3
+    Components --> Mockup1
+    Components --> Mockup2

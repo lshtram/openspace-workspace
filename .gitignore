@@ -1,1 +1,22 @@
 temp/
+
+# macOS/editor noise
+.DS_Store
+.vscode/
+
+# Local worktree artifacts
+.worktrees/
+
+# Playwright artifacts
+openspace-client/e2e/playwright-report/
+openspace-client/e2e/playwright-report-g*/
+openspace-client/e2e/test-results/
+openspace-client/e2e/test-results-g*/
+
+# Runtime hub local outputs
+runtime-hub/dist/
+runtime-hub/node_modules/
+runtime-hub/*.log
+
+# Local scratch files
+result.md

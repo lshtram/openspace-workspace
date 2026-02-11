@@ -6,6 +6,7 @@ import * as ScrollArea from "@radix-ui/react-scroll-area"
 import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
 import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
 import { cn } from "../lib/utils"
+import { getToolRenderer } from "./message/tool-renderers"
 
 type MessageListProps = {
   messages: Message[]
@@ -426,6 +427,11 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
   }
 
   if (part.type === "tool") {
+    const DedicatedRenderer = getToolRenderer(part.tool);
+    if (DedicatedRenderer) {
+      return <DedicatedRenderer part={part} isStep={isStep} />;
+    }
+
     const status = part.state.status
     const toolName = part.tool
     const args = (part.state.status !== "pending" && part.state.status !== "running" ? part.state.input : {}) as Record<string, string | undefined>

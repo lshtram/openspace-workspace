@@ -16,9 +16,9 @@ type LayoutContextType = {
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
-  const [leftSidebarExpanded, setLeftSidebarExpanded] = useState(true)
-  const [rightSidebarExpanded, setRightSidebarExpanded] = useState(true)
-  const [terminalExpanded, setTerminalExpanded] = useState(true)
+  const [leftSidebarExpanded, setLeftSidebarExpanded] = useState(false)
+  const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false)
+  const [terminalExpanded, setTerminalExpanded] = useState(false)
   const [terminalHeight, setTerminalHeight] = useState(240)
   const [activeWhiteboardPath, setActiveWhiteboardPath] = useState<string | null>(null)
 

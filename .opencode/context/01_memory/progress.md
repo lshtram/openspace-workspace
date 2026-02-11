@@ -1,38 +1,49 @@
+---
+id: PROGRESS-OPENSPACE-CLIENT
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: progress-tracking
+---
+
 # Progress - OpenSpace Client
 
 ## Current Milestones
-- [completed] NSO System Integration & E2E Fixes (2026-02-08)
-- [completed] Memory Optimization & Token Reduction (2026-02-08)
+- [completed] NSO System Integration and E2E Fixes (2026-02-08)
+- [completed] Memory Optimization and Token Reduction (2026-02-08)
 - [completed] Whiteboard Modality (Phase 1-5) (2026-02-08)
 - [completed] Sequence Diagram Support (2026-02-09)
 - [completed] NSO Infrastructure Hardening (2026-02-11)
+- [in_progress] Drawing Modality V2 - Phase 0 Infrastructure Prep (2026-02-11)
+- [parallel] Phase 2 Feature Parity (separate stream) (2026-02-11)
 
 ## Active Work
-- **Whiteboard Modality**: MULTI-DIAGRAM EXTENSIONS. <!-- id: 100 -->
-  - [x] Feature: Polymorphic Parser/Layout Foundation <!-- id: 115 -->
-  - [x] Feature: Sequence Diagram Support <!-- id: 116 -->
-  - [x] Fix: Diagram Type Persistence (No more reverting to graph TD) <!-- id: 117 -->
-  - [x] UI: Collapsed Sidebars by Default <!-- id: 118 -->
-  - [ ] Feature: Class Diagram Support (DEFERRED) <!-- id: 119 -->
-  - [ ] Feature: State Diagram Support <!-- id: 120 -->
-  - [x] Fix: User -> Agent Loop (Auto-save .graph.mmd) <!-- id: 110 -->
-  - [x] Fix: Agent -> User Loop (SSE Live Sync) <!-- id: 111 -->
-  - [x] Fix: Robust Mermaid Parser <!-- id: 112 -->
-  - [x] Fix: Arrow Intersection Geometry <!-- id: 113 -->
-  - [x] Feature: Active Context (Resource: `active://whiteboard`) <!-- id: 114 -->
-- **Multimodal Spine**: Artifact Store (The Spine) implemented and verified. <!-- id: 101 -->
-- **NSO Infrastructure** (2026-02-11): <!-- id: 102 -->
-  - [x] Profiler hook deactivated (non-functional, moved to deferred/)
-  - [x] Pre-commit validation hook enforces NSO approval protocol
-  - [x] Ephemeral files gitignored (session logs, telemetry, artifacts)
-  - [x] Hooks symlinked to global NSO (single source of truth)
-  - [x] NSO global repo committed (56 files: prompts, scripts, docs, templates)
+- Drawing Modality V2 - Phase 0: <!-- id: 300 -->
+  - [x] Task 1: Extract `useArtifact()` hook. <!-- id: 301 -->
+  - [x] Task 2: Refactor whiteboard to `useArtifact()`, including deferred regression closure. <!-- id: 302 -->
+  - [x] Task 3: Hub API simplification and compatibility aliases. <!-- id: 303 -->
+  - [ ] Task 4: MCP consolidation (`whiteboard-mcp` -> `modality-mcp`). <!-- id: 304 -->
+- Phase 2A Core UX (parallel stream): <!-- id: 200 -->
+  - [x] Dedicated tool renderers. <!-- id: 201 -->
+  - [ ] File watcher integration. <!-- id: 202 -->
+  - [ ] Session navigation shortcuts. <!-- id: 203 -->
+  - [ ] Duration timer per turn. <!-- id: 204 -->
+
+## Regression Closure Record (Task 2 Deferred)
+- [x] Fixed post-agent-sync synthetic onChange loop causing draw degradation.
+- [x] Fixed Send-to-Agent PNG persistence gap by writing to Hub file API under `design/*.png`.
+- [x] Validation completed:
+  - `npm run test:run -- src/components/whiteboard/WhiteboardFrame.test.tsx`
+  - `npm run test:run -- src/hooks/useArtifact.test.tsx`
+  - `npx tsc --noEmit`
+  - independent Janitor pass
 
 ## Validation Status
-- ✅ All checks pass: `npm run check`
-- ✅ Sequence Diagrams: Verified (Lifelines, Horizontal Messages, Labels)
-- ✅ Auto-Save: Verified (Mermaid content preserved)
+- Targeted Whiteboard regression tests: PASS
+- Targeted `useArtifact` tests: PASS
+- Typecheck: PASS
 
 ## Evidence Links
-- Active Context: `.opencode/context/01_memory/active_context.md`
-- Progress Archive: `.opencode/context/01_memory/progress_archive.md`
+- Active context: `.opencode/context/01_memory/active_context.md`
+- Progress archive: `.opencode/context/01_memory/progress_archive.md`
+- Canonical NSO suggestions backlog: `.opencode/context/01_memory/nso-improvements.md`

@@ -1,3 +1,11 @@
+---
+id: PATTERNS-OPENSPACE-MEMORY
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: memory-patterns
+---
+
 # Patterns
 
 ## Architectural Patterns
@@ -14,24 +22,59 @@
   - Low confidence (<20%) = normal conversation
   - No explicit `/router` command needed
 
-- **Internal Hub API Pattern**: For complex artifacts (like whiteboards) that require central storage and multimodal access:
+- **Internal Hub API Pattern (Spine Lite)**: For complex artifacts (like whiteboards) that require central storage and multimodal access:
   - Implement a central `ArtifactStore` (The Spine) in a dedicated hub service.
   - Expose the store via a local HTTP Internal API (e.g., Express) to allow communication from MCP servers and other tools.
   - Implement MCP servers (The Hands) that wrap the Internal API as tools (`read_whiteboard`, `update_whiteboard`).
   - Use ESM for MCP servers and Hub components to leverage modern SDKs and libraries (like `node-fetch`).
+  - **Evolution (2026-02-11)**: Spine Lite architecture consolidates all modalities into:
+    - ONE Hub (:3001) with `/files/:path`, `/events`, `/context/active` endpoints
+    - ONE MCP process (`modality-mcp.ts`) with namespaced tools (`drawing.*`, `editor.*`, etc.)
+    - Universal `useArtifact()` hook in React client for consistent artifact management
+
+- **Universal Artifact Pattern**: Use `useArtifact<T>()` hook for all modalities (Drawing, Editor, Presentation, Voice, etc.):
+  - Automatic SSE subscription for agent updates
+  - Multi-window sync via BroadcastChannel
+  - Debounced auto-save (configurable)
+  - Custom parse/serialize functions
+  - Type-safe with TypeScript generics
+  - Single pattern reduces boilerplate by ~30-40% per modality
+  - Example: `useArtifact<SceneGraph>('design/auth.json', { parse: JSON.parse, serialize: JSON.stringify })`
+
+- **Registry Pattern for Tool UI**: Decoupling tool-specific rendering from the main message list using a central registry.
+  - Define a standard `ToolRenderer` interface.
+  - Implement a registry (`registerToolRenderer`, `getToolRenderer`).
+  - Use a `BaseToolRenderer` for consistent collapsible UI and status indicators.
+  - Renderers register themselves via side-effect imports in the registry index.
+
+- **Intent Validation Hook Pattern**: Use pre-tool-execution hooks to enforce security and safety policies.
+  - Implement a `validate_intent` hook that runs before sensitive tools (e.g., `edit`, `bash`).
+  - Block operations that violate policy (e.g., editing `.env` files, force pushing to main).
+  - Provide clear security alerts in the logs when an operation is blocked.
 
 ## Coding Standards
 - TDD Mandatory (RED -> GREEN -> REFACTOR).
 - Logical logging (LOG FIRST).
 - Minimal diffs.
+- **ANSI Stripping**: Standardize on regex-based ANSI escape code stripping for raw terminal output in UI components.
 
 ## Frontend/UI Patterns
+- **Design Lock (Obsidian Hybrid)**:
+  - Canonical visual reference: `design/mockups/obsidian-glass-hybrid.html`
+  - Mode-by-mode references: `design/mockups/pages/index.html`
+  - Style guide for all agents: `design/STYLE-GUIDE-OBSIDIAN-HYBRID.md`
+  - Implementation CSS baseline: `openspace-client/src/styles/obsidian-hybrid.css`
+  - Rule: Reuse these before introducing new visual patterns.
 - **Two-Zone Scrollable Layout**: When components at top and bottom of a container need independent scrolling:
   - Use flex container with `flex-col` on parent
   - Middle zone: `flex-1 min-h-0 overflow-y-auto` (allows shrinking and scrolling)
   - Bottom zone: `max-h-[Npx] overflow-y-auto` (constrained height with internal scroll)
   - Example: SessionSidebar (header fixed, sessions list scrollable, workspace manager constrained)
   - **Why**: Prevents UI overlap when bottom component blocks clickable elements in middle zone
+
+- **Nested Scrolling Handling**: Use `data-scrollable="true"` on elements that handle their own overflow.
+  - The parent scroll container should check `event.target.closest("[data-scrollable]")` to decide whether to stop propagation of scroll/wheel events.
+  - Prevents "scroll chaining" where scrolling the end of a child container triggers the parent's scroll.
 
 ## Testing Standards
 - **E2E Tests (Playwright)**: Integration tests use REAL servers (Vite dev + API), not mocks
@@ -44,6 +87,7 @@
 - Use kebab-case for file names.
 - Global NSO system is at ~/.config/opencode/nso/.
 - Project-specific context is at ./.opencode/context/.
+- Canonical NSO suggestions backlog is `.opencode/context/01_memory/nso-improvements.md`.
 - **Skill Naming**: Use plain English descriptors (e.g., "requirement-elicitation" not "Prometheus")
 - **Router Priority**: DEBUG > REVIEW > PLAN > BUILD (when multiple match)
 

@@ -1,31 +1,40 @@
+---
+id: ACTIVE-CONTEXT-OPENSPACE
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: session-context
+---
+
 # Active Context
 
 ## Current Focus
-- Polymorphic Whiteboard Modality (Multi-Diagram Support)
-  - **Sequence Diagrams**: IMPLEMENTED (Parser, Layout, Serializer, Rendering, Proximity Detection).
-  - **Polymorphic Foundation**: IMPLEMENTED (Strategy pattern for layout and parsing).
-  - **Class Diagrams**: DEFERRED (Stability issues in composite rendering).
+- Drawing Modality V2, Phase 0 closure state is complete through Task 3.
+- Deferred Whiteboard regressions from Task 2 are now fixed and validated.
+- Next planned implementation item remains Task 4 (MCP consolidation), not started.
 
 ## Session State
 - Session Update: 2026-02-11
-- Status: NSO Infrastructure Complete
-- Current Workflow: N/A (Infrastructure work)
-- Current Phase: N/A
+- Status: READY_FOR_NEXT_SESSION
+- Current Workflow: DEBUG closure completed
+- Current Phase: Transition to next approved BUILD step
 
 ## Recent Decisions
-1. **Lifeline Proximity Heuristic (2026-02-09):** Parser now uses horizontal proximity to lifelines to identify participants for unbound arrows.
-2. **Strict Vertical Layout (2026-02-09):** Increased Sequence message step to 100px to prevent label collisions.
-3. **Class Diagram Multi-Segment Rendering (2026-02-09):** Decided to use grouped rectangles and separator lines to simulate the three-part class box structure in Excalidraw.
-4. **ClassMember Model (2026-02-09):** Added specific interface for attributes and methods to preserve visibility and modifiers during round-trips.
-5. **Phase 3 Deferral (2026-02-09):** Class diagram support deferred due to instability in composite rendering and grouping.
-6. **NSO Profiler Deactivation (2026-02-11):** Profiler hook removed (non-functional, only recorded tool name). OpenCode session.json provides better data.
-7. **NSO Hook Symlinks (2026-02-11):** Project hooks now symlink to global NSO for single source of truth.
-8. **Pre-commit Validation (2026-02-11):** Git pre-commit hook enforces NSO Self-Improvement Protocol approval gates.
+1. Established canonical NSO suggestions backlog at `.opencode/context/01_memory/nso-improvements.md`.
+2. Preserved compatibility and scope guardrails during regression fix pass:
+   - no Task 4 changes,
+   - no hub traversal-safety broadening,
+   - persistence remains under `design/`.
+3. Closed deferred regressions with targeted + independent validation before session transition.
+4. Locked UI direction to Obsidian Hybrid and published team references:
+   - `design/mockups/obsidian-glass-hybrid.html`
+   - `design/mockups/pages/index.html`
+   - `design/STYLE-GUIDE-OBSIDIAN-HYBRID.md`
+   - `openspace-client/src/styles/obsidian-hybrid.css`
 
 ## Open Questions
-- None. Ready for next feature work.
+- None blocking.
 
-- Session closed: 2026-02-11 15:15
 ## Next Steps
-- Resume feature development (Class Diagrams or new work)
-- NSO infrastructure is stable and git-tracked
+- Start next session at Phase 0 Task 4 only when explicitly requested.
+- Keep closure protocol: approval-gated NSO global changes remain pending until separately approved.

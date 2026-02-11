@@ -10,6 +10,25 @@ globalThis.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+globalThis.Path2D = class Path2D {
+  constructor() {}
+} as typeof Path2D
+
+class MockEventSource {
+  url: string
+  onopen: (() => void) | null = null
+  onmessage: ((event: MessageEvent) => void) | null = null
+  onerror: (() => void) | null = null
+
+  constructor(url: string) {
+    this.url = url
+  }
+
+  close() {}
+}
+
+globalThis.EventSource = MockEventSource as typeof EventSource
+
 setupLocalStorageMock()
 
 // Start MSW server before all tests

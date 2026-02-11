@@ -1,3 +1,11 @@
+---
+id: REQ-CORE-PRD
+author: oracle_0001
+status: APPROVED
+date: 2026-02-11
+task_id: openspace-nso-alignment
+---
+
 # OpenSpace Product Requirements Document (PRD)
 
 Version: 0.1 (Draft)
@@ -48,24 +56,3 @@ High priority requirements include:
 - REQ-CORE-037/038: Presentation renderer and major subsystems are replaceable.
 
 Full list: docs/requirements/official/REQ-CORE-001-through-039.md
-
-## Scope Boundaries
-Include (MVP):
-- Multi-modal input/output.
-- Voice input and TTS output.
-- Agent console streaming logs.
-- Whiteboard modality (not the full shell).
-- Sketching (freeform + structured + image input).
-- Presentation generation with narration.
-- Documentation pipeline with verification.
-
-Exclude (MVP):
-- Agent interrupts user (later phase).
-- Fluid UI morphing.
-- Full structured dashboards or reporting dashboards.
-
-## Open Questions
-- Platform foundation: web-first (Electron wrapper) vs VS Code fork.
-- Final presentation renderer selection (Reveal.js vs alternatives).
-- MVP scope details for presentation controls and narrator triggers.
-- Sketching library choice for freeform + structured input.

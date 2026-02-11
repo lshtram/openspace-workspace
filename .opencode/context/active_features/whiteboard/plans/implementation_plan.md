@@ -1,3 +1,11 @@
+---
+id: ACTIVE-FEATURE-WHITEBOARD-PLAN
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: whiteboard-active-feature
+---
+
 # Implementation Plan: Whiteboard Modality & Multimodal Spine
 
 ## Overview

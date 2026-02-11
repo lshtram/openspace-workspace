@@ -1,3 +1,11 @@
+---
+id: META-GLOSSARY-OPENSPACE
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: meta-context
+---
+
 # Glossary
 
 ## Project-Specific Terms

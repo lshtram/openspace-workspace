@@ -51,16 +51,16 @@ describe('TopBar', () => {
     const buttons = screen.getAllByRole('button')
     const sidebarButton = buttons[0]
     
-    // Should be active by default (LayoutProvider defaults to true)
-    expect(sidebarButton).toHaveClass('text-black')
-    
-    await user.click(sidebarButton)
-    
-    // Should now be inactive
+    // Should be inactive by default (LayoutProvider defaults to false)
     expect(sidebarButton).toHaveClass('text-black/30')
     
     await user.click(sidebarButton)
+    
+    // Should now be active
     expect(sidebarButton).toHaveClass('text-black')
+    
+    await user.click(sidebarButton)
+    expect(sidebarButton).toHaveClass('text-black/30')
   })
 
   it('should toggle terminal expanded state when clicked', async () => {
@@ -71,13 +71,13 @@ describe('TopBar', () => {
     const buttons = screen.getAllByRole('button')
     const terminalButton = buttons[buttons.length - 2]
     
-    // Should be active by default (LayoutProvider defaults to true)
-    expect(terminalButton).toHaveClass('text-black/60')
+    // Should be inactive by default (LayoutProvider defaults to false)
+    expect(terminalButton).toHaveClass('text-black/20')
     
     await user.click(terminalButton)
     
-    // Should now be inactive
-    expect(terminalButton).toHaveClass('text-black/20')
+    // Should now be active
+    expect(terminalButton).toHaveClass('text-black/60')
   })
 
   it('should toggle right sidebar expanded state when clicked', async () => {
@@ -88,13 +88,13 @@ describe('TopBar', () => {
     const buttons = screen.getAllByRole('button')
     const rightSidebarButton = buttons[buttons.length - 1]
     
-    // Should be active by default (LayoutProvider defaults to true)
-    expect(rightSidebarButton).toHaveClass('text-black/60')
+    // Should be inactive by default (LayoutProvider defaults to false)
+    expect(rightSidebarButton).toHaveClass('text-black/20')
     
     await user.click(rightSidebarButton)
     
-    // Should now be inactive
-    expect(rightSidebarButton).toHaveClass('text-black/20')
+    // Should now be active
+    expect(rightSidebarButton).toHaveClass('text-black/60')
   })
 
   it('should have working search input', async () => {

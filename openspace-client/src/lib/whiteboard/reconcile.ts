@@ -1,222 +1,412 @@
+/**
+ * Reconcile — The bidirectional bridge orchestrator
+ *
+ * This is the main public API for the whiteboard ↔ agent pipeline.
+ * It ties together all the sub-modules:
+ *
+ *   ┌─────────────┐    parseMermaid    ┌──────────┐
+ *   │  Mermaid     │ ───────────────► │ GraphIR  │
+ *   │  (agent)     │ ◄─────────────── │          │
+ *   └─────────────┘  serializeToMermaid└──────────┘
+ *                                          │ ▲
+ *                       layoutGraph        │ │  diffGraphs
+ *                       generateNodeEl     │ │  applyNodeDiffGeometry
+ *                       generateEdgeEl     ▼ │
+ *   ┌─────────────┐  parseExcalidraw  ┌──────────┐
+ *   │  Excalidraw  │ ───────────────► │ GraphIR  │
+ *   │  (canvas)    │ ◄─────────────── │          │
+ *   └─────────────┘   reconcile*       └──────────┘
+ *
+ * Public functions:
+ *   - reconcileGraph(mermaidCode, currentElements) → new Excalidraw elements
+ *   - excalidrawToMermaid(elements) → compact Mermaid string
+ *   - excalidrawToGraph(elements) → GraphIR
+ *   - mermaidToGraph(code) → GraphIR
+ *
+ * The reconciler is the heart: it diffs old vs new graph,
+ * preserves user positions/styles, incrementally layouts new nodes,
+ * and generates properly-formed Excalidraw elements.
+ */
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import dagre from 'dagre';
-import type { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 
-export type { ExcalidrawElement };
+export type { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 
-interface MermaidNode {
-  id: string;
-  label: string;
-}
+// Re-export sub-modules for direct access when needed
+export { parseMermaid } from './mermaid-parser.js';
+export { serializeToMermaid, serializeToMermaidCompact } from './mermaid-serializer.js';
+export { parseExcalidrawToGraph } from './excalidraw-parser.js';
+export { generateNodeElements, generateEdgeElements, inferBoardDefaults } from './excalidraw-generator.js';
+export { diffGraphs, applyNodeDiffGeometry } from './diff.js';
+export { layoutGraph, layoutNewNodes } from './layout.js';
+export type { GraphIR, GraphNode, GraphEdge, GraphDiff, NodeShape, StyleHints, DiagramType } from './types.js';
 
-interface MermaidEdge {
-  from: string;
-  to: string;
-  label?: string;
+import type { GraphIR, DiagramType } from './types.js';
+import { parseMermaid } from './mermaid-parser.js';
+import { serializeToMermaid, serializeToMermaidCompact } from './mermaid-serializer.js';
+import { parseExcalidrawToGraph } from './excalidraw-parser.js';
+import {
+  generateNodeElements,
+  generateEdgeElements,
+  inferBoardDefaults,
+  type BoardDefaults,
+} from './excalidraw-generator.js';
+import { diffGraphs, applyNodeDiffGeometry } from './diff.js';
+import { layoutGraph, layoutNewNodes } from './layout.js';
+
+// ---------------------------------------------------------------------------
+// 1.  Excalidraw → Mermaid  (for agent consumption)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert Excalidraw elements to a compact Mermaid string suitable for
+ * injecting into an LLM context window.
+ */
+export function excalidrawToMermaid(elements: readonly any[], typeHint?: DiagramType): string {
+  const graph = parseExcalidrawToGraph(elements);
+  if (typeHint) graph.type = typeHint;
+  return serializeToMermaidCompact(graph);
 }
 
 /**
- * A simple Mermaid flowchart parser for basic node and edge extraction.
+ * Convert Excalidraw elements to a full (verbose) Mermaid string
+ * that preserves subgraph structure and all labels.
  */
-export function parseMermaidToAST(mermaidCode: string): { nodes: MermaidNode[], edges: MermaidEdge[] } {
-  const nodes: MermaidNode[] = [];
-  const edges: MermaidEdge[] = [];
-  const nodeIds = new Set<string>();
+export function excalidrawToMermaidFull(elements: readonly any[], typeHint?: DiagramType): string {
+  const graph = parseExcalidrawToGraph(elements);
+  if (typeHint) graph.type = typeHint;
+  return serializeToMermaid(graph);
+}
 
-  const lines = mermaidCode.split('\n');
+/**
+ * Convert Excalidraw elements to the GraphIR for programmatic use.
+ */
+export function excalidrawToGraph(elements: readonly any[]): GraphIR {
+  return parseExcalidrawToGraph(elements);
+}
 
-  for (let line of lines) {
-    line = line.trim();
-    if (!line || line.startsWith('graph') || line.startsWith('flowchart')) continue;
+// ---------------------------------------------------------------------------
+// 2.  Mermaid → Graph IR
+// ---------------------------------------------------------------------------
 
-    // 1. Extract Nodes: ID[Label] or ID(Label) or ID
-    const nodeMatch = line.match(/^(\w+)(?:\[(.*?)\]|\((.*?)\))?$/);
-    if (nodeMatch) {
-      const id = nodeMatch[1];
-      const label = nodeMatch[2] || nodeMatch[3] || id;
-      if (!nodeIds.has(id)) {
-        nodes.push({ id, label });
-        nodeIds.add(id);
-      }
-      continue;
-    }
+/**
+ * Parse Mermaid code to GraphIR.
+ */
+export function mermaidToGraph(code: string): GraphIR {
+  return parseMermaid(code);
+}
 
-    // 2. Extract Edges: ID1 --> ID2 or ID1 -- Label --> ID2
-    const edgeMatch = line.match(/^(\w+)\s*(?:--\s*(.*?)\s*)?-->\s*(\w+)$/);
-    if (edgeMatch) {
-      const from = edgeMatch[1];
-      const label = edgeMatch[2];
-      const to = edgeMatch[3];
+// ---------------------------------------------------------------------------
+// 3.  The Reconciler — Mermaid + existing Excalidraw → new Excalidraw
+// ---------------------------------------------------------------------------
 
-      edges.push({ from, to, label });
+export interface ReconcileOptions {
+  /** Force a full Dagre re-layout even for existing nodes. */
+  forceRelayout?: boolean;
+  /** Board style defaults (inferred from existing elements if not provided). */
+  boardDefaults?: Partial<BoardDefaults>;
+}
 
-      if (!nodeIds.has(from)) {
-        nodes.push({ id: from, label: from });
-        nodeIds.add(from);
-      }
-      if (!nodeIds.has(to)) {
-        nodes.push({ id: to, label: to });
-        nodeIds.add(to);
+/**
+ * Core reconciliation: takes new Mermaid code and existing Excalidraw elements,
+ * and produces a new set of Excalidraw elements that:
+ *   - Preserves positions and styles of existing nodes
+ *   - Adds new nodes with proper layout
+ *   - Removes nodes that are no longer in the Mermaid
+ *   - Updates labels/shapes for changed nodes
+ *   - Preserves "unmanaged" elements (user freehand drawings, images, etc.)
+ */
+export function reconcileGraph(
+  mermaidCode: string,
+  currentElements: readonly any[],
+  options?: ReconcileOptions,
+): any[] {
+  const opts = options ?? {};
+
+  // 1. Parse the new Mermaid into a GraphIR
+  const newGraph = parseMermaid(mermaidCode);
+
+  // 2. Parse existing Excalidraw elements into a GraphIR
+  const oldGraph = parseExcalidrawToGraph(currentElements);
+
+  // 3. Diff old vs new
+  const diff = diffGraphs(oldGraph, newGraph);
+
+  // 4. Merge: carry forward geometry from existing nodes
+  const mergedNodes = applyNodeDiffGeometry(diff.nodes, oldGraph);
+
+  // 5. Build the merged graph for layout
+  const mergedGraph: GraphIR = {
+    type: newGraph.type,
+    direction: newGraph.direction,
+    nodes: mergedNodes,
+    edges: newGraph.edges,
+    groups: newGraph.groups,
+  };
+
+  // 6. Layout: position new nodes, optionally re-layout all
+  const newNodeIds = new Set(diff.nodes.added.map(n => n.id));
+  const layoutedNodes = (opts.forceRelayout || diff.needsRelayout)
+    ? (newNodeIds.size > 0
+        ? layoutNewNodes(mergedGraph, newNodeIds)
+        : layoutGraph(mergedGraph, { forceRelayout: opts.forceRelayout }))
+    : mergedGraph.nodes;
+
+  // 7. Infer board style from existing elements
+  const boardDefaults = opts.boardDefaults ?? inferBoardDefaults(currentElements);
+
+  // 8. Generate Excalidraw elements
+  const newElements: any[] = [];
+
+  // 8a. Collect unmanaged elements (user drawings, images, text not bound to containers, etc.)
+  const managedExcalidrawIds = new Set<string>();
+  for (const node of oldGraph.nodes) {
+    if (node._excalidrawId) managedExcalidrawIds.add(node._excalidrawId);
+    if (node._excalidrawTextId) managedExcalidrawIds.add(node._excalidrawTextId);
+    if (node._excalidrawLifelineId) managedExcalidrawIds.add(node._excalidrawLifelineId);
+    if (node._excalidrawClassSegmentIds) {
+      for (const id of node._excalidrawClassSegmentIds) {
+        managedExcalidrawIds.add(id);
       }
     }
   }
+  for (const edge of oldGraph.edges) {
+    if (edge._excalidrawId) managedExcalidrawIds.add(edge._excalidrawId);
+    if (edge._excalidrawTextId) managedExcalidrawIds.add(edge._excalidrawTextId);
+  }
 
-  return { nodes, edges };
-}
-
-function createExcalidrawRect(data: Partial<any>): any {
-  return {
-    id: data.id || Math.random().toString(36).substr(2, 9),
-    type: 'rectangle',
-    x: data.x || 0,
-    y: data.y || 0,
-    width: data.width || 120,
-    height: data.height || 60,
-    text: data.text || '',
-    strokeColor: '#000000',
-    backgroundColor: 'transparent',
-    fillStyle: 'hachure',
-    strokeWidth: 1,
-    strokeStyle: 'solid',
-    roughness: 1,
-    opacity: 100,
-    roundness: { type: 3 },
-    customData: data.customData,
-  };
-}
-
-function createExcalidrawArrow(fromNode: any, toNode: any): any {
-  const x1 = fromNode.x + fromNode.width / 2;
-  const y1 = fromNode.y + fromNode.height / 2;
-  const x2 = toNode.x + toNode.width / 2;
-  const y2 = toNode.y + toNode.height / 2;
-
-  return {
-    id: `arrow-${fromNode.customData?.id}-${toNode.customData?.id}`,
-    type: 'arrow',
-    x: x1,
-    y: y1,
-    width: Math.abs(x2 - x1),
-    height: Math.abs(y2 - y1),
-    points: [
-      [0, 0],
-      [x2 - x1, y2 - y1]
-    ],
-    strokeColor: '#000000',
-    strokeWidth: 1,
-    strokeStyle: 'solid',
-    roughness: 1,
-    opacity: 100,
-    startBinding: { elementId: fromNode.id, focus: 0, gap: 1 },
-    endBinding: { elementId: toNode.id, focus: 0, gap: 1 },
-    customData: { 
-      id: `arrow-${fromNode.customData?.id}-${toNode.customData?.id}`,
-      type: 'bridge-arrow',
-      from: fromNode.customData?.id,
-      to: toNode.customData?.id
+  for (const el of currentElements) {
+    if (!el.isDeleted && !managedExcalidrawIds.has(el.id)) {
+      newElements.push(el);
     }
+  }
+
+  // 8b. Generate node elements
+  const nodeContainerMap = new Map<string, any>(); // nodeId → container element
+
+  for (const node of layoutedNodes) {
+    const generated = generateNodeElements(node, boardDefaults);
+    
+    // For existing nodes: preserve original Excalidraw properties (styles, seed, etc.)
+    const existingContainer = node._excalidrawId
+      ? currentElements.find(el => el.id === node._excalidrawId)
+      : undefined;
+
+    if (existingContainer) {
+      // Merge: keep existing visual properties, update logical ones
+      const updatedContainer = mergeExistingElement(
+        existingContainer,
+        generated.container,
+        node,
+      );
+      const existingText = node._excalidrawTextId
+        ? currentElements.find(el => el.id === node._excalidrawTextId)
+        : undefined;
+
+      const updatedText = existingText
+        ? mergeExistingTextElement(existingText, generated.textElement, node)
+        : generated.textElement;
+
+      newElements.push(updatedContainer);
+      newElements.push(updatedText);
+      
+      // Add extra elements (e.g. lifelines)
+      if ((generated.container as any)._extraElements) {
+        newElements.push(...(generated.container as any)._extraElements);
+      }
+      
+      nodeContainerMap.set(node.id, updatedContainer);
+    } else {
+      newElements.push(generated.container);
+      newElements.push(generated.textElement);
+      
+      // Add extra elements (e.g. lifelines)
+      if ((generated.container as any)._extraElements) {
+        newElements.push(...(generated.container as any)._extraElements);
+      }
+      
+      nodeContainerMap.set(node.id, generated.container);
+    }
+  }
+
+  // 8c. Generate edge elements
+  for (const edge of newGraph.edges) {
+    const fromContainer = nodeContainerMap.get(edge.from);
+    const toContainer = nodeContainerMap.get(edge.to);
+    if (!fromContainer || !toContainer) continue;
+
+    // Check for existing arrow
+    const oldEdge = oldGraph.edges.find(
+      e => e.from === edge.from && e.to === edge.to,
+    );
+    const existingArrow = oldEdge?._excalidrawId
+      ? currentElements.find(el => el.id === oldEdge._excalidrawId)
+      : undefined;
+
+    const generated = generateEdgeElements(
+      { ...edge, _excalidrawId: oldEdge?._excalidrawId, _excalidrawTextId: oldEdge?._excalidrawTextId },
+      fromContainer,
+      toContainer,
+      boardDefaults,
+    );
+
+    if (existingArrow) {
+      // Preserve existing arrow properties but update bindings
+      const updatedArrow = {
+        ...existingArrow,
+        startBinding: generated.arrow.startBinding,
+        endBinding: generated.arrow.endBinding,
+        points: generated.arrow.points,
+        x: generated.arrow.x,
+        y: generated.arrow.y,
+        width: generated.arrow.width,
+        height: generated.arrow.height,
+        customData: generated.arrow.customData,
+        version: (existingArrow.version ?? 0) + 1,
+        versionNonce: Math.floor(Math.random() * 2_000_000_000),
+        updated: Date.now(),
+      };
+      newElements.push(updatedArrow);
+
+      // Update arrow label text if it exists
+      if (generated.textElement) {
+        const existingText = oldEdge?._excalidrawTextId
+          ? currentElements.find(el => el.id === oldEdge._excalidrawTextId)
+          : undefined;
+        newElements.push(existingText
+          ? { ...existingText, text: edge.label, originalText: edge.label, version: (existingText.version ?? 0) + 1, versionNonce: Math.floor(Math.random() * 2_000_000_000), updated: Date.now() }
+          : generated.textElement
+        );
+      }
+    } else {
+      newElements.push(generated.arrow);
+      if (generated.textElement) {
+        newElements.push(generated.textElement);
+      }
+    }
+
+    // Update boundElements on containers to include this arrow
+    updateBoundElements(fromContainer, generated.arrow.id, 'arrow');
+    updateBoundElements(toContainer, generated.arrow.id, 'arrow');
+  }
+
+  return newElements;
+}
+
+// ---------------------------------------------------------------------------
+// 4.  Fresh generation — Mermaid → Excalidraw (no existing elements)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate Excalidraw elements from Mermaid code with no prior state.
+ * Useful for creating a whiteboard from scratch.
+ */
+export function mermaidToExcalidraw(
+  mermaidCode: string,
+  boardDefaults?: Partial<BoardDefaults>,
+): any[] {
+  const graph = parseMermaid(mermaidCode);
+  const layouted = layoutGraph(graph, { forceRelayout: true });
+
+  const elements: any[] = [];
+  const nodeContainerMap = new Map<string, any>();
+
+  for (const node of layouted) {
+    const generated = generateNodeElements(node, boardDefaults);
+    elements.push(generated.container);
+    elements.push(generated.textElement);
+    nodeContainerMap.set(node.id, generated.container);
+  }
+
+  for (const edge of graph.edges) {
+    const from = nodeContainerMap.get(edge.from);
+    const to = nodeContainerMap.get(edge.to);
+    if (!from || !to) continue;
+
+    const generated = generateEdgeElements(edge, from, to, boardDefaults);
+    elements.push(generated.arrow);
+    if (generated.textElement) elements.push(generated.textElement);
+
+    updateBoundElements(from, generated.arrow.id, 'arrow');
+    updateBoundElements(to, generated.arrow.id, 'arrow');
+  }
+
+  return elements;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Merge an existing Excalidraw container element with a newly generated one.
+ * Preserves: position (if unchanged), colors, styles, seed, etc.
+ * Updates: boundElements, text reference, customData.
+ */
+function mergeExistingElement(
+  existing: any,
+  generated: any,
+  node: { id: string; label: string; shape: string; geometry?: { x: number; y: number; width: number; height: number } },
+): any {
+  return {
+    ...existing,
+    // Only update position if geometry was re-laid-out
+    x: node.geometry?.x ?? existing.x,
+    y: node.geometry?.y ?? existing.y,
+    width: node.geometry?.width ?? existing.width,
+    height: node.geometry?.height ?? existing.height,
+    // Update metadata
+    boundElements: generated.boundElements,
+    customData: {
+      ...existing.customData,
+      nodeId: node.id,
+      shape: node.shape,
+    },
+    // Bump version
+    version: (existing.version ?? 0) + 1,
+    versionNonce: Math.floor(Math.random() * 2_000_000_000),
+    updated: Date.now(),
   };
 }
 
 /**
- * Reconciles Mermaid logic with Excalidraw layout.
- * Optimization: Only layouts nodes that don't have existing positions.
+ * Merge existing text element: preserve font/style, update text content.
  */
-export function reconcileGraph(mermaidCode: string, currentElements: any[]): any[] {
-  try {
-    const { nodes, edges } = parseMermaidToAST(mermaidCode);
-    
-    if (mermaidCode.trim().length > 10 && nodes.length === 0) {
-      // Heuristic: if code is long enough but no nodes found, likely syntax error
-      console.warn('Mermaid code present but no nodes parsed. Possible syntax error.');
-      // We could throw here to trigger the UI error state
-      throw new Error('Failed to parse Mermaid syntax. Please check your graph definition.');
-    }
+function mergeExistingTextElement(
+  existing: any,
+  generated: any,
+  node: { label: string; geometry?: { x: number; y: number; width: number; height: number } },
+): any {
+  // Reposition text to center of container
+  const containerX = node.geometry?.x ?? existing.x;
+  const containerY = node.geometry?.y ?? existing.y;
+  const containerW = node.geometry?.width ?? 120;
+  const containerH = node.geometry?.height ?? 60;
 
-    if (nodes.length === 0) return currentElements;
+  return {
+    ...existing,
+    text: node.label,
+    originalText: node.label,
+    x: containerX + containerW / 2 - (existing.width ?? generated.width) / 2,
+    y: containerY + containerH / 2 - (existing.height ?? generated.height) / 2,
+    version: (existing.version ?? 0) + 1,
+    versionNonce: Math.floor(Math.random() * 2_000_000_000),
+    updated: Date.now(),
+  };
+}
 
-    const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'TD', nodesep: 100, ranksep: 100 });
-    g.setDefaultEdgeLabel(() => ({}));
-
-    const existingNodesMap = new Map<string, any>();
-    const unmanagedElements: any[] = [];
-
-    currentElements.forEach(el => {
-      if (el.customData?.id && el.type === 'rectangle') {
-        existingNodesMap.set(el.customData.id, el);
-      } else if (el.customData?.type === 'bridge-arrow') {
-        // Managed arrows will be rebuilt
-      } else {
-        unmanagedElements.push(el);
-      }
-    });
-
-    const newElements: any[] = [...unmanagedElements];
-    const nodeToElement = new Map<string, any>();
-
-    // Prepare Dagre
-    nodes.forEach(node => {
-      const existing = existingNodesMap.get(node.id);
-      if (existing) {
-        g.setNode(node.id, { width: existing.width, height: existing.height, x: existing.x + existing.width / 2, y: existing.y + existing.height / 2 });
-      } else {
-        g.setNode(node.id, { width: 120, height: 60 });
-      }
-    });
-
-    edges.forEach(edge => {
-      g.setEdge(edge.from, edge.to);
-    });
-
-    // Only run layout if there are NEW nodes to position
-    const hasNewNodes = nodes.some(n => !existingNodesMap.has(n.id));
-    if (hasNewNodes) {
-      dagre.layout(g);
-    }
-
-    // Finalize node elements
-    nodes.forEach(node => {
-      const existing = existingNodesMap.get(node.id);
-      const pos = g.node(node.id);
-      
-      if (!pos && !existing) {
-        throw new Error(`Layout failed for node ${node.id}`);
-      }
-      
-      if (existing) {
-        const updatedNode = {
-          ...existing,
-          text: node.label
-        };
-        newElements.push(updatedNode);
-        nodeToElement.set(node.id, updatedNode);
-      } else {
-        const newNode = createExcalidrawRect({
-          x: pos.x - pos.width / 2,
-          y: pos.y - pos.height / 2,
-          width: pos.width,
-          height: pos.height,
-          text: node.label,
-          customData: { id: node.id }
-        });
-        newElements.push(newNode);
-        nodeToElement.set(node.id, newNode);
-      }
-    });
-
-    // Reconstruct arrows
-    edges.forEach(edge => {
-      const fromEl = nodeToElement.get(edge.from);
-      const toEl = nodeToElement.get(edge.to);
-      if (fromEl && toEl) {
-        newElements.push(createExcalidrawArrow(fromEl, toEl));
-      }
-    });
-
-    return newElements;
-  } catch (error) {
-    console.error('Reconciliation failed:', error);
-    throw error;
+/**
+ * Add an arrow or text binding to a container's boundElements array.
+ */
+function updateBoundElements(
+  container: any,
+  elementId: string,
+  type: 'arrow' | 'text',
+): void {
+  if (!container.boundElements) {
+    container.boundElements = [];
+  }
+  if (!container.boundElements.some((b: any) => b.id === elementId)) {
+    container.boundElements.push({ id: elementId, type });
   }
 }

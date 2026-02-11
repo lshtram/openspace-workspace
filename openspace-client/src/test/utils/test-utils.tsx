@@ -10,6 +10,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { DialogProvider } from '../../context/DialogContext'
 import { ServerContext, ServerProvider, type ServerContextType } from '../../context/ServerContext'
 import { CommandPaletteProvider } from '../../context/CommandPaletteContext'
+import { LayoutProvider } from '../../context/LayoutContext'
 
 /**
  * Create a new QueryClient for testing
@@ -48,7 +49,7 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
         <ServerContext.Provider value={serverContextValue}>
           <CommandPaletteProvider>
             <DialogProvider>
-              {children}
+              <LayoutProvider>{children}</LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>
         </ServerContext.Provider>
@@ -56,7 +57,7 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
         <ServerProvider>
           <CommandPaletteProvider>
             <DialogProvider>
-              {children}
+              <LayoutProvider>{children}</LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>
         </ServerProvider>

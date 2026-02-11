@@ -1,3 +1,11 @@
+---
+id: ACTIVE-FEATURE-WHITEBOARD-REQ
+author: oracle_9d3a
+status: APPROVED
+date: 2026-02-11
+task_id: whiteboard-active-feature
+---
+
 # REQ-WHITEBOARD: Whiteboard Modality Implementation
 
 ## Status: APPROVED

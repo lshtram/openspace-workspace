@@ -8,6 +8,7 @@
 import { http, HttpResponse } from 'msw'
 
 const baseUrl = 'http://localhost:3000'
+const hubUrl = 'http://localhost:3001'
 
 export const handlers = [
   // GET /config - Server configuration
@@ -194,6 +195,11 @@ export const handlers = [
     return HttpResponse.json({
       servers: [],
     })
+  }),
+
+  // POST /context/active-whiteboard - set active whiteboard
+  http.post(`${hubUrl}/context/active-whiteboard`, async () => {
+    return HttpResponse.json({ success: true, activeWhiteboard: 'test.graph.mmd' })
   }),
 
   // POST /mcp/connect - Connect to MCP server

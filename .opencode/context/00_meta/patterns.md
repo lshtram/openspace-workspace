@@ -1,3 +1,11 @@
+---
+id: META-PATTERNS-OPENSPACE
+author: oracle_9d3a
+status: FINAL
+date: 2026-02-11
+task_id: meta-context
+---
+
 # Patterns
 
 ## MULTIMODAL MODULARITY (CRITICAL)
@@ -81,6 +89,11 @@ src/
 - **Component Variants**: Use `clsx` + `tailwind-merge` for conditional classes
 - **CSS Modules**: Only when Tailwind is insufficient
 - **Responsive**: Mobile-first approach with Tailwind breakpoints
+- **UI Design Directive (Locked)**: Follow Obsidian Hybrid design references before creating new UI patterns:
+  - Canonical visual lock: `design/mockups/obsidian-glass-hybrid.html`
+  - Mode references: `design/mockups/pages/index.html`
+  - Team style guide: `design/STYLE-GUIDE-OBSIDIAN-HYBRID.md`
+  - Shared implementation stylesheet: `openspace-client/src/styles/obsidian-hybrid.css`
 
 ---
 
@@ -173,7 +186,9 @@ src/
 2. LOAD .opencode/context/00_meta/patterns.md
 3. LOAD .opencode/context/01_memory/active_context.md
 4. LOAD .opencode/context/01_memory/progress.md
-5. CHECK router monitor before user messages (if Oracle)
+5. LOAD design/STYLE-GUIDE-OBSIDIAN-HYBRID.md (for UI tasks)
+6. CHECK design lock at design/mockups/obsidian-glass-hybrid.html (for UI tasks)
+7. CHECK router monitor before user messages (if Oracle)
 ```
 
 ### Workflow Activation

@@ -39,8 +39,19 @@ export class ArtifactStore extends EventEmitter {
     this.projectRoot = projectRoot;
   }
 
+  private assertInsideProjectRoot(absolutePath: string): void {
+    const normalizedProjectRoot = path.resolve(this.projectRoot);
+    const normalizedTargetPath = path.resolve(absolutePath);
+    const withSep = `${normalizedProjectRoot}${path.sep}`;
+    if (normalizedTargetPath !== normalizedProjectRoot && !normalizedTargetPath.startsWith(withSep)) {
+      throw new Error(`Path escapes project root: ${absolutePath}`);
+    }
+  }
+
   private resolvePath(filePath: string): string {
-    return path.isAbsolute(filePath) ? filePath : path.join(this.projectRoot, filePath);
+    const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.projectRoot, filePath);
+    this.assertInsideProjectRoot(absolutePath);
+    return absolutePath;
   }
 
   /**

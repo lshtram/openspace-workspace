@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import type { FileNode } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
-import { useFileStatus } from "../hooks/useFileStatus"
+import { fileStatusQueryKey, useFileStatus } from "../hooks/useFileStatus"
 import { useLayout } from "../context/LayoutContext"
+import { useServer } from "../context/ServerContext"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Folder, FolderOpen, File as FileIcon, ChevronRight, ChevronDown } from "lucide-react"
+import {
+  FILE_TREE_REFRESH_EVENT,
+  assertNonEmptyString,
+  type FileTreeRefreshDetail,
+} from "../types/fileWatcher"
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -21,52 +28,43 @@ type FileTreeProps = {
   directory?: string
 }
 
-type FileWatcherUpdateDetail = {
-  directory: string
-  file: string
-  event: "add" | "change" | "unlink"
-  timestamp: number
-}
+type LoadReason = "initial" | "expand" | "watcher-refresh"
 
 type LoadOptions = {
   force?: boolean
+  reason: LoadReason
 }
 
-const FILE_WATCHER_UPDATED_EVENT = "openspace:file-watcher-updated"
-const REFRESH_COALESCE_MS = 200
-const MIN_INTERVAL_MS = 750
+const FILE_TREE_LOG_SCOPE = "[FileTree]"
 
-function nowIso() {
+function toTimestamp(): string {
   return new Date().toISOString()
 }
 
-function logExternalIo(stage: "start" | "success" | "failure", message: string, error?: unknown) {
-  const prefix = `[${nowIso()}] [FileTree] ${stage}: ${message}`
-  if (stage === "failure") {
-    console.error(prefix, error)
-    return
-  }
-  console.info(prefix)
+function getParentPath(filePath: string): string {
+  assertNonEmptyString(filePath, "filePath")
+  const index = filePath.lastIndexOf("/")
+  if (index < 0) return "."
+  if (index === 0) return "."
+  return filePath.slice(0, index)
 }
 
-function assertValidDirectory(directory: string) {
-  if (directory.trim().length === 0) {
-    throw new Error("FileTree requires a non-empty directory")
-  }
-}
-
-function isFileWatcherDetail(value: unknown): value is FileWatcherUpdateDetail {
+function isFileTreeRefreshDetail(value: unknown): value is FileTreeRefreshDetail {
   if (!value || typeof value !== "object") return false
-  const detail = value as Partial<FileWatcherUpdateDetail>
-  if (typeof detail.directory !== "string" || detail.directory.trim().length === 0) return false
-  if (typeof detail.file !== "string") return false
-  if (detail.event !== "add" && detail.event !== "change" && detail.event !== "unlink") return false
-  return typeof detail.timestamp === "number"
+  const detail = value as Partial<FileTreeRefreshDetail>
+  return (
+    typeof detail.directory === "string" &&
+    Array.isArray(detail.files) &&
+    typeof detail.key === "string" &&
+    typeof detail.triggeredAt === "number"
+  )
 }
 
 export function FileTree({ directory: directoryProp }: FileTreeProps) {
   const directory = directoryProp ?? openCodeService.directory
-  assertValidDirectory(directory)
+  assertNonEmptyString(directory, "directory")
+  const queryClient = useQueryClient()
+  const server = useServer()
   const { setActiveWhiteboardPath } = useLayout()
   const [state, setState] = useState<NodeState>({
     nodes: {},
@@ -76,34 +74,38 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
   const fileStatusQuery = useFileStatus(directory)
   const loadingRef = useRef(new Set<string>())
   const loadedRef = useRef(new Set<string>())
-  const stateRef = useRef(state)
-  const pendingWatcherPathsRef = useRef<Set<string>>(new Set())
-  const lastRefreshAtRef = useRef(0)
-  const refreshTimerRef = useRef<number | null>(null)
-  const refreshRunningRef = useRef(false)
-  const refreshQueuedRef = useRef(false)
 
-  useEffect(() => {
-    stateRef.current = state
-  }, [state])
+  const load = useCallback(async (path: string, options: LoadOptions) => {
+    assertNonEmptyString(path, "path")
+    const force = options.force ?? false
+    const reason = options.reason
+    if (loadingRef.current.has(path)) return
+    if (!force && loadedRef.current.has(path)) return
 
-  const load = useCallback(async (path: string, options?: LoadOptions) => {
-    if (!options?.force && (loadedRef.current.has(path) || loadingRef.current.has(path))) return
-
+    if (force) {
+      loadedRef.current.delete(path)
+    }
+    
     loadingRef.current.add(path)
     setState((prev) => ({
       ...prev,
       loading: new Set(prev.loading).add(path),
     }))
+    const startTimestamp = toTimestamp()
+    console.info(`${FILE_TREE_LOG_SCOPE} file.list start ${startTimestamp}`, { directory, path, reason })
     try {
-      logExternalIo("start", `listing path "${path}" in directory "${directory}"`)
       const response = await openCodeService.client.file.list({
         path,
         directory,
       })
       const list = response.data ?? []
       loadedRef.current.add(path)
-      logExternalIo("success", `listed path "${path}" in directory "${directory}"`)
+      console.info(`${FILE_TREE_LOG_SCOPE} file.list success ${toTimestamp()}`, {
+        directory,
+        path,
+        reason,
+        count: list.length,
+      })
       setState((prev) => {
         const nextLoading = new Set(prev.loading)
         nextLoading.delete(path)
@@ -114,7 +116,12 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
         }
       })
     } catch (error) {
-      logExternalIo("failure", `failed to list path "${path}" in directory "${directory}"`, error)
+      console.error(`${FILE_TREE_LOG_SCOPE} file.list failure ${toTimestamp()}`, {
+        directory,
+        path,
+        reason,
+        error: error instanceof Error ? error.message : String(error),
+      })
       setState((prev) => {
         const nextLoading = new Set(prev.loading)
         nextLoading.delete(path)
@@ -125,49 +132,6 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
     }
   }, [directory])
 
-  const refreshTreeFromWatcher = useCallback(async () => {
-    if (refreshRunningRef.current) {
-      refreshQueuedRef.current = true
-      return
-    }
-    refreshRunningRef.current = true
-    try {
-      do {
-        refreshQueuedRef.current = false
-        const elapsed = Date.now() - lastRefreshAtRef.current
-        if (elapsed < MIN_INTERVAL_MS) {
-          await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL_MS - elapsed))
-        }
-
-        const changedPaths = Array.from(pendingWatcherPathsRef.current.values()).sort((a, b) => a.localeCompare(b))
-        pendingWatcherPathsRef.current.clear()
-        logExternalIo("start", `refreshing tree from watcher (${changedPaths.length} change(s))`)
-
-        const expandedPaths = Array.from(stateRef.current.expanded.values()).sort((a, b) => a.localeCompare(b))
-        const pathsToRefresh = [".", ...expandedPaths.filter((path) => path !== ".")]
-        for (const path of pathsToRefresh) {
-          loadedRef.current.delete(path)
-        }
-        await Promise.all(pathsToRefresh.map((path) => load(path, { force: true })))
-        logExternalIo("success", `refreshed tree from watcher (${changedPaths.length} change(s))`)
-        lastRefreshAtRef.current = Date.now()
-      } while (refreshQueuedRef.current || pendingWatcherPathsRef.current.size > 0)
-    } catch (error) {
-      lastRefreshAtRef.current = Date.now()
-      logExternalIo("failure", "tree refresh from watcher failed", error)
-    } finally {
-      refreshRunningRef.current = false
-    }
-  }, [load])
-
-  const scheduleWatcherRefresh = useCallback(() => {
-    if (refreshTimerRef.current !== null) return
-    refreshTimerRef.current = window.setTimeout(() => {
-      refreshTimerRef.current = null
-      void refreshTreeFromWatcher()
-    }, REFRESH_COALESCE_MS)
-  }, [refreshTreeFromWatcher])
-
   useEffect(() => {
     loadedRef.current.clear()
     loadingRef.current.clear()
@@ -177,29 +141,61 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       loading: new Set(),
     })
     const timer = window.setTimeout(() => {
-      void load(".")
+      void load(".", { reason: "initial", force: true })
     }, 0)
     return () => window.clearTimeout(timer)
   }, [load])
 
   useEffect(() => {
-    const onWatcherUpdate = (event: Event) => {
+    const onWatcherRefresh = (event: Event) => {
       const customEvent = event as CustomEvent<unknown>
-      if (!isFileWatcherDetail(customEvent.detail)) return
-      if (customEvent.detail.directory !== directory) return
-      pendingWatcherPathsRef.current.add(customEvent.detail.file)
-      scheduleWatcherRefresh()
-    }
+      if (!isFileTreeRefreshDetail(customEvent.detail)) return
+      const detail = customEvent.detail
+      if (detail.directory !== directory) return
 
-    window.addEventListener(FILE_WATCHER_UPDATED_EVENT, onWatcherUpdate as EventListener)
-    return () => {
-      window.removeEventListener(FILE_WATCHER_UPDATED_EVENT, onWatcherUpdate as EventListener)
-      if (refreshTimerRef.current !== null) {
-        window.clearTimeout(refreshTimerRef.current)
-        refreshTimerRef.current = null
+      const refreshTargets = new Set<string>()
+      for (const filePath of detail.files) {
+        if (typeof filePath !== "string" || filePath.trim().length === 0) continue
+        const parent = getParentPath(filePath)
+        if (loadedRef.current.has(parent)) {
+          refreshTargets.add(parent)
+        }
+      }
+
+      if (detail.files.length > 0) {
+        const timestamp = toTimestamp()
+        console.info(`${FILE_TREE_LOG_SCOPE} file.status refresh start ${timestamp}`, {
+          directory,
+          key: detail.key,
+          files: detail.files,
+        })
+        void queryClient
+          .invalidateQueries({ queryKey: fileStatusQueryKey(server.activeUrl, directory), exact: true })
+          .then(() => {
+            console.info(`${FILE_TREE_LOG_SCOPE} file.status refresh success ${toTimestamp()}`, {
+              directory,
+              key: detail.key,
+            })
+          })
+          .catch((error) => {
+            console.error(`${FILE_TREE_LOG_SCOPE} file.status refresh failure ${toTimestamp()}`, {
+              directory,
+              key: detail.key,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          })
+      }
+
+      for (const path of refreshTargets) {
+        void load(path, { reason: "watcher-refresh", force: true })
       }
     }
-  }, [directory, scheduleWatcherRefresh])
+
+    window.addEventListener(FILE_TREE_REFRESH_EVENT, onWatcherRefresh)
+    return () => {
+      window.removeEventListener(FILE_TREE_REFRESH_EVENT, onWatcherRefresh)
+    }
+  }, [directory, load, queryClient, server.activeUrl])
 
   const toggle = async (path: string) => {
     setState((prev) => {
@@ -208,7 +204,7 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       else next.add(path)
       return { ...prev, expanded: next }
     })
-    await load(path)
+    await load(path, { reason: "expand" })
   }
 
   const renderNode = (node: FileNode, depth: number) => {

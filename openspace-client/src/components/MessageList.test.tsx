@@ -39,7 +39,7 @@ describe('MessageList', () => {
     id,
     sessionID: 'session-1',
     role: 'assistant',
-    time: { created, completed },
+    time: completed === undefined ? { created } : { created, completed },
     parentID: 'parent-1',
     modelID: 'gpt-4',
     providerID: 'openai',
@@ -387,40 +387,42 @@ describe('MessageList', () => {
     expect(screen.queryByText(/\ds/)).not.toBeInTheDocument()
   })
 
-  it('renders completed turn duration labels', () => {
-    const user = createUserMessage('user-1', 1000)
-    const assistant = createAssistantMessage('assistant-1', 2000, undefined, 9000)
+  it('should render completed turn duration label from turn boundaries', () => {
+    const user = createUserMessage('user-1', 1_000)
+    const assistant = createAssistantMessage('assistant-1', 3_000, undefined, 65_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'done')] }
 
-    render(<MessageList messages={[user, assistant]} parts={{}} isPending={false} />)
+    render(<MessageList messages={[user, assistant]} parts={parts} />)
 
-    expect(screen.getByTestId('turn-duration-user-1')).toHaveTextContent('8s')
+    expect(screen.getByText('1m 4s')).toBeInTheDocument()
   })
 
-  it('omits duration label when turn timestamps are invalid', () => {
-    const user = createUserMessage('user-1', 0)
-    const assistant = createAssistantMessage('assistant-1', 0)
+  it('should keep active turn duration label live while pending', () => {
+    vi.setSystemTime(13_000)
+    const user = createUserMessage('user-1', 10_000)
+    const assistant = createAssistantMessage('assistant-1', 11_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'streaming')] }
 
-    render(<MessageList messages={[user, assistant]} parts={{}} isPending={false} />)
+    render(<MessageList messages={[user, assistant]} parts={parts} isPending />)
 
-    expect(screen.queryByTestId('turn-duration-user-1')).not.toBeInTheDocument()
+    expect(screen.getByText('3s')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(2_000)
+    })
+
+    expect(screen.getByText('5s')).toBeInTheDocument()
   })
 
-  it('keeps historical turn durations while active turn is pending', () => {
-    const previousUser = createUserMessage('user-1', 1000)
-    const previousAssistant = createAssistantMessage('assistant-1', 2000, undefined, 12000)
-    const activeUser = createUserMessage('user-2', 13000)
-    const activeAssistant = createAssistantMessage('assistant-2', 14000)
+  it('should omit duration label when turn boundaries are invalid', () => {
+    const user = createUserMessage('user-1', 2_000)
+    const assistant = createAssistantMessage('assistant-1', 3_000, undefined, 1_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
 
-    render(
-      <MessageList
-        messages={[previousUser, previousAssistant, activeUser, activeAssistant]}
-        parts={{}}
-        isPending={true}
-      />,
-    )
+    render(<MessageList messages={[user, assistant]} parts={parts} />)
 
-    expect(screen.getByTestId('turn-duration-user-1')).toHaveTextContent('11s')
-    expect(screen.queryByTestId('turn-duration-user-2')).not.toBeInTheDocument()
+    expect(screen.queryByText('< 1s')).not.toBeInTheDocument()
+    expect(screen.queryByText(/\d+m \d+s/)).not.toBeInTheDocument()
   })
 
   it('should handle messages with no parts', () => {

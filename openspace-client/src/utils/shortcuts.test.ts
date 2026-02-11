@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import {
   applySettingsToDocument,
+  buildShortcutExportEnvelope,
   DEFAULT_SETTINGS,
   DEFAULT_SHORTCUTS,
+  importShortcutsFromFile,
+  parseShortcutImport,
+  SHORTCUTS_EXPORT_SCHEMA,
   SETTINGS_STORAGE_KEY,
   formatShortcutFromEvent,
   loadPreferredAgent,
@@ -10,9 +14,6 @@ import {
   loadShortcuts,
   matchesShortcut,
   normalizeShortcut,
-  exportShortcutsPortableJson,
-  importShortcutsPortableJson,
-  PORTABLE_SHORTCUTS_VERSION,
   SETTINGS_SCHEMA_VERSION,
 } from "./shortcuts"
 
@@ -29,6 +30,8 @@ describe("shortcuts", () => {
 
   it("loads defaults when storage is empty", () => {
     expect(loadShortcuts()).toEqual(DEFAULT_SHORTCUTS)
+    expect(DEFAULT_SHORTCUTS.previousSession).toBe("Alt+ArrowUp")
+    expect(DEFAULT_SHORTCUTS.nextSession).toBe("Alt+ArrowDown")
   })
 
   it("merges stored shortcuts with defaults", () => {
@@ -140,33 +143,61 @@ describe("shortcuts", () => {
     expect(matchesShortcut(event, "Ctrl+N")).toBe(false)
   })
 
-  it("matches configurable session navigation shortcuts", () => {
-    const event = new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true })
-    expect(matchesShortcut(event, "Alt+ArrowUp")).toBe(true)
-    expect(matchesShortcut(event, "Alt+ArrowDown")).toBe(false)
-  })
-
-  it("exports and imports portable shortcut config as roundtrip", () => {
-    const exported = exportShortcutsPortableJson({
+  it("builds a versioned shortcut export envelope", () => {
+    const payload = buildShortcutExportEnvelope({
       ...DEFAULT_SHORTCUTS,
-      previousSession: "Alt+ArrowLeft",
-      nextSession: "Alt+ArrowRight",
+      openFile: "Ctrl+P",
     })
-
-    const imported = importShortcutsPortableJson(exported)
-    expect(imported.previousSession).toBe("Alt+ArrowLeft")
-    expect(imported.nextSession).toBe("Alt+ArrowRight")
-    expect(imported.newSession).toBe(DEFAULT_SHORTCUTS.newSession)
+    expect(payload.schema).toBe(SHORTCUTS_EXPORT_SCHEMA)
+    expect(payload.version).toBe(SETTINGS_SCHEMA_VERSION)
+    expect(payload.shortcuts.openFile).toBe("Ctrl+P")
   })
 
-  it("rejects portable shortcut config with unsupported version", () => {
-    const payload = JSON.stringify({
-      version: PORTABLE_SHORTCUTS_VERSION + 1,
-      shortcuts: {
-        previousSession: "Alt+ArrowUp",
-      },
-    })
+  it("parses shortcut import and merges with defaults", () => {
+    const imported = parseShortcutImport(
+      JSON.stringify({
+        schema: SHORTCUTS_EXPORT_SCHEMA,
+        version: SETTINGS_SCHEMA_VERSION,
+        shortcuts: {
+          openFile: "ctrl+p",
+          nextSession: "alt+arrowdown",
+        },
+      }),
+    )
 
-    expect(() => importShortcutsPortableJson(payload)).toThrow(/Unsupported shortcuts version/)
+    expect(imported.openFile).toBe("Ctrl+P")
+    expect(imported.nextSession).toBe("Alt+ArrowDown")
+    expect(imported.previousSession).toBe(DEFAULT_SHORTCUTS.previousSession)
+  })
+
+  it("rejects shortcut import with unsupported schema", () => {
+    expect(() =>
+      parseShortcutImport(
+        JSON.stringify({
+          schema: "invalid",
+          version: SETTINGS_SCHEMA_VERSION,
+          shortcuts: {},
+        }),
+      ),
+    ).toThrow("Unsupported shortcut import schema.")
+  })
+
+  it("imports shortcuts from file text", async () => {
+    const file = new File(
+      [
+        JSON.stringify({
+          schema: SHORTCUTS_EXPORT_SCHEMA,
+          version: SETTINGS_SCHEMA_VERSION,
+          shortcuts: {
+            previousSession: "Alt+ArrowUp",
+          },
+        }),
+      ],
+      "shortcuts.json",
+      { type: "application/json" },
+    )
+
+    const imported = await importShortcutsFromFile(file)
+    expect(imported.previousSession).toBe("Alt+ArrowUp")
   })
 })

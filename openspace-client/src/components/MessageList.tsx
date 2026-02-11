@@ -1,13 +1,13 @@
 import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import type { Message, Part, AssistantMessage, ToolPart } from "../lib/opencode/v2/gen/types.gen"
+import type { Message, Part, AssistantMessage, ToolPart, UserMessage } from "../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
 import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
-import { createElement, useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
 import { cn } from "../lib/utils"
 import { getToolRenderer } from "./message/tool-renderers"
-import { formatTurnDuration, resolveTurnBoundary } from "../utils/turnDuration"
+import { formatDurationLabel, isValidTurnDurationBoundaries } from "../utils/duration"
 
 type MessageListProps = {
   messages: Message[]
@@ -16,6 +16,13 @@ type MessageListProps = {
   hasMore?: boolean
   onLoadMore?: () => void
   isFetching?: boolean
+}
+
+interface TurnGroup {
+  user?: UserMessage
+  assistants: AssistantMessage[]
+  id: string
+  messageIds: string[]
 }
 
 const isAssistantMessage = (message: Message): message is AssistantMessage => message.role === "assistant"
@@ -34,8 +41,8 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   const pendingBackfillRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
 
   const turns = useMemo(() => {
-    const result: { user?: Message; assistants: Message[]; id: string; messageIds: string[] }[] = []
-    let currentTurn: { user?: Message; assistants: Message[]; id: string; messageIds: string[] } | null = null
+    const result: TurnGroup[] = []
+    let currentTurn: TurnGroup | null = null
 
     ordered.forEach((msg) => {
       if (msg.role === "user") {
@@ -150,6 +157,29 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   }, [updateScrollSpy, updateScrollState])
 
   const turnCount = turns.length
+  const activeStreamingTurnId = isPending ? turns.at(-1)?.id : undefined
+
+  const getTurnDurationLabel = useCallback(
+    (turn: TurnGroup): string | undefined => {
+      const turnStartMs = turn.user?.time.created ?? turn.assistants[0]?.time.created
+      const lastAssistant = turn.assistants.at(-1)
+      const turnEndMs =
+        turn.id === activeStreamingTurnId
+          ? Date.now()
+          : (lastAssistant?.time.completed ?? lastAssistant?.time.created)
+
+      if (
+        typeof turnStartMs !== "number" ||
+        typeof turnEndMs !== "number" ||
+        !isValidTurnDurationBoundaries({ startMs: turnStartMs, endMs: turnEndMs })
+      ) {
+        return undefined
+      }
+
+      return formatDurationLabel(turnEndMs - turnStartMs)
+    },
+    [activeStreamingTurnId],
+  )
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -223,10 +253,8 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
             const stepParts = allAssistantParts.filter(p => p.type === "reasoning" || p.type === "tool")
             const contentParts = allAssistantParts.filter(p => p.type === "text" || p.type === "file" || p.type === "patch")
             const lastAssistant = turn.assistants.at(-1)
+            const durationLabel = getTurnDurationLabel(turn)
             const error = lastAssistant && isAssistantMessage(lastAssistant) ? lastAssistant.error : undefined
-            const isLivePendingTurn = Boolean(isPending && turns[turns.length - 1]?.id === turn.id)
-            const turnBoundary = isLivePendingTurn ? null : resolveTurnBoundary(turn, parts)
-            const turnDurationLabel = turnBoundary ? formatTurnDuration(turnBoundary.endMs - turnBoundary.startMs) : null
 
             return (
               <div
@@ -265,14 +293,10 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
 
                   {turn.assistants.length > 0 && (
                     <div className="mt-2 self-end flex items-center gap-2">
-                      {turnDurationLabel && (
-                        <span className="text-[10px] text-black/30 font-medium tabular-nums" data-testid={`turn-duration-${turn.id}`}>
-                          {turnDurationLabel}
-                        </span>
-                      )}
                       <span className="text-[10px] text-black/10 font-bold uppercase tabular-nums">
                         {new Date(turn.assistants[0].time.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {durationLabel && <span className="text-[10px] text-black/25 font-bold uppercase tabular-nums">{durationLabel}</span>}
                       <CopyButton text={contentParts.filter(p => p.type === "text").map(p => p.type === "text" ? p.text : "").join("\n")} />
                     </div>
                   )}
@@ -361,7 +385,10 @@ function StepsFlow({ parts }: { parts: Part[] }) {
     })
   }, [parts])
   const [expanded, setExpanded] = useState(hasPendingQuestion)
-  const isExpanded = hasPendingQuestion || expanded
+
+  useEffect(() => {
+    if (hasPendingQuestion) setExpanded(true)
+  }, [hasPendingQuestion])
   
   const summary = useMemo(() => {
     const tools = parts.filter(p => p.type === "tool") as ToolPart[]
@@ -387,17 +414,17 @@ function StepsFlow({ parts }: { parts: Part[] }) {
     <div className="mb-2 flex flex-col items-start">
       <button
         type="button"
-        onClick={() => setExpanded(!isExpanded)}
+        onClick={() => setExpanded(!expanded)}
         className="flex max-w-full items-center gap-2 rounded-lg py-1 text-[12px] font-bold text-black/30 hover:text-black/50 transition-colors uppercase tracking-tight"
       >
         <div className="shrink-0 flex items-center gap-2">
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <Brain size={14} className="opacity-40" />
         </div>
         <span className="truncate">{summary}</span>
       </button>
       
-      {isExpanded && (
+      {expanded && (
         <div className="mt-1 flex w-full flex-col gap-2 pl-4 border-l border-black/5">
           {parts.map(part => (
             <PartRenderer key={part.id} part={part} isStep />
@@ -452,9 +479,9 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
   }
 
   if (part.type === "tool") {
-    const dedicatedRenderer = getToolRenderer(part.tool)
-    if (dedicatedRenderer) {
-      return createElement(dedicatedRenderer, { part, isStep })
+    const DedicatedRenderer = getToolRenderer(part.tool);
+    if (DedicatedRenderer) {
+      return <DedicatedRenderer part={part} isStep={isStep} />;
     }
 
     const status = part.state.status

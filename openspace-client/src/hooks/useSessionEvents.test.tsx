@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import type { MessageEntry } from '../types/opencode'
 import { pushToastOnce } from '../utils/toastStore'
 import { storage } from '../utils/storage'
+import { FILE_TREE_REFRESH_EVENT } from '../types/fileWatcher'
 
 vi.mock('../utils/toastStore', () => ({
   pushToastOnce: vi.fn(),
@@ -456,7 +457,8 @@ describe('useSessionEvents', () => {
     expect(vi.mocked(storage.markSessionSeen)).toHaveBeenCalledTimes(1)
   })
 
-  it('dispatches file watcher updates for active directory', () => {
+  it('coalesces file watcher updates into a single file tree refresh signal', async () => {
+    vi.useFakeTimers()
     let sseCallback: (event: { data: unknown }) => void = () => {}
     vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
       const { onSseEvent, signal } = options as {
@@ -474,10 +476,8 @@ describe('useSessionEvents', () => {
       return { stream } as never
     })
 
-    const watcherListener = vi.fn()
-    window.addEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
-
-    renderHook(() => useSessionEvents('session-123'), { wrapper })
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
+    renderHook(() => useSessionEvents('session-123', '/test/dir'), { wrapper })
 
     act(() => {
       sseCallback({
@@ -485,62 +485,40 @@ describe('useSessionEvents', () => {
           directory: '/test/dir',
           payload: {
             type: 'file.watcher.updated',
-            properties: {
-              file: 'src/new-file.ts',
-              event: 'change',
-            },
+            properties: { file: 'src/index.tsx', event: 'change' },
           },
         },
       })
-    })
-
-    expect(watcherListener).toHaveBeenCalledTimes(1)
-    const event = watcherListener.mock.calls[0]?.[0] as CustomEvent<{ directory: string; file: string; event: string }>
-    expect(event.detail.directory).toBe('/test/dir')
-    expect(event.detail.file).toBe('src/new-file.ts')
-    expect(event.detail.event).toBe('change')
-    window.removeEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
-  })
-
-  it('ignores file watcher updates outside active directory', () => {
-    let sseCallback: (event: { data: unknown }) => void = () => {}
-    vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
-      const { onSseEvent, signal } = options as {
-        onSseEvent: (e: { data: unknown }) => void
-        signal: AbortSignal
-      }
-      sseCallback = onSseEvent
-      // eslint-disable-next-line require-yield
-      const stream = (async function* () {
-        await new Promise<void>((resolve) => {
-          if (signal.aborted) return resolve()
-          signal.addEventListener("abort", () => resolve(), { once: true })
-        })
-      })()
-      return { stream } as never
-    })
-
-    const watcherListener = vi.fn()
-    window.addEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
-
-    renderHook(() => useSessionEvents('session-123'), { wrapper })
-
-    act(() => {
       sseCallback({
         data: {
-          directory: '/other/dir',
+          directory: '/test/dir',
           payload: {
             type: 'file.watcher.updated',
-            properties: {
-              file: 'src/new-file.ts',
-              event: 'change',
-            },
+            properties: { file: 'src/App.tsx', event: 'change' },
           },
         },
       })
     })
 
-    expect(watcherListener).not.toHaveBeenCalled()
-    window.removeEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: FILE_TREE_REFRESH_EVENT }))
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: FILE_TREE_REFRESH_EVENT,
+      }),
+    )
+
+    const refreshEvent = dispatchSpy.mock.calls
+      .map((call: unknown[]) => call[0])
+      .find((arg: unknown) => arg instanceof CustomEvent && arg.type === FILE_TREE_REFRESH_EVENT) as CustomEvent | undefined
+    expect(refreshEvent).toBeDefined()
+    expect(refreshEvent?.detail).toMatchObject({
+      directory: '/test/dir',
+      files: ['src/App.tsx', 'src/index.tsx'],
+    })
+
+    vi.useRealTimers()
   })
 })

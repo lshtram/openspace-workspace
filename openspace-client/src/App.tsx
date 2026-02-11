@@ -29,7 +29,7 @@ import {
   matchesShortcut,
   type ShortcutMap,
 } from "./utils/shortcuts"
-import { getWrappedSessionNavigationTarget } from "./utils/sessionNavigation"
+import { selectAdjacentSession, type SessionNavigationDirection } from "./utils/session-navigation"
 import "./App.css"
 
 function App() {
@@ -203,31 +203,23 @@ function App() {
     createSessionRef.current.mutate()
   }, [])
 
+  const handleSelectAdjacentSession = useCallback(
+    (direction: SessionNavigationDirection) => {
+      const nextSessionId = selectAdjacentSession({
+        orderedVisibleSessionIds: sessions.map((session) => session.id),
+        activeSessionId,
+        direction,
+      })
+      if (nextSessionId) {
+        setActiveSession(nextSessionId)
+      }
+    },
+    [activeSessionId, sessions, setActiveSession],
+  )
+
   const handleOpenFile = useCallback(() => {
     show(<DialogOpenFile directory={activeDirectory} />)
   }, [activeDirectory, show])
-
-  const handlePreviousSession = useCallback(() => {
-    const previousSessionId = getWrappedSessionNavigationTarget({
-      sessions,
-      activeSessionId,
-      direction: "previous",
-    })
-    if (previousSessionId) {
-      setActiveSession(previousSessionId)
-    }
-  }, [activeSessionId, sessions, setActiveSession])
-
-  const handleNextSession = useCallback(() => {
-    const nextSessionId = getWrappedSessionNavigationTarget({
-      sessions,
-      activeSessionId,
-      direction: "next",
-    })
-    if (nextSessionId) {
-      setActiveSession(nextSessionId)
-    }
-  }, [activeSessionId, sessions, setActiveSession])
 
   const handleDeleteSession = useCallback(
     (id: string) => {
@@ -308,19 +300,21 @@ function App() {
 
       if (isEditableTarget(event.target)) return
 
+      if (matchesShortcut(event, shortcuts.previousSession)) {
+        event.preventDefault()
+        handleSelectAdjacentSession("previous")
+        return
+      }
+
+      if (matchesShortcut(event, shortcuts.nextSession)) {
+        event.preventDefault()
+        handleSelectAdjacentSession("next")
+        return
+      }
+
       if (matchesShortcut(event, shortcuts.newSession)) {
         event.preventDefault()
         handleNewSession()
-        return
-      }
-      if (matchesShortcut(event, shortcuts.previousSession)) {
-        event.preventDefault()
-        handlePreviousSession()
-        return
-      }
-      if (matchesShortcut(event, shortcuts.nextSession)) {
-        event.preventDefault()
-        handleNextSession()
         return
       }
       if (matchesShortcut(event, shortcuts.toggleSidebar)) {
@@ -343,9 +337,8 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [
     handleOpenFile,
-    handlePreviousSession,
-    handleNextSession,
     handleNewSession,
+    handleSelectAdjacentSession,
     openPalette,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
@@ -371,13 +364,13 @@ function App() {
         id: "previous-session",
         title: "Previous Session",
         shortcut: shortcuts.previousSession,
-        action: handlePreviousSession,
+        action: () => handleSelectAdjacentSession("previous"),
       }),
       registerCommand({
         id: "next-session",
         title: "Next Session",
         shortcut: shortcuts.nextSession,
-        action: handleNextSession,
+        action: () => handleSelectAdjacentSession("next"),
       }),
       registerCommand({
         id: "open-file",
@@ -409,9 +402,8 @@ function App() {
     }
   }, [
     handleOpenFile,
-    handlePreviousSession,
-    handleNextSession,
     handleNewSession,
+    handleSelectAdjacentSession,
     registerCommand,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
@@ -419,8 +411,8 @@ function App() {
     shortcuts.openFile,
     shortcuts.openSettings,
     shortcuts.newSession,
-    shortcuts.previousSession,
     shortcuts.nextSession,
+    shortcuts.previousSession,
     shortcuts.toggleFileTree,
     shortcuts.toggleSidebar,
     shortcuts.toggleTerminal,

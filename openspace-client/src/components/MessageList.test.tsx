@@ -33,12 +33,13 @@ describe('MessageList', () => {
   const createAssistantMessage = (
     id: string,
     created: number,
-    error?: AssistantMessage['error']
+    error?: AssistantMessage['error'],
+    completed?: number,
   ): AssistantMessage => ({
     id,
     sessionID: 'session-1',
     role: 'assistant',
-    time: { created },
+    time: { created, completed },
     parentID: 'parent-1',
     modelID: 'gpt-4',
     providerID: 'openai',
@@ -384,6 +385,42 @@ describe('MessageList', () => {
     // Should start from 0 again (no time shown initially)
     expect(screen.getByText('thinking')).toBeInTheDocument()
     expect(screen.queryByText(/\ds/)).not.toBeInTheDocument()
+  })
+
+  it('renders completed turn duration labels', () => {
+    const user = createUserMessage('user-1', 1000)
+    const assistant = createAssistantMessage('assistant-1', 2000, undefined, 9000)
+
+    render(<MessageList messages={[user, assistant]} parts={{}} isPending={false} />)
+
+    expect(screen.getByTestId('turn-duration-user-1')).toHaveTextContent('8s')
+  })
+
+  it('omits duration label when turn timestamps are invalid', () => {
+    const user = createUserMessage('user-1', 0)
+    const assistant = createAssistantMessage('assistant-1', 0)
+
+    render(<MessageList messages={[user, assistant]} parts={{}} isPending={false} />)
+
+    expect(screen.queryByTestId('turn-duration-user-1')).not.toBeInTheDocument()
+  })
+
+  it('keeps historical turn durations while active turn is pending', () => {
+    const previousUser = createUserMessage('user-1', 1000)
+    const previousAssistant = createAssistantMessage('assistant-1', 2000, undefined, 12000)
+    const activeUser = createUserMessage('user-2', 13000)
+    const activeAssistant = createAssistantMessage('assistant-2', 14000)
+
+    render(
+      <MessageList
+        messages={[previousUser, previousAssistant, activeUser, activeAssistant]}
+        parts={{}}
+        isPending={true}
+      />,
+    )
+
+    expect(screen.getByTestId('turn-duration-user-1')).toHaveTextContent('11s')
+    expect(screen.queryByTestId('turn-duration-user-2')).not.toBeInTheDocument()
   })
 
   it('should handle messages with no parts', () => {

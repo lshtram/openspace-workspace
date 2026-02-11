@@ -8,6 +8,8 @@ export type ShortcutAction =
   | "openSettings"
   | "openFile"
   | "newSession"
+  | "previousSession"
+  | "nextSession"
   | "toggleSidebar"
   | "toggleTerminal"
   | "toggleFileTree"
@@ -19,9 +21,19 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   openSettings: "Mod+,",
   openFile: "Mod+O",
   newSession: "Mod+N",
+  previousSession: "Alt+ArrowUp",
+  nextSession: "Alt+ArrowDown",
   toggleSidebar: "Mod+B",
   toggleTerminal: "Mod+J",
   toggleFileTree: "Mod+\\",
+}
+
+export const PORTABLE_SHORTCUTS_VERSION = 1
+export const PORTABLE_SHORTCUTS_FILENAME = "openspace-shortcuts.json"
+
+type PortableShortcutPayload = {
+  version: number
+  shortcuts: Partial<Record<ShortcutAction, string>>
 }
 
 export type ColorScheme = "System" | "Light" | "Dark"
@@ -99,6 +111,44 @@ const FONT_FAMILIES = new Set<FontFamily>(["Space Grotesk", "Inter", "IBM Plex S
 const LANGUAGES = new Set<Language>(["English", "Deutsch", "Español", "Français"])
 const SHELLS = new Set<DefaultShell>(["Default", "Bash", "Zsh", "Fish"])
 const SOUNDS = new Set<AgentCompletionSound>(["None", "Chime", "Ding"])
+const SHORTCUT_ACTIONS: ShortcutAction[] = [
+  "openCommandPalette",
+  "openSettings",
+  "openFile",
+  "newSession",
+  "previousSession",
+  "nextSession",
+  "toggleSidebar",
+  "toggleTerminal",
+  "toggleFileTree",
+]
+
+function assertStringInput(value: unknown, name: string): asserts value is string {
+  if (typeof value !== "string") {
+    throw new Error(`${name} must be a string`)
+  }
+}
+
+function assertRecord(value: unknown, name: string): asserts value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${name} must be an object`)
+  }
+}
+
+function isShortcutAction(value: string): value is ShortcutAction {
+  return SHORTCUT_ACTIONS.includes(value as ShortcutAction)
+}
+
+function normalizeShortcutMap(input: Partial<Record<ShortcutAction, unknown>>): ShortcutMap {
+  const next: ShortcutMap = { ...DEFAULT_SHORTCUTS }
+  for (const action of SHORTCUT_ACTIONS) {
+    const value = input[action]
+    if (typeof value !== "string") continue
+    const normalized = normalizeShortcut(value)
+    next[action] = normalized || ""
+  }
+  return next
+}
 
 function pickEnum<T extends string>(value: unknown, allowed: Set<T>, fallback: T): T {
   return typeof value === "string" && allowed.has(value as T) ? (value as T) : fallback
@@ -158,10 +208,7 @@ export function loadSettings(): AppSettings {
       defaultShell,
       language,
       defaultAgent: typeof stored.defaultAgent === "string" ? stored.defaultAgent : DEFAULT_SETTINGS.defaultAgent,
-      shortcuts: {
-        ...DEFAULT_SHORTCUTS,
-        ...(stored.shortcuts ?? {}),
-      },
+      shortcuts: normalizeShortcutMap(stored.shortcuts ?? {}),
     }
     if (!isEnvelope) {
       // Normalize legacy shape into versioned envelope.
@@ -202,6 +249,37 @@ export function loadShortcuts(): ShortcutMap {
   return loadSettings().shortcuts
 }
 
+export function exportShortcutsPortableJson(shortcuts: Partial<Record<ShortcutAction, unknown>>): string {
+  assertRecord(shortcuts, "shortcuts")
+  const normalized = normalizeShortcutMap(shortcuts)
+  const portable: PortableShortcutPayload = {
+    version: PORTABLE_SHORTCUTS_VERSION,
+    shortcuts: SHORTCUT_ACTIONS.reduce<Partial<Record<ShortcutAction, string>>>((acc, action) => {
+      acc[action] = normalized[action]
+      return acc
+    }, {}),
+  }
+  return JSON.stringify(portable, null, 2)
+}
+
+export function importShortcutsPortableJson(rawJson: string): ShortcutMap {
+  assertStringInput(rawJson, "rawJson")
+  const parsed: unknown = JSON.parse(rawJson)
+  assertRecord(parsed, "portable shortcuts payload")
+  if (parsed.version !== PORTABLE_SHORTCUTS_VERSION) {
+    throw new Error(`Unsupported shortcuts version: ${String(parsed.version)}`)
+  }
+  assertRecord(parsed.shortcuts, "portable shortcuts payload.shortcuts")
+
+  const imported: Partial<Record<ShortcutAction, unknown>> = {}
+  for (const [key, value] of Object.entries(parsed.shortcuts)) {
+    if (!isShortcutAction(key)) continue
+    imported[key] = value
+  }
+
+  return normalizeShortcutMap(imported)
+}
+
 export function emitSettingsUpdated() {
   if (typeof window === "undefined") return
   window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT))
@@ -234,6 +312,10 @@ function normalizeShortcutToken(token: string): string {
   if (lower === "shift") return "Shift"
   if (lower === "esc") return "Escape"
   if (lower === "space") return "Space"
+  if (lower === "arrowup") return "ArrowUp"
+  if (lower === "arrowdown") return "ArrowDown"
+  if (lower === "arrowleft") return "ArrowLeft"
+  if (lower === "arrowright") return "ArrowRight"
   if (lower.length === 1) return lower.toUpperCase()
   return value[0].toUpperCase() + value.slice(1).toLowerCase()
 }

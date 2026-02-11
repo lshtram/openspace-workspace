@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils'
 import { FileTree } from './FileTree'
 import { openCodeService } from '../services/OpenCodeClient'
 import { useFileStatus } from '../hooks/useFileStatus'
+import { LayoutProvider } from '../context/LayoutContext'
 
 // Mock openCodeService
 vi.mock('../services/OpenCodeClient', () => ({
@@ -35,6 +36,13 @@ const mockSrcFiles = [
 ]
 
 describe('FileTree', () => {
+  const renderFileTree = (directory?: string) =>
+    renderWithProviders(
+      <LayoutProvider>
+        <FileTree directory={directory} />
+      </LayoutProvider>,
+    )
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useFileStatus).mockReturnValue({ data: {} } as never)
@@ -49,13 +57,17 @@ describe('FileTree', () => {
     }) as never)
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('should render Workspace title', () => {
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     expect(screen.getByText(/Workspace/i)).toBeInTheDocument()
   })
 
   it('should load and render root files on mount', async () => {
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       expect(screen.getByText('src')).toBeInTheDocument()
@@ -70,7 +82,7 @@ describe('FileTree', () => {
   })
 
   it('should expand directory and load children when clicked', async () => {
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       expect(screen.getByText('src')).toBeInTheDocument()
@@ -97,7 +109,7 @@ describe('FileTree', () => {
       }
     } as never)
     
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       expect(screen.getByText('src')).toBeInTheDocument()
@@ -116,7 +128,7 @@ describe('FileTree', () => {
   })
 
   it('should handle drag start for files', async () => {
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       expect(screen.getByText('package.json')).toBeInTheDocument()
@@ -135,7 +147,7 @@ describe('FileTree', () => {
   })
 
   it('should apply ignored styling', async () => {
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       const readme = screen.getByText('README.md').closest('button')
@@ -156,7 +168,7 @@ describe('FileTree', () => {
       return Promise.resolve({ data: [] })
     }) as never)
     
-    renderWithProviders(<FileTree />)
+    renderFileTree()
     
     await waitFor(() => {
       expect(screen.getByText('src')).toBeInTheDocument()
@@ -172,5 +184,77 @@ describe('FileTree', () => {
       expect(screen.queryByText(/loading.../i)).not.toBeInTheDocument()
       expect(screen.getByText('App.tsx')).toBeInTheDocument()
     })
+  })
+
+  it('coalesces watcher bursts and preserves expanded folders', async () => {
+    renderFileTree('/test/dir')
+
+    await waitFor(() => {
+      expect(screen.getByText('src')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('src'))
+
+    await waitFor(() => {
+      expect(screen.getByText('App.tsx')).toBeInTheDocument()
+    })
+
+    const callsAfterExpand = vi.mocked(openCodeService.client.file.list).mock.calls.length
+
+    fireEvent(
+      window,
+      new CustomEvent('openspace:file-watcher-updated', {
+        detail: {
+          directory: '/test/dir',
+          file: 'src/App.tsx',
+          event: 'change',
+          timestamp: Date.now(),
+        },
+      }),
+    )
+    fireEvent(
+      window,
+      new CustomEvent('openspace:file-watcher-updated', {
+        detail: {
+          directory: '/test/dir',
+          file: 'src/index.tsx',
+          event: 'change',
+          timestamp: Date.now(),
+        },
+      }),
+    )
+
+    await waitFor(() => {
+      expect(vi.mocked(openCodeService.client.file.list).mock.calls.length).toBe(callsAfterExpand + 2)
+    })
+
+    expect(screen.getByText('App.tsx')).toBeInTheDocument()
+    expect(screen.getByText('index.tsx')).toBeInTheDocument()
+  })
+
+  it('ignores watcher updates for other directories', async () => {
+    renderFileTree('/test/dir')
+
+    await waitFor(() => {
+      expect(screen.getByText('src')).toBeInTheDocument()
+    })
+
+    const callsBefore = vi.mocked(openCodeService.client.file.list).mock.calls.length
+
+    fireEvent(
+      window,
+      new CustomEvent('openspace:file-watcher-updated', {
+        detail: {
+          directory: '/other/dir',
+          file: 'src/App.tsx',
+          event: 'change',
+          timestamp: Date.now(),
+        },
+      }),
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 900))
+
+    expect(vi.mocked(openCodeService.client.file.list).mock.calls.length).toBe(callsBefore)
   })
 })

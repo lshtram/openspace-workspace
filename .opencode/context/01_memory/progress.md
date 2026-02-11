@@ -5,6 +5,7 @@
 - [completed] Memory Optimization & Token Reduction (2026-02-08)
 - [completed] Whiteboard Modality (Phase 1-5) (2026-02-08)
 - [completed] Sequence Diagram Support (2026-02-09)
+- [completed] NSO Infrastructure Hardening (2026-02-11)
 
 ## Active Work
 - **Whiteboard Modality**: MULTI-DIAGRAM EXTENSIONS. <!-- id: 100 -->
@@ -20,6 +21,12 @@
   - [x] Fix: Arrow Intersection Geometry <!-- id: 113 -->
   - [x] Feature: Active Context (Resource: `active://whiteboard`) <!-- id: 114 -->
 - **Multimodal Spine**: Artifact Store (The Spine) implemented and verified. <!-- id: 101 -->
+- **NSO Infrastructure** (2026-02-11): <!-- id: 102 -->
+  - [x] Profiler hook deactivated (non-functional, moved to deferred/)
+  - [x] Pre-commit validation hook enforces NSO approval protocol
+  - [x] Ephemeral files gitignored (session logs, telemetry, artifacts)
+  - [x] Hooks symlinked to global NSO (single source of truth)
+  - [x] NSO global repo committed (56 files: prompts, scripts, docs, templates)
 
 ## Validation Status
 - ✅ All checks pass: `npm run check`

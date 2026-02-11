@@ -8,6 +8,36 @@ import { storage } from './utils/storage'
 import { openCodeService } from './services/OpenCodeClient'
 import { SETTINGS_STORAGE_KEY } from './utils/shortcuts'
 
+const mockedSessions = [
+  {
+    id: 'session-1',
+    slug: 'session-1',
+    projectID: 'project-1',
+    directory: '/default/path',
+    title: 'Session 1',
+    version: '1',
+    time: { created: 1, updated: 1 },
+  },
+  {
+    id: 'session-2',
+    slug: 'session-2',
+    projectID: 'project-1',
+    directory: '/default/path',
+    title: 'Session 2',
+    version: '1',
+    time: { created: 2, updated: 2 },
+  },
+  {
+    id: 'session-3',
+    slug: 'session-3',
+    projectID: 'project-1',
+    directory: '/default/path',
+    title: 'Session 3',
+    version: '1',
+    time: { created: 3, updated: 3 },
+  },
+]
+
 // Mock child components to isolate App logic
 vi.mock('./components/AgentConsole', () => ({
   AgentConsole: ({
@@ -22,7 +52,7 @@ vi.mock('./components/AgentConsole', () => ({
     <div data-testid="agent-console" data-directory={directory}>
       AgentConsole
       {sessionId && <span data-testid="session-id">{sessionId}</span>}
-      <button onClick={() => onSessionCreated?.('new-session-123')}>Create Session</button>
+      <button type="button" onClick={() => onSessionCreated?.('new-session-123')}>Create Session</button>
     </div>
   ),
 }))
@@ -48,6 +78,7 @@ vi.mock('./components/sidebar/ProjectRail', () => ({
     <div data-testid="project-rail">
       {projects.map((p) => (
         <button
+          type="button"
           key={p.id as string}
           data-testid={`project-${p.id}`}
           data-active={p.id === activeProjectId}
@@ -56,7 +87,7 @@ vi.mock('./components/sidebar/ProjectRail', () => ({
           {p.name as string}
         </button>
       ))}
-      <button data-testid="add-project" onClick={onAddProject}>Add Project</button>
+      <button type="button" data-testid="add-project" onClick={onAddProject}>Add Project</button>
     </div>
   ),
 }))
@@ -80,6 +111,7 @@ vi.mock('./components/sidebar/SessionSidebar', () => ({
     <div data-testid="session-sidebar" data-project={projectName} data-current-directory={currentDirectory}>
       {sessions.map((s) => (
         <button
+          type="button"
           key={s.id as string}
           data-testid={`session-${s.id}`}
           data-active={s.id === activeSessionId}
@@ -88,7 +120,7 @@ vi.mock('./components/sidebar/SessionSidebar', () => ({
           {(s.name || s.id) as string}
         </button>
       ))}
-      <button data-testid="new-session" onClick={onNewSession}>New Session</button>
+      <button type="button" data-testid="new-session" onClick={onNewSession}>New Session</button>
     </div>
   ),
 }))
@@ -96,7 +128,7 @@ vi.mock('./components/sidebar/SessionSidebar', () => ({
 vi.mock('./components/DialogSelectDirectory', () => ({
   DialogSelectDirectory: ({ onSelect }: { onSelect: (path: string) => void }) => (
     <div data-testid="dialog-select-directory">
-      <button onClick={() => onSelect('/new/project/path')}>Select Directory</button>
+      <button type="button" onClick={() => onSelect('/new/project/path')}>Select Directory</button>
     </div>
   ),
 }))
@@ -137,6 +169,11 @@ vi.mock('./services/OpenCodeClient', () => {
       },
       session: {
         create: vi.fn(() => Promise.resolve({ data: { id: 'new-session-123' } })),
+        list: vi.fn(() =>
+          Promise.resolve({
+            data: mockedSessions,
+          }),
+        ),
       },
     },
   }
@@ -161,6 +198,9 @@ describe('App', () => {
     vi.mocked(storage.getProjects).mockReturnValue([])
     vi.mocked(storage.getLastProjectPath).mockReturnValue(null)
     vi.mocked(openCodeService.checkConnection).mockResolvedValue(true)
+    vi.mocked(openCodeService.client.session.list).mockImplementation(
+      () => Promise.resolve({ data: mockedSessions } as never),
+    )
   })
 
   describe('Connection Status', () => {
@@ -359,6 +399,40 @@ describe('App', () => {
       await waitFor(() => {
         expect(openCodeService.client.session.create).toHaveBeenCalledWith({ directory: '/default/path' })
       })
+    })
+
+    it('should select next/previous sessions with configured shortcuts and wrap around', async () => {
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByTestId('session-session-1')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'ArrowDown', altKey: true })
+      await waitFor(() => {
+        expect(screen.getByTestId('session-id')).toHaveTextContent('session-1')
+      })
+
+      fireEvent.keyDown(window, { key: 'ArrowUp', altKey: true })
+      await waitFor(() => {
+        expect(screen.getByTestId('session-id')).toHaveTextContent('session-3')
+      })
+    })
+
+    it('should ignore session navigation shortcuts in editable targets', async () => {
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByTestId('session-session-1')).toBeInTheDocument()
+      })
+
+      const input = document.createElement('input')
+      document.body.appendChild(input)
+
+      fireEvent.keyDown(input, { key: 'ArrowDown', altKey: true })
+
+      expect(screen.queryByTestId('session-id')).not.toBeInTheDocument()
+      document.body.removeChild(input)
     })
   })
 

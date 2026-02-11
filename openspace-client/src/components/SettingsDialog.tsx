@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { X, Keyboard, Globe, Key, Palette, Terminal, Bot, Loader2, Sparkles } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useDialog } from "../context/DialogContext"
 import { useServer } from "../context/ServerContext"
 import { useAgents } from "../hooks/useAgents"
@@ -14,9 +14,12 @@ import {
   applySettingsToDocument,
   DEFAULT_SHORTCUTS,
   emitSettingsUpdated,
+  exportShortcutsToFile,
   formatShortcutFromEvent,
+  importShortcutsFromFile,
   loadSettings,
   saveSettings,
+  SHORTCUTS_EXPORT_FILENAME,
   type AgentCompletionSound,
   type AppSettings,
   type AppTheme,
@@ -190,6 +193,7 @@ export function SettingsDialog() {
                 const Icon = tab.icon
                 return (
                   <button
+                    type="button"
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors ${
@@ -213,7 +217,11 @@ export function SettingsDialog() {
                 {labels.tabLabels[activeTab] ?? activeTab}
               </h2>
               <Dialog.Close asChild>
-                <button className="rounded-lg p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black/60">
+                <button
+                  type="button"
+                  className="rounded-lg p-2 text-black/40 transition-colors hover:bg-black/5 hover:text-black/60"
+                >
+                  <span className="sr-only">Close settings</span>
                   <X className="h-4 w-4" />
                 </button>
               </Dialog.Close>
@@ -467,6 +475,8 @@ const shortcutRows: ShortcutRow[] = [
   { id: "openSettings", label: "Open Settings" },
   { id: "openFile", label: "Open File" },
   { id: "newSession", label: "New Session" },
+  { id: "previousSession", label: "Previous Session" },
+  { id: "nextSession", label: "Next Session" },
   { id: "toggleSidebar", label: "Toggle Sidebar" },
   { id: "toggleTerminal", label: "Toggle Terminal" },
   { id: "toggleFileTree", label: "Toggle File Tree" },
@@ -479,6 +489,9 @@ type ShortcutsSettingsProps = {
 
 function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
   const [capturing, setCapturing] = useState<ShortcutAction | null>(null)
+  const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!capturing) return
@@ -502,19 +515,84 @@ function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [capturing, onChange, shortcuts])
 
+  const handleExport = () => {
+    try {
+      exportShortcutsToFile(shortcuts)
+      setImportError(null)
+      setImportMessage(`Exported to ${SHORTCUTS_EXPORT_FILENAME}.`)
+    } catch {
+      setImportMessage(null)
+      setImportError("Could not export shortcuts. Please try again.")
+    }
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(null)
+    setImportMessage(null)
+    const file = event.target.files?.[0]
+    if (!file) {
+      event.target.value = ""
+      return
+    }
+
+    try {
+      const importedShortcuts = await importShortcutsFromFile(file)
+      onChange(importedShortcuts)
+      setImportMessage(`Imported shortcuts from ${file.name}.`)
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Invalid shortcut import file.")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-black/50">Keyboard shortcuts for common actions.</p>
-        <button
-          type="button"
-          onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
-          data-testid="shortcut-reset-defaults"
-          className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
-        >
-          Reset defaults
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleImportClick}
+            data-testid="shortcut-import"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Import JSON
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            data-testid="shortcut-export"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Export JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
+            data-testid="shortcut-reset-defaults"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Reset defaults
+          </button>
+        </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          void handleImportFile(event)
+        }}
+        className="hidden"
+        data-testid="shortcut-import-input"
+      />
+      {importMessage && <p className="text-[12px] text-emerald-700">{importMessage}</p>}
+      {importError && <p className="text-[12px] text-red-600">{importError}</p>}
       <div className="divide-y divide-black/[0.03]">
         {shortcutRows.map((row) => (
           <div key={row.id} className="flex items-center justify-between py-3">

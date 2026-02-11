@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import {
   applySettingsToDocument,
+  buildShortcutExportEnvelope,
   DEFAULT_SETTINGS,
   DEFAULT_SHORTCUTS,
+  importShortcutsFromFile,
+  parseShortcutImport,
+  SHORTCUTS_EXPORT_SCHEMA,
   SETTINGS_STORAGE_KEY,
   formatShortcutFromEvent,
   loadPreferredAgent,
@@ -26,6 +30,8 @@ describe("shortcuts", () => {
 
   it("loads defaults when storage is empty", () => {
     expect(loadShortcuts()).toEqual(DEFAULT_SHORTCUTS)
+    expect(DEFAULT_SHORTCUTS.previousSession).toBe("Alt+ArrowUp")
+    expect(DEFAULT_SHORTCUTS.nextSession).toBe("Alt+ArrowDown")
   })
 
   it("merges stored shortcuts with defaults", () => {
@@ -135,5 +141,63 @@ describe("shortcuts", () => {
     const event = new KeyboardEvent("keydown", { key: "n", metaKey: true })
     expect(matchesShortcut(event, "Mod+N")).toBe(true)
     expect(matchesShortcut(event, "Ctrl+N")).toBe(false)
+  })
+
+  it("builds a versioned shortcut export envelope", () => {
+    const payload = buildShortcutExportEnvelope({
+      ...DEFAULT_SHORTCUTS,
+      openFile: "Ctrl+P",
+    })
+    expect(payload.schema).toBe(SHORTCUTS_EXPORT_SCHEMA)
+    expect(payload.version).toBe(SETTINGS_SCHEMA_VERSION)
+    expect(payload.shortcuts.openFile).toBe("Ctrl+P")
+  })
+
+  it("parses shortcut import and merges with defaults", () => {
+    const imported = parseShortcutImport(
+      JSON.stringify({
+        schema: SHORTCUTS_EXPORT_SCHEMA,
+        version: SETTINGS_SCHEMA_VERSION,
+        shortcuts: {
+          openFile: "ctrl+p",
+          nextSession: "alt+arrowdown",
+        },
+      }),
+    )
+
+    expect(imported.openFile).toBe("Ctrl+P")
+    expect(imported.nextSession).toBe("Alt+ArrowDown")
+    expect(imported.previousSession).toBe(DEFAULT_SHORTCUTS.previousSession)
+  })
+
+  it("rejects shortcut import with unsupported schema", () => {
+    expect(() =>
+      parseShortcutImport(
+        JSON.stringify({
+          schema: "invalid",
+          version: SETTINGS_SCHEMA_VERSION,
+          shortcuts: {},
+        }),
+      ),
+    ).toThrow("Unsupported shortcut import schema.")
+  })
+
+  it("imports shortcuts from file text", async () => {
+    const file = new File(
+      [
+        JSON.stringify({
+          schema: SHORTCUTS_EXPORT_SCHEMA,
+          version: SETTINGS_SCHEMA_VERSION,
+          shortcuts: {
+            previousSession: "Alt+ArrowUp",
+          },
+        }),
+      ],
+      "shortcuts.json",
+      { type: "application/json" },
+    )
+
+    const imported = await importShortcutsFromFile(file)
+    expect(imported.previousSession).toBe("Alt+ArrowUp")
   })
 })

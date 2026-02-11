@@ -33,12 +33,13 @@ describe('MessageList', () => {
   const createAssistantMessage = (
     id: string,
     created: number,
-    error?: AssistantMessage['error']
+    error?: AssistantMessage['error'],
+    completed?: number,
   ): AssistantMessage => ({
     id,
     sessionID: 'session-1',
     role: 'assistant',
-    time: { created },
+    time: completed === undefined ? { created } : { created, completed },
     parentID: 'parent-1',
     modelID: 'gpt-4',
     providerID: 'openai',
@@ -384,6 +385,44 @@ describe('MessageList', () => {
     // Should start from 0 again (no time shown initially)
     expect(screen.getByText('thinking')).toBeInTheDocument()
     expect(screen.queryByText(/\ds/)).not.toBeInTheDocument()
+  })
+
+  it('should render completed turn duration label from turn boundaries', () => {
+    const user = createUserMessage('user-1', 1_000)
+    const assistant = createAssistantMessage('assistant-1', 3_000, undefined, 65_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'done')] }
+
+    render(<MessageList messages={[user, assistant]} parts={parts} />)
+
+    expect(screen.getByText('1m 4s')).toBeInTheDocument()
+  })
+
+  it('should keep active turn duration label live while pending', () => {
+    vi.setSystemTime(13_000)
+    const user = createUserMessage('user-1', 10_000)
+    const assistant = createAssistantMessage('assistant-1', 11_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'streaming')] }
+
+    render(<MessageList messages={[user, assistant]} parts={parts} isPending />)
+
+    expect(screen.getByText('3s')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(2_000)
+    })
+
+    expect(screen.getByText('5s')).toBeInTheDocument()
+  })
+
+  it('should omit duration label when turn boundaries are invalid', () => {
+    const user = createUserMessage('user-1', 2_000)
+    const assistant = createAssistantMessage('assistant-1', 3_000, undefined, 1_000)
+    const parts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
+
+    render(<MessageList messages={[user, assistant]} parts={parts} />)
+
+    expect(screen.queryByText('< 1s')).not.toBeInTheDocument()
+    expect(screen.queryByText(/\d+m \d+s/)).not.toBeInTheDocument()
   })
 
   it('should handle messages with no parts', () => {

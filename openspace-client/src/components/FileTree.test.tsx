@@ -4,6 +4,7 @@ import { renderWithProviders } from '../test/utils'
 import { FileTree } from './FileTree'
 import { openCodeService } from '../services/OpenCodeClient'
 import { useFileStatus } from '../hooks/useFileStatus'
+import { FILE_TREE_REFRESH_EVENT } from '../types/fileWatcher'
 
 // Mock openCodeService
 vi.mock('../services/OpenCodeClient', () => ({
@@ -21,6 +22,19 @@ vi.mock('../services/OpenCodeClient', () => ({
 // Mock useFileStatus
 vi.mock('../hooks/useFileStatus', () => ({
   useFileStatus: vi.fn(),
+  fileStatusQueryKey: vi.fn(() => ['file-status', 'http://localhost:3000', '/test/dir']),
+}))
+
+vi.mock('../context/LayoutContext', () => ({
+  useLayout: () => ({
+    setActiveWhiteboardPath: vi.fn(),
+  }),
+}))
+
+vi.mock('../context/ServerContext', () => ({
+  useServer: () => ({
+    activeUrl: 'http://localhost:3000',
+  }),
 }))
 
 const mockFiles = [
@@ -171,6 +185,43 @@ describe('FileTree', () => {
     await waitFor(() => {
       expect(screen.queryByText(/loading.../i)).not.toBeInTheDocument()
       expect(screen.getByText('App.tsx')).toBeInTheDocument()
+    })
+  })
+
+  it('refreshes only relevant loaded directory on file watcher signal', async () => {
+    renderWithProviders(<FileTree />)
+
+    await waitFor(() => {
+      expect(screen.getByText('src')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('src'))
+
+    await waitFor(() => {
+      expect(screen.getByText('App.tsx')).toBeInTheDocument()
+    })
+
+    vi.mocked(openCodeService.client.file.list).mockClear()
+
+    fireEvent(window, new CustomEvent(FILE_TREE_REFRESH_EVENT, {
+      detail: {
+        directory: '/test/dir',
+        files: ['src/App.tsx'],
+        key: '/test/dir::src/App.tsx',
+        triggeredAt: Date.now(),
+      },
+    }))
+
+    await waitFor(() => {
+      expect(openCodeService.client.file.list).toHaveBeenCalledWith({
+        path: 'src',
+        directory: '/test/dir',
+      })
+    })
+
+    expect(openCodeService.client.file.list).not.toHaveBeenCalledWith({
+      path: '.',
+      directory: '/test/dir',
     })
   })
 })

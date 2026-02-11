@@ -9,6 +9,14 @@ import { sessionsQueryKey } from "./useSessions"
 import { useServer } from "../context/ServerContext"
 import { pushToastOnce } from "../utils/toastStore"
 import { storage } from "../utils/storage"
+import {
+  FILE_TREE_REFRESH_EVENT,
+  WATCHER_REFRESH_MIN_INTERVAL_MS,
+  buildFileTreeRefreshKey,
+  assertNonEmptyString,
+  type FileWatcherUpdatedProperties,
+  type FileTreeRefreshDetail,
+} from "../types/fileWatcher"
 
 const updateMessageEntries = (
   entries: MessageEntry[],
@@ -125,6 +133,7 @@ const getEnvelopeDedupeKey = (envelope: { type: string; properties?: Record<stri
 export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   const queryClient = useQueryClient()
   const directory = directoryProp ?? openCodeService.directory
+  assertNonEmptyString(directory, "directory")
   const server = useServer()
   const lastErrorRef = useRef(0)
   const hasShownErrorRef = useRef(false)
@@ -135,6 +144,48 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
     if (!sessionId) return
     const controller = new AbortController()
     let alive = true
+    const pendingWatcherFiles = new Set<string>()
+    let watcherRefreshTimer: number | null = null
+    let lastWatcherDispatchAt = 0
+
+    const clearWatcherRefreshTimer = () => {
+      if (watcherRefreshTimer !== null) {
+        window.clearTimeout(watcherRefreshTimer)
+        watcherRefreshTimer = null
+      }
+    }
+
+    const flushWatcherRefresh = (targetDirectory: string) => {
+      if (typeof window === "undefined") return
+      const files = Array.from(pendingWatcherFiles).sort((left, right) => left.localeCompare(right))
+      pendingWatcherFiles.clear()
+      if (files.length === 0) return
+
+      const triggeredAt = Date.now()
+      lastWatcherDispatchAt = triggeredAt
+      const detail: FileTreeRefreshDetail = {
+        directory: targetDirectory,
+        files,
+        key: buildFileTreeRefreshKey(targetDirectory, files),
+        triggeredAt,
+      }
+      window.dispatchEvent(new CustomEvent<FileTreeRefreshDetail>(FILE_TREE_REFRESH_EVENT, { detail }))
+    }
+
+    const scheduleWatcherRefresh = (targetDirectory: string, filePath: string) => {
+      assertNonEmptyString(targetDirectory, "targetDirectory")
+      assertNonEmptyString(filePath, "filePath")
+      pendingWatcherFiles.add(filePath)
+      if (watcherRefreshTimer !== null) return
+
+      const now = Date.now()
+      const elapsed = now - lastWatcherDispatchAt
+      const delay = Math.max(WATCHER_REFRESH_MIN_INTERVAL_MS - elapsed, 0)
+      watcherRefreshTimer = window.setTimeout(() => {
+        watcherRefreshTimer = null
+        flushWatcherRefresh(targetDirectory)
+      }, delay)
+    }
 
     const reportError = (error: unknown) => {
       if (controller.signal.aborted) return
@@ -160,6 +211,15 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
       if (!data?.payload) return
       if (directory && data.directory && data.directory !== directory) return
       const envelope = data.payload
+
+      if (envelope.type === "file.watcher.updated") {
+        const eventDirectory = data.directory
+        if (!eventDirectory || eventDirectory !== directory) return
+        const properties = envelope.properties as FileWatcherUpdatedProperties | undefined
+        if (!properties || !properties.file) return
+        scheduleWatcherRefresh(eventDirectory, properties.file)
+        return
+      }
 
       if (envelope.type === "question.asked") {
         const request = envelope.properties as QuestionRequest | undefined
@@ -418,6 +478,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
 
     return () => {
       alive = false
+      clearWatcherRefreshTimer()
       controller.abort()
     }
   }, [queryClient, sessionId, directory, server.activeUrl])

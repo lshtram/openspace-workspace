@@ -1,12 +1,13 @@
 import ReactMarkdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import type { Message, Part, AssistantMessage, ToolPart } from "../lib/opencode/v2/gen/types.gen"
+import type { Message, Part, AssistantMessage, ToolPart, UserMessage } from "../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
 import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
 import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
 import { cn } from "../lib/utils"
 import { getToolRenderer } from "./message/tool-renderers"
+import { formatDurationLabel, isValidTurnDurationBoundaries } from "../utils/duration"
 
 type MessageListProps = {
   messages: Message[]
@@ -15,6 +16,13 @@ type MessageListProps = {
   hasMore?: boolean
   onLoadMore?: () => void
   isFetching?: boolean
+}
+
+interface TurnGroup {
+  user?: UserMessage
+  assistants: AssistantMessage[]
+  id: string
+  messageIds: string[]
 }
 
 const isAssistantMessage = (message: Message): message is AssistantMessage => message.role === "assistant"
@@ -33,8 +41,8 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   const pendingBackfillRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
 
   const turns = useMemo(() => {
-    const result: { user?: Message; assistants: Message[]; id: string; messageIds: string[] }[] = []
-    let currentTurn: { user?: Message; assistants: Message[]; id: string; messageIds: string[] } | null = null
+    const result: TurnGroup[] = []
+    let currentTurn: TurnGroup | null = null
 
     ordered.forEach((msg) => {
       if (msg.role === "user") {
@@ -149,6 +157,29 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   }, [updateScrollSpy, updateScrollState])
 
   const turnCount = turns.length
+  const activeStreamingTurnId = isPending ? turns.at(-1)?.id : undefined
+
+  const getTurnDurationLabel = useCallback(
+    (turn: TurnGroup): string | undefined => {
+      const turnStartMs = turn.user?.time.created ?? turn.assistants[0]?.time.created
+      const lastAssistant = turn.assistants.at(-1)
+      const turnEndMs =
+        turn.id === activeStreamingTurnId
+          ? Date.now()
+          : (lastAssistant?.time.completed ?? lastAssistant?.time.created)
+
+      if (
+        typeof turnStartMs !== "number" ||
+        typeof turnEndMs !== "number" ||
+        !isValidTurnDurationBoundaries({ startMs: turnStartMs, endMs: turnEndMs })
+      ) {
+        return undefined
+      }
+
+      return formatDurationLabel(turnEndMs - turnStartMs)
+    },
+    [activeStreamingTurnId],
+  )
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -222,6 +253,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
             const stepParts = allAssistantParts.filter(p => p.type === "reasoning" || p.type === "tool")
             const contentParts = allAssistantParts.filter(p => p.type === "text" || p.type === "file" || p.type === "patch")
             const lastAssistant = turn.assistants.at(-1)
+            const durationLabel = getTurnDurationLabel(turn)
             const error = lastAssistant && isAssistantMessage(lastAssistant) ? lastAssistant.error : undefined
 
             return (
@@ -264,6 +296,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
                       <span className="text-[10px] text-black/10 font-bold uppercase tabular-nums">
                         {new Date(turn.assistants[0].time.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {durationLabel && <span className="text-[10px] text-black/25 font-bold uppercase tabular-nums">{durationLabel}</span>}
                       <CopyButton text={contentParts.filter(p => p.type === "text").map(p => p.type === "text" ? p.text : "").join("\n")} />
                     </div>
                   )}

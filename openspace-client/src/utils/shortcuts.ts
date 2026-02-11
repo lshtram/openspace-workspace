@@ -8,6 +8,8 @@ export type ShortcutAction =
   | "openSettings"
   | "openFile"
   | "newSession"
+  | "previousSession"
+  | "nextSession"
   | "toggleSidebar"
   | "toggleTerminal"
   | "toggleFileTree"
@@ -19,9 +21,26 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   openSettings: "Mod+,",
   openFile: "Mod+O",
   newSession: "Mod+N",
+  previousSession: "Alt+ArrowUp",
+  nextSession: "Alt+ArrowDown",
   toggleSidebar: "Mod+B",
   toggleTerminal: "Mod+J",
   toggleFileTree: "Mod+\\",
+}
+
+export const SHORTCUTS_EXPORT_SCHEMA = "openspace.shortcuts"
+export const SHORTCUTS_EXPORT_FILENAME = "openspace-shortcuts.json"
+
+export type ShortcutExportEnvelope = {
+  schema: typeof SHORTCUTS_EXPORT_SCHEMA
+  version: number
+  shortcuts: Partial<ShortcutMap>
+}
+
+type ParsedShortcutImportEnvelope = {
+  schema?: unknown
+  version?: unknown
+  shortcuts?: unknown
 }
 
 export type ColorScheme = "System" | "Light" | "Dark"
@@ -99,6 +118,50 @@ const FONT_FAMILIES = new Set<FontFamily>(["Space Grotesk", "Inter", "IBM Plex S
 const LANGUAGES = new Set<Language>(["English", "Deutsch", "Español", "Français"])
 const SHELLS = new Set<DefaultShell>(["Default", "Bash", "Zsh", "Fish"])
 const SOUNDS = new Set<AgentCompletionSound>(["None", "Chime", "Ding"])
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message)
+  }
+}
+
+function timestamp(): string {
+  return new Date().toISOString()
+}
+
+function logShortcutIO(
+  phase: "export" | "import-read" | "import-parse",
+  state: "start" | "success" | "failure",
+  details?: Record<string, unknown>,
+) {
+  const payload = {
+    timestamp: timestamp(),
+    phase,
+    state,
+    ...(details ?? {}),
+  }
+  if (state === "failure") {
+    console.error("[shortcuts-io]", payload)
+    return
+  }
+  console.info("[shortcuts-io]", payload)
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object"
+}
+
+function normalizeImportedShortcuts(candidate: unknown): ShortcutMap {
+  assert(isObjectRecord(candidate), "Invalid shortcuts payload: expected object.")
+  const normalized: ShortcutMap = { ...DEFAULT_SHORTCUTS }
+  for (const action of Object.keys(DEFAULT_SHORTCUTS) as ShortcutAction[]) {
+    const nextValue = candidate[action]
+    if (typeof nextValue === "string") {
+      normalized[action] = normalizeShortcut(nextValue)
+    }
+  }
+  return normalized
+}
 
 function pickEnum<T extends string>(value: unknown, allowed: Set<T>, fallback: T): T {
   return typeof value === "string" && allowed.has(value as T) ? (value as T) : fallback
@@ -202,6 +265,93 @@ export function loadShortcuts(): ShortcutMap {
   return loadSettings().shortcuts
 }
 
+export function buildShortcutExportEnvelope(shortcuts: ShortcutMap): ShortcutExportEnvelope {
+  assert(shortcuts && typeof shortcuts === "object", "Expected shortcuts map object.")
+  return {
+    schema: SHORTCUTS_EXPORT_SCHEMA,
+    version: SETTINGS_SCHEMA_VERSION,
+    shortcuts: { ...shortcuts },
+  }
+}
+
+export function exportShortcutsToFile(shortcuts: ShortcutMap) {
+  assert(typeof document !== "undefined", "Shortcut export requires browser document context.")
+  assert(typeof URL !== "undefined", "Shortcut export requires URL API.")
+  logShortcutIO("export", "start", { filename: SHORTCUTS_EXPORT_FILENAME })
+  try {
+    const envelope = buildShortcutExportEnvelope(shortcuts)
+    const blob = new Blob([JSON.stringify(envelope, null, 2)], {
+      type: "application/json;charset=utf-8",
+    })
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = objectUrl
+    link.download = SHORTCUTS_EXPORT_FILENAME
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(objectUrl)
+    logShortcutIO("export", "success", { filename: SHORTCUTS_EXPORT_FILENAME })
+  } catch (error) {
+    logShortcutIO("export", "failure", {
+      filename: SHORTCUTS_EXPORT_FILENAME,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  }
+}
+
+export function parseShortcutImport(jsonText: string): ShortcutMap {
+  assert(typeof jsonText === "string", "Shortcut import data must be text.")
+  assert(jsonText.trim().length > 0, "Shortcut import file is empty.")
+
+  logShortcutIO("import-parse", "start")
+  try {
+    const parsed = JSON.parse(jsonText) as ParsedShortcutImportEnvelope
+    if (!isObjectRecord(parsed)) {
+      throw new Error("Shortcut import must be a JSON object.")
+    }
+    if (parsed.schema !== SHORTCUTS_EXPORT_SCHEMA) {
+      throw new Error("Unsupported shortcut import schema.")
+    }
+    if (parsed.version !== SETTINGS_SCHEMA_VERSION) {
+      throw new Error(`Unsupported shortcut version: ${String(parsed.version)}.`)
+    }
+    const merged = normalizeImportedShortcuts(parsed.shortcuts)
+    logShortcutIO("import-parse", "success")
+    return merged
+  } catch (error) {
+    logShortcutIO("import-parse", "failure", {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error instanceof Error ? error : new Error("Failed to parse shortcut import file.")
+  }
+}
+
+export async function importShortcutsFromFile(file: File): Promise<ShortcutMap> {
+  assert(file instanceof File, "Shortcut import requires a valid file.")
+  logShortcutIO("import-read", "start", { name: file.name, size: file.size })
+  try {
+    const text =
+      typeof file.text === "function"
+        ? await file.text()
+        : await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "")
+            reader.onerror = () => reject(new Error("Failed to read shortcut import file."))
+            reader.readAsText(file)
+          })
+    logShortcutIO("import-read", "success", { name: file.name, size: file.size })
+    return parseShortcutImport(text)
+  } catch (error) {
+    logShortcutIO("import-read", "failure", {
+      name: file.name,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error instanceof Error ? error : new Error("Failed to read shortcut import file.")
+  }
+}
+
 export function emitSettingsUpdated() {
   if (typeof window === "undefined") return
   window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT))
@@ -234,6 +384,10 @@ function normalizeShortcutToken(token: string): string {
   if (lower === "shift") return "Shift"
   if (lower === "esc") return "Escape"
   if (lower === "space") return "Space"
+  if (lower === "arrowup") return "ArrowUp"
+  if (lower === "arrowdown") return "ArrowDown"
+  if (lower === "arrowleft") return "ArrowLeft"
+  if (lower === "arrowright") return "ArrowRight"
   if (lower.length === 1) return lower.toUpperCase()
   return value[0].toUpperCase() + value.slice(1).toLowerCase()
 }

@@ -29,6 +29,7 @@ import {
   matchesShortcut,
   type ShortcutMap,
 } from "./utils/shortcuts"
+import { selectAdjacentSession, type SessionNavigationDirection } from "./utils/session-navigation"
 import "./App.css"
 
 function App() {
@@ -202,6 +203,20 @@ function App() {
     createSessionRef.current.mutate()
   }, [])
 
+  const handleSelectAdjacentSession = useCallback(
+    (direction: SessionNavigationDirection) => {
+      const nextSessionId = selectAdjacentSession({
+        orderedVisibleSessionIds: sessions.map((session) => session.id),
+        activeSessionId,
+        direction,
+      })
+      if (nextSessionId) {
+        setActiveSession(nextSessionId)
+      }
+    },
+    [activeSessionId, sessions, setActiveSession],
+  )
+
   const handleOpenFile = useCallback(() => {
     show(<DialogOpenFile directory={activeDirectory} />)
   }, [activeDirectory, show])
@@ -285,6 +300,18 @@ function App() {
 
       if (isEditableTarget(event.target)) return
 
+      if (matchesShortcut(event, shortcuts.previousSession)) {
+        event.preventDefault()
+        handleSelectAdjacentSession("previous")
+        return
+      }
+
+      if (matchesShortcut(event, shortcuts.nextSession)) {
+        event.preventDefault()
+        handleSelectAdjacentSession("next")
+        return
+      }
+
       if (matchesShortcut(event, shortcuts.newSession)) {
         event.preventDefault()
         handleNewSession()
@@ -311,6 +338,7 @@ function App() {
   }, [
     handleOpenFile,
     handleNewSession,
+    handleSelectAdjacentSession,
     openPalette,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
@@ -325,6 +353,18 @@ function App() {
         title: "Open Settings",
         shortcut: shortcuts.openSettings,
         action: emitOpenSettings,
+      }),
+      registerCommand({
+        id: "previous-session",
+        title: "Previous Session",
+        shortcut: shortcuts.previousSession,
+        action: () => handleSelectAdjacentSession("previous"),
+      }),
+      registerCommand({
+        id: "next-session",
+        title: "Next Session",
+        shortcut: shortcuts.nextSession,
+        action: () => handleSelectAdjacentSession("next"),
       }),
       registerCommand({
         id: "new-session",
@@ -363,6 +403,7 @@ function App() {
   }, [
     handleOpenFile,
     handleNewSession,
+    handleSelectAdjacentSession,
     registerCommand,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
@@ -370,6 +411,8 @@ function App() {
     shortcuts.openFile,
     shortcuts.openSettings,
     shortcuts.newSession,
+    shortcuts.nextSession,
+    shortcuts.previousSession,
     shortcuts.toggleFileTree,
     shortcuts.toggleSidebar,
     shortcuts.toggleTerminal,

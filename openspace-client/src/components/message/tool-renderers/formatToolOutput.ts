@@ -6,7 +6,7 @@ export function formatToolOutput(output: unknown): string {
   if (typeof output === 'string') return output;
   try {
     return JSON.stringify(output, null, 2);
-  } catch (error) {
+  } catch {
     return String(output);
   }
 }

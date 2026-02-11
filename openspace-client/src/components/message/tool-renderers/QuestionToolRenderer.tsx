@@ -32,13 +32,14 @@ type QuestionRequest = {
 };
 
 const now = () => new Date().toISOString();
+const EMPTY_QUESTIONS: QuestionInfo[] = [];
 
 export function QuestionToolRenderer({ part, isStep }: ToolRendererProps) {
   if (!part) {
     throw new Error('QuestionToolRenderer requires tool part');
   }
   const input = (part.state.input || {}) as QuestionToolInput;
-  const questions = input.questions || [];
+  const questions = input.questions ?? EMPTY_QUESTIONS;
   const answers = (part.metadata?.answers as string[][]) || [];
   const metadataRequestId = (part.metadata as { requestID?: string } | undefined)?.requestID;
   const questionCount = questions.length;

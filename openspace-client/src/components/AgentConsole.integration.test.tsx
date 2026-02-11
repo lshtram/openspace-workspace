@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ComponentProps } from 'react'
 import { renderWithProviders } from '@/test/utils'
 import { AgentConsole } from './AgentConsole'
+import { LayoutProvider } from '../context/LayoutContext'
 
 /**
  * Integration Tests: AgentConsole
@@ -14,13 +16,27 @@ import { AgentConsole } from './AgentConsole'
  */
 
 describe('AgentConsole Integration', () => {
+  const renderConsole = (props?: ComponentProps<typeof AgentConsole>) =>
+    renderWithProviders(
+      <LayoutProvider>
+        <AgentConsole {...props} />
+      </LayoutProvider>,
+    )
+
   beforeEach(() => {
     // Clear any mocked function calls
     vi.clearAllMocks()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('should render all console components', async () => {
-    renderWithProviders(<AgentConsole />)
+    renderConsole()
     
     // Wait for data to load
     await waitFor(() => {
@@ -30,7 +46,7 @@ describe('AgentConsole Integration', () => {
   })
 
   it('should show empty state when no session is active', () => {
-    renderWithProviders(<AgentConsole />)
+    renderConsole()
     
     // Should render the console but with empty/initial state
     // Note: RichEditor uses aria-label for placeholder, not placeholder attribute
@@ -40,7 +56,7 @@ describe('AgentConsole Integration', () => {
 
   it('should allow typing in prompt input', async () => {
     const user = userEvent.setup()
-    renderWithProviders(<AgentConsole />)
+    renderConsole()
     
     const textarea = screen.getByRole('textbox')
     await user.type(textarea, 'Test message')
@@ -50,7 +66,7 @@ describe('AgentConsole Integration', () => {
   })
 
   it('should display model selector and agent selector', async () => {
-    renderWithProviders(<AgentConsole />)
+    renderConsole()
     
     // Wait for models to load
     await waitFor(() => {
@@ -64,7 +80,7 @@ describe('AgentConsole Integration', () => {
     const user = userEvent.setup()
     const mockSessionId = 'test-session-123'
     
-    renderWithProviders(<AgentConsole sessionId={mockSessionId} />)
+    renderConsole({ sessionId: mockSessionId })
     
     // Wait for components to be ready
     await waitFor(() => {
@@ -93,7 +109,7 @@ describe('AgentConsole Integration', () => {
   it('should load messages when session ID is provided', async () => {
     const mockSessionId = 'test-session-123'
     
-    renderWithProviders(<AgentConsole sessionId={mockSessionId} />)
+    renderConsole({ sessionId: mockSessionId })
     
     // The component should fetch messages for this session
     // We can verify the messages hook is called by checking if MessageList renders
@@ -106,7 +122,7 @@ describe('AgentConsole Integration', () => {
     const user = userEvent.setup()
     const mockSessionId = 'test-session-123'
     
-    renderWithProviders(<AgentConsole sessionId={mockSessionId} />)
+    renderConsole({ sessionId: mockSessionId })
     
     await waitFor(() => {
       expect(screen.getByRole('textbox')).toBeInTheDocument()
@@ -125,7 +141,7 @@ describe('AgentConsole Integration', () => {
   it('should handle model selection change', async () => {
     const user = userEvent.setup()
     
-    renderWithProviders(<AgentConsole />)
+    renderConsole()
     
     // Wait for models to load
     await waitFor(() => {
@@ -153,7 +169,7 @@ describe('AgentConsole Integration', () => {
   })
 
   it('should integrate PromptInput with attachment handling', async () => {
-    const { container } = renderWithProviders(<AgentConsole />)
+    const { container } = renderConsole()
     
     await waitFor(() => {
       expect(screen.getByRole('textbox')).toBeInTheDocument()
@@ -170,7 +186,7 @@ describe('AgentConsole Integration', () => {
   it('should show context meter when available', async () => {
     const mockSessionId = 'test-session-123'
     
-    renderWithProviders(<AgentConsole sessionId={mockSessionId} />)
+    renderConsole({ sessionId: mockSessionId })
     
     // The console should render the ContextMeter component
     // (This may not be visible depending on the data, but the component should render)
@@ -182,7 +198,7 @@ describe('AgentConsole Integration', () => {
   it('should call onSessionCreated when session is created', async () => {
     const onSessionCreated = vi.fn()
     
-    renderWithProviders(<AgentConsole onSessionCreated={onSessionCreated} />)
+    renderConsole({ onSessionCreated })
     
     await waitFor(() => {
       expect(screen.getByRole('textbox')).toBeInTheDocument()

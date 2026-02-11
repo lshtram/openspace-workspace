@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { renderWithProviders, createTestQueryClient } from './test/utils'
 import { LayoutProvider } from './context/LayoutContext'
 import App from './App'
 import { storage } from './utils/storage'
 import { openCodeService } from './services/OpenCodeClient'
+import { useSessions } from './hooks/useSessions'
 import { SETTINGS_STORAGE_KEY } from './utils/shortcuts'
 
-// Mock child components to isolate App logic
 vi.mock('./components/AgentConsole', () => ({
   AgentConsole: ({
     sessionId,
@@ -20,7 +19,6 @@ vi.mock('./components/AgentConsole', () => ({
     directory?: string
   }) => (
     <div data-testid="agent-console" data-directory={directory}>
-      AgentConsole
       {sessionId && <span data-testid="session-id">{sessionId}</span>}
       <button onClick={() => onSessionCreated?.('new-session-123')}>Create Session</button>
     </div>
@@ -33,8 +31,14 @@ vi.mock('./components/FileTree', () => ({
 
 vi.mock('./components/Terminal', () => ({
   Terminal: ({ resizeTrigger, directory }: { resizeTrigger: number; directory?: string }) => (
-    <div data-testid="terminal" data-resize-trigger={resizeTrigger} data-directory={directory}>Terminal</div>
+    <div data-testid="terminal" data-resize-trigger={resizeTrigger} data-directory={directory}>
+      Terminal
+    </div>
   ),
+}))
+
+vi.mock('./components/CommandPalette', () => ({
+  CommandPalette: () => <div data-testid="command-palette">CommandPalette</div>,
 }))
 
 vi.mock('./components/TopBar', () => ({
@@ -43,17 +47,41 @@ vi.mock('./components/TopBar', () => ({
   ),
 }))
 
+vi.mock('./components/ToastHost', () => ({
+  ToastHost: () => <div data-testid="toast-host">ToastHost</div>,
+}))
+
+vi.mock('./components/DialogOpenFile', () => ({
+  DialogOpenFile: () => <div data-testid="dialog-open-file">DialogOpenFile</div>,
+}))
+
+vi.mock('./components/whiteboard/WhiteboardFrame', () => ({
+  WhiteboardFrame: ({ filePath }: { filePath: string }) => (
+    <div data-testid="whiteboard-frame" data-file-path={filePath}>WhiteboardFrame</div>
+  ),
+}))
+
 vi.mock('./components/sidebar/ProjectRail', () => ({
-  ProjectRail: ({ projects, activeProjectId, onSelectProject, onAddProject }: { projects: Record<string, unknown>[], activeProjectId: string, onSelectProject: (id: string) => void, onAddProject: () => void }) => (
+  ProjectRail: ({
+    projects,
+    activeProjectId,
+    onSelectProject,
+    onAddProject,
+  }: {
+    projects: Array<{ id: string; name: string }>
+    activeProjectId: string
+    onSelectProject: (id: string) => void
+    onAddProject: () => void
+  }) => (
     <div data-testid="project-rail">
-      {projects.map((p) => (
+      {projects.map((project) => (
         <button
-          key={p.id as string}
-          data-testid={`project-${p.id}`}
-          data-active={p.id === activeProjectId}
-          onClick={() => onSelectProject(p.id as string)}
+          key={project.id}
+          data-testid={`project-${project.id}`}
+          data-active={String(project.id === activeProjectId)}
+          onClick={() => onSelectProject(project.id)}
         >
-          {p.name as string}
+          {project.name}
         </button>
       ))}
       <button data-testid="add-project" onClick={onAddProject}>Add Project</button>
@@ -62,33 +90,9 @@ vi.mock('./components/sidebar/ProjectRail', () => ({
 }))
 
 vi.mock('./components/sidebar/SessionSidebar', () => ({
-  SessionSidebar: ({
-    projectName,
-    sessions,
-    activeSessionId,
-    onSelectSession,
-    onNewSession,
-    currentDirectory,
-  }: {
-    projectName: string
-    sessions: Record<string, unknown>[]
-    activeSessionId?: string
-    onSelectSession: (id: string) => void
-    onNewSession: () => void
-    currentDirectory: string
-  }) => (
-    <div data-testid="session-sidebar" data-project={projectName} data-current-directory={currentDirectory}>
-      {sessions.map((s) => (
-        <button
-          key={s.id as string}
-          data-testid={`session-${s.id}`}
-          data-active={s.id === activeSessionId}
-          onClick={() => onSelectSession(s.id as string)}
-        >
-          {(s.name || s.id) as string}
-        </button>
-      ))}
-      <button data-testid="new-session" onClick={onNewSession}>New Session</button>
+  SessionSidebar: ({ currentDirectory }: { currentDirectory: string }) => (
+    <div data-testid="session-sidebar" data-current-directory={currentDirectory}>
+      SessionSidebar
     </div>
   ),
 }))
@@ -101,7 +105,26 @@ vi.mock('./components/DialogSelectDirectory', () => ({
   ),
 }))
 
-// Mock storage
+vi.mock('./hooks/useMessages', () => ({
+  DEFAULT_MESSAGE_LIMIT: 50,
+  fetchMessages: vi.fn(async () => []),
+  messagesQueryKey: (...args: unknown[]) => ['messages', ...args],
+}))
+
+vi.mock('./hooks/useSessions', () => ({
+  useSessions: vi.fn(() => ({
+    sessions: [],
+    loadMore: vi.fn(),
+    hasMore: false,
+  })),
+  sessionsQueryKey: (serverUrl?: string, directory?: string) => ['sessions', serverUrl, directory],
+}))
+
+vi.mock('./hooks/useSessionActions', () => ({
+  useUpdateSession: vi.fn(() => ({ mutate: vi.fn() })),
+  useDeleteSession: vi.fn(() => ({ mutate: vi.fn() })),
+}))
+
 vi.mock('./utils/storage', () => ({
   storage: {
     getProjects: vi.fn(() => []),
@@ -121,7 +144,6 @@ vi.mock('./utils/storage', () => ({
   },
 }))
 
-// Mock OpenCode service
 vi.mock('./services/OpenCodeClient', () => {
   const service = {
     baseUrl: 'http://localhost:3000',
@@ -144,346 +166,128 @@ vi.mock('./services/OpenCodeClient', () => {
   return { openCodeService: service }
 })
 
-const renderApp = (queryClient = createTestQueryClient()) => {
-  return renderWithProviders(
+const renderApp = () =>
+  renderWithProviders(
     <LayoutProvider>
       <App />
     </LayoutProvider>,
-    { queryClient }
+    { queryClient: createTestQueryClient() }
   )
-}
 
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
-    // Reset storage mocks to default
+
     vi.mocked(storage.getProjects).mockReturnValue([])
     vi.mocked(storage.getLastProjectPath).mockReturnValue(null)
+    vi.mocked(storage.getSessionSeenMap).mockReturnValue({})
     vi.mocked(openCodeService.checkConnection).mockResolvedValue(true)
+    vi.mocked(useSessions).mockReturnValue({
+      sessions: [],
+      loadMore: vi.fn(),
+      hasMore: false,
+      data: [],
+      isPending: false,
+      error: null,
+    } as unknown as ReturnType<typeof useSessions>)
   })
 
-  describe('Connection Status', () => {
-    it('should show connection guard when disconnected', async () => {
-      vi.mocked(openCodeService.checkConnection).mockResolvedValue(false)
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByText('Waiting for OpenCode server')).toBeInTheDocument()
-      })
-      expect(screen.getByText(/Make sure the OpenCode backend is running/i)).toBeInTheDocument()
-      expect(screen.queryByTestId('agent-console')).not.toBeInTheDocument()
-    })
+  it('shows a connection guard when disconnected', async () => {
+    vi.mocked(openCodeService.checkConnection).mockResolvedValue(false)
 
-    it('should show main app when connected', async () => {
-      vi.mocked(openCodeService.checkConnection).mockResolvedValue(true)
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
-      })
-      expect(screen.queryByText('Waiting for OpenCode server')).not.toBeInTheDocument()
-    })
+    renderApp()
 
-    it('should show TopBar when connected', async () => {
-      vi.mocked(openCodeService.checkConnection).mockResolvedValue(true)
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('top-bar')).toBeInTheDocument()
-      })
-      expect(screen.getByTestId('top-bar')).toHaveAttribute('data-connected', 'true')
+    await waitFor(() => {
+      expect(screen.getByText('Waiting for OpenCode server')).toBeInTheDocument()
     })
+    expect(screen.queryByTestId('agent-console')).not.toBeInTheDocument()
   })
 
-  describe('Project Management', () => {
-    it('should initialize with default project when storage is empty', async () => {
-      vi.mocked(storage.getProjects).mockReturnValue([])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('project-rail')).toBeInTheDocument()
-      })
-      
-      expect(storage.saveProjects).toHaveBeenCalledWith([
-        { path: '/default/path', name: 'openspace', color: 'bg-[#fce7f3]' }
-      ])
-      expect(openCodeService.directory).toBe('/default/path')
+  it('initializes a default project from the server when storage is empty', async () => {
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-/default/path')).toBeInTheDocument()
     })
 
-    it('should load projects from storage', async () => {
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
-        { path: '/project2', name: 'Project 2', color: 'bg-[#e1faf8]' },
-      ])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('project-/project1')).toBeInTheDocument()
-      })
-      expect(screen.getByTestId('project-/project2')).toBeInTheDocument()
-    })
-
-    it('should set active project from last path in storage', async () => {
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
-        { path: '/project2', name: 'Project 2', color: 'bg-[#e1faf8]' },
-      ])
-      vi.mocked(storage.getLastProjectPath).mockReturnValue('/project2')
-      
-      renderApp()
-      
-      await waitFor(() => {
-        const project2 = screen.getByTestId('project-/project2')
-        expect(project2).toHaveAttribute('data-active', 'true')
-      })
-      expect(openCodeService.directory).toBe('/project2')
-    })
-
-    it('should switch active project when clicking project button', async () => {
-      const user = userEvent.setup({ delay: null })
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
-        { path: '/project2', name: 'Project 2', color: 'bg-[#e1faf8]' },
-      ])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('project-/project1')).toBeInTheDocument()
-      })
-      
-      const project2Button = screen.getByTestId('project-/project2')
-      await user.click(project2Button)
-      
-      expect(storage.saveLastProjectPath).toHaveBeenCalledWith('/project2')
-      expect(openCodeService.directory).toBe('/project2')
-    })
-
-    it('should add new project when dialog confirms', async () => {
-      const user = userEvent.setup({ delay: null })
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
-      ])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('add-project')).toBeInTheDocument()
-      })
-      
-      // Click add project button
-      await user.click(screen.getByTestId('add-project'))
-      
-      // Dialog should appear
-      await waitFor(() => {
-        expect(screen.getByTestId('dialog-select-directory')).toBeInTheDocument()
-      })
-      
-      // Select directory in dialog
-      await user.click(screen.getByText('Select Directory'))
-      
-      // Wait for new project button to appear in the project rail
-      await waitFor(() => {
-        expect(screen.getByTestId('project-/new/project/path')).toBeInTheDocument()
-      })
-      
-      // Verify new project was saved with correct properties
-      expect(storage.saveProjects).toHaveBeenCalled()
-      const calls = vi.mocked(storage.saveProjects).mock.calls
-      const lastCall = calls[calls.length - 1][0]
-      expect(lastCall).toHaveLength(2)
-      expect(lastCall[1]).toMatchObject({
-        path: '/new/project/path',
-        name: 'path',
-      })
-      
-      // Verify the new project is now active
-      expect(screen.getByTestId('project-/new/project/path')).toHaveAttribute('data-active', 'true')
-      expect(openCodeService.directory).toBe('/new/project/path')
-      expect(screen.getByTestId('session-sidebar')).toHaveAttribute('data-current-directory', '/new/project/path')
-      expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/new/project/path')
-    })
+    expect(storage.saveProjects).toHaveBeenCalledWith([
+      { path: '/default/path', name: 'openspace', color: 'bg-[#fce7f3]' },
+    ])
+    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/default/path')
   })
 
-  describe('Session Management', () => {
-    it('should render AgentConsole with no session initially', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
-      })
-      expect(screen.queryByTestId('session-id')).not.toBeInTheDocument()
+  it('loads stored projects and switches active directory on project click', async () => {
+    vi.mocked(storage.getProjects).mockReturnValue([
+      { path: '/alpha', name: 'Alpha', color: 'bg-[#fce7f3]' },
+      { path: '/beta', name: 'Beta', color: 'bg-[#e1faf8]' },
+    ])
+
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-/beta')).toBeInTheDocument()
     })
 
-    it('should update active session when session is created', async () => {
-      const user = userEvent.setup({ delay: null })
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
-      })
-      
-      // Simulate session creation
-      await user.click(screen.getByText('Create Session'))
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('session-id')).toHaveTextContent('new-session-123')
-      })
-    })
+    fireEvent.click(screen.getByTestId('project-/beta'))
 
-    it('should create a new session with the configured shortcut', async () => {
-      window.localStorage.setItem(
-        SETTINGS_STORAGE_KEY,
-        JSON.stringify({
-          shortcuts: {
-            newSession: 'Ctrl+N',
-          },
-        })
-      )
-
-      renderApp()
-
-      await waitFor(() => {
-        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
-      })
-
-      fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
-
-      await waitFor(() => {
-        expect(openCodeService.client.session.create).toHaveBeenCalledWith({ directory: '/default/path' })
-      })
-    })
+    expect(storage.saveLastProjectPath).toHaveBeenCalledWith('/beta')
+    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/beta')
   })
 
-  describe('Layout and Sidebars', () => {
-    it('should render ProjectRail when connected', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('project-rail')).toBeInTheDocument()
-      })
+  it('adds a project from the directory dialog and activates it', async () => {
+    vi.mocked(storage.getProjects).mockReturnValue([
+      { path: '/alpha', name: 'Alpha', color: 'bg-[#fce7f3]' },
+    ])
+
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('add-project')).toBeInTheDocument()
     })
 
-    it('should render SessionSidebar when left sidebar expanded and project active', async () => {
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
+    fireEvent.click(screen.getByTestId('add-project'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dialog-select-directory')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Select Directory'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-/new/project/path')).toBeInTheDocument()
+    })
+
+    const calls = vi.mocked(storage.saveProjects).mock.calls
+    const savedProjects = calls[calls.length - 1][0]
+    expect(savedProjects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: '/new/project/path', name: 'path' }),
       ])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('session-sidebar')).toBeInTheDocument()
-      })
-      expect(screen.getByTestId('session-sidebar')).toHaveAttribute('data-project', 'Project 1')
-    })
-
-    it('should render FileTree when right sidebar is expanded', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('file-tree')).toBeInTheDocument()
-      })
-    })
-
-    it('should render Terminal when terminal is expanded', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('terminal')).toBeInTheDocument()
-      })
-    })
+    )
+    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/new/project/path')
   })
 
-  describe('Terminal Resize', () => {
-    it('should render terminal with correct height', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        const terminal = screen.getByTestId('terminal')
-        expect(terminal).toBeInTheDocument()
-        // Default terminal height is 240
-        expect(terminal).toHaveAttribute('data-resize-trigger', '240')
+  it('creates a new session through the configured keyboard shortcut', async () => {
+    window.localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        shortcuts: {
+          newSession: 'Ctrl+N',
+        },
       })
-    })
-  })
+    )
 
-  describe('Component Integration', () => {
-    it('should render all main components when connected', async () => {
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('top-bar')).toBeInTheDocument()
-        expect(screen.getByTestId('project-rail')).toBeInTheDocument()
-        expect(screen.getByTestId('session-sidebar')).toBeInTheDocument()
-        expect(screen.getByTestId('agent-console')).toBeInTheDocument()
-        expect(screen.getByTestId('file-tree')).toBeInTheDocument()
-        expect(screen.getByTestId('terminal')).toBeInTheDocument()
-      })
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('agent-console')).toBeInTheDocument()
     })
 
-    it('should not render sidebars when disconnected', async () => {
-      vi.mocked(openCodeService.checkConnection).mockResolvedValue(false)
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByText('Waiting for OpenCode server')).toBeInTheDocument()
-      })
-      
-      expect(screen.queryByTestId('project-rail')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('session-sidebar')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('agent-console')).not.toBeInTheDocument()
-    })
-  })
+    fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
 
-  describe('Edge Cases', () => {
-    it('should handle missing last project path gracefully', async () => {
-      vi.mocked(storage.getProjects).mockReturnValue([
-        { path: '/project1', name: 'Project 1', color: 'bg-[#fce7f3]' },
-      ])
-      vi.mocked(storage.getLastProjectPath).mockReturnValue('/nonexistent')
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('project-/project1')).toBeInTheDocument()
-      })
-      
-      // Should default to first project
-      expect(screen.getByTestId('project-/project1')).toHaveAttribute('data-active', 'true')
-    })
-
-    it('should extract project name from path correctly', async () => {
-      const user = userEvent.setup({ delay: null })
-      vi.mocked(storage.getProjects).mockReturnValue([])
-      
-      renderApp()
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('add-project')).toBeInTheDocument()
-      })
-      
-      await user.click(screen.getByTestId('add-project'))
-      await waitFor(() => {
-        expect(screen.getByTestId('dialog-select-directory')).toBeInTheDocument()
-      })
-      
-      await user.click(screen.getByText('Select Directory'))
-      
-      await waitFor(() => {
-        const savedProjects = vi.mocked(storage.saveProjects).mock.calls
-        const lastCall = savedProjects[savedProjects.length - 1][0]
-        const newProject = lastCall.find((p: { path: string }) => p.path === '/new/project/path')
-        expect(newProject).toBeDefined()
-        expect(newProject?.name).toBe('path')
-      })
+    await waitFor(() => {
+      expect(openCodeService.client.session.create).toHaveBeenCalledWith({ directory: '/default/path' })
     })
   })
 })

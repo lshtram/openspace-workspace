@@ -29,6 +29,7 @@ import {
   matchesShortcut,
   type ShortcutMap,
 } from "./utils/shortcuts"
+import { getWrappedSessionNavigationTarget } from "./utils/sessionNavigation"
 import "./App.css"
 
 function App() {
@@ -206,6 +207,28 @@ function App() {
     show(<DialogOpenFile directory={activeDirectory} />)
   }, [activeDirectory, show])
 
+  const handlePreviousSession = useCallback(() => {
+    const previousSessionId = getWrappedSessionNavigationTarget({
+      sessions,
+      activeSessionId,
+      direction: "previous",
+    })
+    if (previousSessionId) {
+      setActiveSession(previousSessionId)
+    }
+  }, [activeSessionId, sessions, setActiveSession])
+
+  const handleNextSession = useCallback(() => {
+    const nextSessionId = getWrappedSessionNavigationTarget({
+      sessions,
+      activeSessionId,
+      direction: "next",
+    })
+    if (nextSessionId) {
+      setActiveSession(nextSessionId)
+    }
+  }, [activeSessionId, sessions, setActiveSession])
+
   const handleDeleteSession = useCallback(
     (id: string) => {
       const remaining = sessions.filter((session) => session.id !== id)
@@ -290,6 +313,16 @@ function App() {
         handleNewSession()
         return
       }
+      if (matchesShortcut(event, shortcuts.previousSession)) {
+        event.preventDefault()
+        handlePreviousSession()
+        return
+      }
+      if (matchesShortcut(event, shortcuts.nextSession)) {
+        event.preventDefault()
+        handleNextSession()
+        return
+      }
       if (matchesShortcut(event, shortcuts.toggleSidebar)) {
         event.preventDefault()
         setLeftSidebarExpanded((prev) => !prev)
@@ -310,6 +343,8 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [
     handleOpenFile,
+    handlePreviousSession,
+    handleNextSession,
     handleNewSession,
     openPalette,
     setLeftSidebarExpanded,
@@ -331,6 +366,18 @@ function App() {
         title: "New Session",
         shortcut: shortcuts.newSession,
         action: handleNewSession,
+      }),
+      registerCommand({
+        id: "previous-session",
+        title: "Previous Session",
+        shortcut: shortcuts.previousSession,
+        action: handlePreviousSession,
+      }),
+      registerCommand({
+        id: "next-session",
+        title: "Next Session",
+        shortcut: shortcuts.nextSession,
+        action: handleNextSession,
       }),
       registerCommand({
         id: "open-file",
@@ -362,6 +409,8 @@ function App() {
     }
   }, [
     handleOpenFile,
+    handlePreviousSession,
+    handleNextSession,
     handleNewSession,
     registerCommand,
     setLeftSidebarExpanded,
@@ -370,6 +419,8 @@ function App() {
     shortcuts.openFile,
     shortcuts.openSettings,
     shortcuts.newSession,
+    shortcuts.previousSession,
+    shortcuts.nextSession,
     shortcuts.toggleFileTree,
     shortcuts.toggleSidebar,
     shortcuts.toggleTerminal,

@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { X, Keyboard, Globe, Key, Palette, Terminal, Bot, Loader2, Sparkles } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type ComponentType } from "react"
 import { useDialog } from "../context/DialogContext"
 import { useServer } from "../context/ServerContext"
 import { useAgents } from "../hooks/useAgents"
@@ -13,9 +13,12 @@ import { DialogConnectProvider } from "./DialogConnectProvider"
 import {
   applySettingsToDocument,
   DEFAULT_SHORTCUTS,
+  exportShortcutsPortableJson,
   emitSettingsUpdated,
   formatShortcutFromEvent,
+  importShortcutsPortableJson,
   loadSettings,
+  PORTABLE_SHORTCUTS_FILENAME,
   saveSettings,
   type AgentCompletionSound,
   type AppSettings,
@@ -29,7 +32,7 @@ import {
 
 type SettingsTab = {
   id: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
 }
 
 const tabs: SettingsTab[] = [
@@ -467,6 +470,8 @@ const shortcutRows: ShortcutRow[] = [
   { id: "openSettings", label: "Open Settings" },
   { id: "openFile", label: "Open File" },
   { id: "newSession", label: "New Session" },
+  { id: "previousSession", label: "Previous Session" },
+  { id: "nextSession", label: "Next Session" },
   { id: "toggleSidebar", label: "Toggle Sidebar" },
   { id: "toggleTerminal", label: "Toggle Terminal" },
   { id: "toggleFileTree", label: "Toggle File Tree" },
@@ -479,6 +484,63 @@ type ShortcutsSettingsProps = {
 
 function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
   const [capturing, setCapturing] = useState<ShortcutAction | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importSuccess, setImportSuccess] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const logShortcutIo = (stage: "start" | "success" | "failure", message: string, error?: unknown) => {
+    const prefix = `[${new Date().toISOString()}] [ShortcutConfig] ${stage}: ${message}`
+    if (stage === "failure") {
+      console.error(prefix, error)
+      return
+    }
+    console.info(prefix)
+  }
+
+  const handleExport = () => {
+    try {
+      logShortcutIo("start", "exporting portable shortcut config")
+      const json = exportShortcutsPortableJson(shortcuts)
+      const blob = new Blob([json], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = PORTABLE_SHORTCUTS_FILENAME
+      link.click()
+      URL.revokeObjectURL(url)
+      setImportError(null)
+      setImportSuccess(`Exported ${PORTABLE_SHORTCUTS_FILENAME}`)
+      logShortcutIo("success", "exported portable shortcut config")
+    } catch (error) {
+      setImportError("Export failed. Please try again.")
+      setImportSuccess(null)
+      logShortcutIo("failure", "failed to export portable shortcut config", error)
+    }
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    try {
+      logShortcutIo("start", `importing portable shortcut config from ${file.name}`)
+      const content = await file.text()
+      const imported = importShortcutsPortableJson(content)
+      onChange(imported)
+      setImportError(null)
+      setImportSuccess(`Imported ${file.name}`)
+      logShortcutIo("success", `imported portable shortcut config from ${file.name}`)
+    } catch (error) {
+      setImportError("Invalid shortcut file. Expected OpenSpace portable JSON.")
+      setImportSuccess(null)
+      logShortcutIo("failure", `failed to import portable shortcut config from ${file.name}`, error)
+    }
+  }
 
   useEffect(() => {
     if (!capturing) return
@@ -506,15 +568,45 @@ function ShortcutsSettings({ shortcuts, onChange }: ShortcutsSettingsProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-black/50">Keyboard shortcuts for common actions.</p>
-        <button
-          type="button"
-          onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
-          data-testid="shortcut-reset-defaults"
-          className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
-        >
-          Reset defaults
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleImportClick}
+            data-testid="shortcut-import"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Import
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            data-testid="shortcut-export"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Export
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...DEFAULT_SHORTCUTS })}
+            data-testid="shortcut-reset-defaults"
+            className="rounded-lg border border-black/10 px-3 py-1 text-[12px] font-medium text-black/60 hover:border-black/25"
+          >
+            Reset defaults
+          </button>
+          <input
+            ref={fileInputRef}
+            data-testid="shortcut-import-file"
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => {
+              void handleImportFile(event)
+            }}
+          />
+        </div>
       </div>
+      {importError && <p className="text-[12px] text-red-600">{importError}</p>}
+      {importSuccess && <p className="text-[12px] text-emerald-600">{importSuccess}</p>}
       <div className="divide-y divide-black/[0.03]">
         {shortcutRows.map((row) => (
           <div key={row.id} className="flex items-center justify-between py-3">

@@ -455,4 +455,92 @@ describe('useSessionEvents', () => {
 
     expect(vi.mocked(storage.markSessionSeen)).toHaveBeenCalledTimes(1)
   })
+
+  it('dispatches file watcher updates for active directory', () => {
+    let sseCallback: (event: { data: unknown }) => void = () => {}
+    vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
+      const { onSseEvent, signal } = options as {
+        onSseEvent: (e: { data: unknown }) => void
+        signal: AbortSignal
+      }
+      sseCallback = onSseEvent
+      // eslint-disable-next-line require-yield
+      const stream = (async function* () {
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) return resolve()
+          signal.addEventListener("abort", () => resolve(), { once: true })
+        })
+      })()
+      return { stream } as never
+    })
+
+    const watcherListener = vi.fn()
+    window.addEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
+
+    renderHook(() => useSessionEvents('session-123'), { wrapper })
+
+    act(() => {
+      sseCallback({
+        data: {
+          directory: '/test/dir',
+          payload: {
+            type: 'file.watcher.updated',
+            properties: {
+              file: 'src/new-file.ts',
+              event: 'change',
+            },
+          },
+        },
+      })
+    })
+
+    expect(watcherListener).toHaveBeenCalledTimes(1)
+    const event = watcherListener.mock.calls[0]?.[0] as CustomEvent<{ directory: string; file: string; event: string }>
+    expect(event.detail.directory).toBe('/test/dir')
+    expect(event.detail.file).toBe('src/new-file.ts')
+    expect(event.detail.event).toBe('change')
+    window.removeEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
+  })
+
+  it('ignores file watcher updates outside active directory', () => {
+    let sseCallback: (event: { data: unknown }) => void = () => {}
+    vi.mocked(openCodeService.client.global.event).mockImplementation((options: unknown) => {
+      const { onSseEvent, signal } = options as {
+        onSseEvent: (e: { data: unknown }) => void
+        signal: AbortSignal
+      }
+      sseCallback = onSseEvent
+      // eslint-disable-next-line require-yield
+      const stream = (async function* () {
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) return resolve()
+          signal.addEventListener("abort", () => resolve(), { once: true })
+        })
+      })()
+      return { stream } as never
+    })
+
+    const watcherListener = vi.fn()
+    window.addEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
+
+    renderHook(() => useSessionEvents('session-123'), { wrapper })
+
+    act(() => {
+      sseCallback({
+        data: {
+          directory: '/other/dir',
+          payload: {
+            type: 'file.watcher.updated',
+            properties: {
+              file: 'src/new-file.ts',
+              event: 'change',
+            },
+          },
+        },
+      })
+    })
+
+    expect(watcherListener).not.toHaveBeenCalled()
+    window.removeEventListener('openspace:file-watcher-updated', watcherListener as EventListener)
+  })
 })

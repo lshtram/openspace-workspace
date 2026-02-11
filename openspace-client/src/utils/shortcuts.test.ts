@@ -10,6 +10,9 @@ import {
   loadShortcuts,
   matchesShortcut,
   normalizeShortcut,
+  exportShortcutsPortableJson,
+  importShortcutsPortableJson,
+  PORTABLE_SHORTCUTS_VERSION,
   SETTINGS_SCHEMA_VERSION,
 } from "./shortcuts"
 
@@ -135,5 +138,35 @@ describe("shortcuts", () => {
     const event = new KeyboardEvent("keydown", { key: "n", metaKey: true })
     expect(matchesShortcut(event, "Mod+N")).toBe(true)
     expect(matchesShortcut(event, "Ctrl+N")).toBe(false)
+  })
+
+  it("matches configurable session navigation shortcuts", () => {
+    const event = new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true })
+    expect(matchesShortcut(event, "Alt+ArrowUp")).toBe(true)
+    expect(matchesShortcut(event, "Alt+ArrowDown")).toBe(false)
+  })
+
+  it("exports and imports portable shortcut config as roundtrip", () => {
+    const exported = exportShortcutsPortableJson({
+      ...DEFAULT_SHORTCUTS,
+      previousSession: "Alt+ArrowLeft",
+      nextSession: "Alt+ArrowRight",
+    })
+
+    const imported = importShortcutsPortableJson(exported)
+    expect(imported.previousSession).toBe("Alt+ArrowLeft")
+    expect(imported.nextSession).toBe("Alt+ArrowRight")
+    expect(imported.newSession).toBe(DEFAULT_SHORTCUTS.newSession)
+  })
+
+  it("rejects portable shortcut config with unsupported version", () => {
+    const payload = JSON.stringify({
+      version: PORTABLE_SHORTCUTS_VERSION + 1,
+      shortcuts: {
+        previousSession: "Alt+ArrowUp",
+      },
+    })
+
+    expect(() => importShortcutsPortableJson(payload)).toThrow(/Unsupported shortcuts version/)
   })
 })

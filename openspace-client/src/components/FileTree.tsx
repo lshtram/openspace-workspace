@@ -21,8 +21,52 @@ type FileTreeProps = {
   directory?: string
 }
 
+type FileWatcherUpdateDetail = {
+  directory: string
+  file: string
+  event: "add" | "change" | "unlink"
+  timestamp: number
+}
+
+type LoadOptions = {
+  force?: boolean
+}
+
+const FILE_WATCHER_UPDATED_EVENT = "openspace:file-watcher-updated"
+const REFRESH_COALESCE_MS = 200
+const MIN_INTERVAL_MS = 750
+
+function nowIso() {
+  return new Date().toISOString()
+}
+
+function logExternalIo(stage: "start" | "success" | "failure", message: string, error?: unknown) {
+  const prefix = `[${nowIso()}] [FileTree] ${stage}: ${message}`
+  if (stage === "failure") {
+    console.error(prefix, error)
+    return
+  }
+  console.info(prefix)
+}
+
+function assertValidDirectory(directory: string) {
+  if (directory.trim().length === 0) {
+    throw new Error("FileTree requires a non-empty directory")
+  }
+}
+
+function isFileWatcherDetail(value: unknown): value is FileWatcherUpdateDetail {
+  if (!value || typeof value !== "object") return false
+  const detail = value as Partial<FileWatcherUpdateDetail>
+  if (typeof detail.directory !== "string" || detail.directory.trim().length === 0) return false
+  if (typeof detail.file !== "string") return false
+  if (detail.event !== "add" && detail.event !== "change" && detail.event !== "unlink") return false
+  return typeof detail.timestamp === "number"
+}
+
 export function FileTree({ directory: directoryProp }: FileTreeProps) {
   const directory = directoryProp ?? openCodeService.directory
+  assertValidDirectory(directory)
   const { setActiveWhiteboardPath } = useLayout()
   const [state, setState] = useState<NodeState>({
     nodes: {},
@@ -32,22 +76,34 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
   const fileStatusQuery = useFileStatus(directory)
   const loadingRef = useRef(new Set<string>())
   const loadedRef = useRef(new Set<string>())
+  const stateRef = useRef(state)
+  const pendingWatcherPathsRef = useRef<Set<string>>(new Set())
+  const lastRefreshAtRef = useRef(0)
+  const refreshTimerRef = useRef<number | null>(null)
+  const refreshRunningRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
 
-  const load = useCallback(async (path: string) => {
-    if (loadedRef.current.has(path) || loadingRef.current.has(path)) return
-    
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
+  const load = useCallback(async (path: string, options?: LoadOptions) => {
+    if (!options?.force && (loadedRef.current.has(path) || loadingRef.current.has(path))) return
+
     loadingRef.current.add(path)
     setState((prev) => ({
       ...prev,
       loading: new Set(prev.loading).add(path),
     }))
     try {
+      logExternalIo("start", `listing path "${path}" in directory "${directory}"`)
       const response = await openCodeService.client.file.list({
         path,
         directory,
       })
       const list = response.data ?? []
       loadedRef.current.add(path)
+      logExternalIo("success", `listed path "${path}" in directory "${directory}"`)
       setState((prev) => {
         const nextLoading = new Set(prev.loading)
         nextLoading.delete(path)
@@ -57,7 +113,8 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
           nodes: { ...prev.nodes, [path]: list },
         }
       })
-    } catch {
+    } catch (error) {
+      logExternalIo("failure", `failed to list path "${path}" in directory "${directory}"`, error)
       setState((prev) => {
         const nextLoading = new Set(prev.loading)
         nextLoading.delete(path)
@@ -67,6 +124,49 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       loadingRef.current.delete(path)
     }
   }, [directory])
+
+  const refreshTreeFromWatcher = useCallback(async () => {
+    if (refreshRunningRef.current) {
+      refreshQueuedRef.current = true
+      return
+    }
+    refreshRunningRef.current = true
+    try {
+      do {
+        refreshQueuedRef.current = false
+        const elapsed = Date.now() - lastRefreshAtRef.current
+        if (elapsed < MIN_INTERVAL_MS) {
+          await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL_MS - elapsed))
+        }
+
+        const changedPaths = Array.from(pendingWatcherPathsRef.current.values()).sort((a, b) => a.localeCompare(b))
+        pendingWatcherPathsRef.current.clear()
+        logExternalIo("start", `refreshing tree from watcher (${changedPaths.length} change(s))`)
+
+        const expandedPaths = Array.from(stateRef.current.expanded.values()).sort((a, b) => a.localeCompare(b))
+        const pathsToRefresh = [".", ...expandedPaths.filter((path) => path !== ".")]
+        for (const path of pathsToRefresh) {
+          loadedRef.current.delete(path)
+        }
+        await Promise.all(pathsToRefresh.map((path) => load(path, { force: true })))
+        logExternalIo("success", `refreshed tree from watcher (${changedPaths.length} change(s))`)
+        lastRefreshAtRef.current = Date.now()
+      } while (refreshQueuedRef.current || pendingWatcherPathsRef.current.size > 0)
+    } catch (error) {
+      lastRefreshAtRef.current = Date.now()
+      logExternalIo("failure", "tree refresh from watcher failed", error)
+    } finally {
+      refreshRunningRef.current = false
+    }
+  }, [load])
+
+  const scheduleWatcherRefresh = useCallback(() => {
+    if (refreshTimerRef.current !== null) return
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null
+      void refreshTreeFromWatcher()
+    }, REFRESH_COALESCE_MS)
+  }, [refreshTreeFromWatcher])
 
   useEffect(() => {
     loadedRef.current.clear()
@@ -80,7 +180,26 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       void load(".")
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [load, directory])
+  }, [load])
+
+  useEffect(() => {
+    const onWatcherUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<unknown>
+      if (!isFileWatcherDetail(customEvent.detail)) return
+      if (customEvent.detail.directory !== directory) return
+      pendingWatcherPathsRef.current.add(customEvent.detail.file)
+      scheduleWatcherRefresh()
+    }
+
+    window.addEventListener(FILE_WATCHER_UPDATED_EVENT, onWatcherUpdate as EventListener)
+    return () => {
+      window.removeEventListener(FILE_WATCHER_UPDATED_EVENT, onWatcherUpdate as EventListener)
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = null
+      }
+    }
+  }, [directory, scheduleWatcherRefresh])
 
   const toggle = async (path: string) => {
     setState((prev) => {

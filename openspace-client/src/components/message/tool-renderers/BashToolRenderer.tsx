@@ -1,16 +1,12 @@
 import { Terminal } from 'lucide-react';
 import { BaseToolRenderer } from './BaseToolRenderer';
 import { registerToolRenderer, type ToolRendererProps } from './core';
+import { stripAnsi } from './stripAnsi';
 
 interface BashToolInput {
   command?: string;
   description?: string;
 }
-
-const stripAnsi = (str: string) => 
-  typeof str === 'string' 
-    ? str.replace(new RegExp('[\\u001b\\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]', 'g'), '') 
-    : String(str);
 
 export function BashToolRenderer({ part, isStep }: ToolRendererProps) {
   if (!part) {

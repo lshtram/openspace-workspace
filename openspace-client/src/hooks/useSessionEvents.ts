@@ -10,6 +10,48 @@ import { useServer } from "../context/ServerContext"
 import { pushToastOnce } from "../utils/toastStore"
 import { storage } from "../utils/storage"
 
+type FileWatcherEvent = {
+  file: string
+  event: "add" | "change" | "unlink"
+}
+
+type FileWatcherUpdateDetail = {
+  directory: string
+  file: string
+  event: "add" | "change" | "unlink"
+  timestamp: number
+}
+
+const FILE_WATCHER_UPDATED_EVENT = "openspace:file-watcher-updated"
+const MIN_INTERVAL_MS = 1000
+
+function assertValidHookInput(sessionId: string | undefined) {
+  if (typeof sessionId === "string" && sessionId.trim().length === 0) {
+    throw new Error("sessionId must be undefined or a non-empty string")
+  }
+}
+
+function nowIso() {
+  return new Date().toISOString()
+}
+
+function logExternalIo(stage: "start" | "success" | "failure", message: string, error?: unknown) {
+  const prefix = `[${nowIso()}] [useSessionEvents] ${stage}: ${message}`
+  if (stage === "failure") {
+    console.error(prefix, error)
+    return
+  }
+  console.info(prefix)
+}
+
+function parseFileWatcherEvent(properties: Record<string, unknown> | undefined): FileWatcherEvent | null {
+  const file = properties?.file
+  const event = properties?.event
+  if (typeof file !== "string" || file.trim().length === 0) return null
+  if (event !== "add" && event !== "change" && event !== "unlink") return null
+  return { file, event }
+}
+
 const updateMessageEntries = (
   entries: MessageEntry[],
   sessionId: string,
@@ -123,6 +165,7 @@ const getEnvelopeDedupeKey = (envelope: { type: string; properties?: Record<stri
 }
 
 export function useSessionEvents(sessionId?: string, directoryProp?: string) {
+  assertValidHookInput(sessionId)
   const queryClient = useQueryClient()
   const directory = directoryProp ?? openCodeService.directory
   const server = useServer()
@@ -298,6 +341,22 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
         )
         return
       }
+
+      if (envelope.type === "file.watcher.updated") {
+        const watcherEvent = parseFileWatcherEvent(envelope.properties)
+        if (!watcherEvent || !directory) return
+        if (typeof window !== "undefined") {
+          const detail: FileWatcherUpdateDetail = {
+            directory,
+            file: watcherEvent.file,
+            event: watcherEvent.event,
+            timestamp: Date.now(),
+          }
+          window.dispatchEvent(new CustomEvent(FILE_WATCHER_UPDATED_EVENT, { detail }))
+        }
+        return
+      }
+
       const dedupeKey = getEnvelopeDedupeKey(envelope)
       if (dedupeKey) {
         const now = Date.now()
@@ -382,7 +441,9 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
     const connect = async () => {
       let attempt = 0
       while (alive && !controller.signal.aborted) {
+        const cycleStartedAt = Date.now()
         try {
+          logExternalIo("start", `opening SSE stream for directory ${directory ?? "<default>"}`)
           const result = await openCodeService.client.global.event({
             signal: controller.signal,
             onSseEvent,
@@ -396,6 +457,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
             reportError(new Error("Event stream unavailable"))
             return
           }
+          logExternalIo("success", `SSE stream opened for directory ${directory ?? "<default>"}`)
           hasShownErrorRef.current = false
           attempt = 0
 
@@ -404,13 +466,17 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
             if (!alive || controller.signal.aborted) break
           }
         } catch (error) {
+          logExternalIo("failure", `SSE stream failed for directory ${directory ?? "<default>"}`, error)
           reportError(error)
         }
 
         if (!alive || controller.signal.aborted) break
+        const elapsed = Date.now() - cycleStartedAt
+        const minWait = Math.max(MIN_INTERVAL_MS - elapsed, 0)
         attempt += 1
         const backoff = Math.min(2000 * 2 ** (attempt - 1), 30000)
-        await new Promise((resolve) => setTimeout(resolve, backoff))
+        const waitMs = Math.max(minWait, backoff)
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
       }
     }
 

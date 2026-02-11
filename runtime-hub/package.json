@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start:hub": "tsx src/hub-server.ts",
-    "start:whiteboard": "tsx src/whiteboard-mcp.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:modality": "tsx src/mcp/modality-mcp.ts",
+    "start:whiteboard": "tsx src/mcp/whiteboard-mcp.ts",
+    "build": "tsc",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",

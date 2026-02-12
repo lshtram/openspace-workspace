@@ -221,7 +221,11 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
           onClick={() => {
             if (isDir) {
               void toggle(node.path)
-            } else if (node.path.endsWith('.graph.mmd') || node.path.endsWith('.excalidraw')) {
+            } else if (
+              node.path.endsWith('.graph.mmd') ||
+              node.path.endsWith('.excalidraw') ||
+              node.path.endsWith('.diagram.json')
+            ) {
               setActiveWhiteboardPath(node.path)
             }
           }}

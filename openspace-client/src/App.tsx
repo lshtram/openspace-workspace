@@ -200,6 +200,15 @@ function App() {
     createSessionRef.current = createSession
   }, [createSession])
 
+  // Handle ?file= URL parameter for direct whiteboard/file opening
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const filePath = params.get('file')
+    if (filePath && !activeWhiteboardPath) {
+      setActiveWhiteboardPath(filePath)
+    }
+  }, [activeWhiteboardPath, setActiveWhiteboardPath])
+
   const handleNewSession = useCallback(() => {
     createSessionRef.current.mutate()
   }, [])
@@ -245,6 +254,38 @@ function App() {
   useEffect(() => {
     handleSelectAdjacentSessionRef.current = handleSelectAdjacentSession
   }, [handleSelectAdjacentSession])
+
+  const openSettingsCommandAction = useCallback(() => {
+    emitOpenSettings()
+  }, [])
+
+  const newSessionCommandAction = useCallback(() => {
+    createSessionRef.current.mutate()
+  }, [])
+
+  const previousSessionCommandAction = useCallback(() => {
+    handleSelectAdjacentSessionRef.current("previous")
+  }, [])
+
+  const nextSessionCommandAction = useCallback(() => {
+    handleSelectAdjacentSessionRef.current("next")
+  }, [])
+
+  const openFileCommandAction = useCallback(() => {
+    handleOpenFileRef.current()
+  }, [])
+
+  const toggleSidebarCommandAction = useCallback(() => {
+    setLeftSidebarExpanded((prev) => !prev)
+  }, [setLeftSidebarExpanded])
+
+  const toggleTerminalCommandAction = useCallback(() => {
+    setTerminalExpanded((prev) => !prev)
+  }, [setTerminalExpanded])
+
+  const toggleFileTreeCommandAction = useCallback(() => {
+    setRightSidebarExpanded((prev) => !prev)
+  }, [setRightSidebarExpanded])
 
   const startResizing = useCallback(() => {
     setIsResizingTerminal(true)
@@ -363,49 +404,49 @@ function App() {
         id: "open-settings",
         title: "Open Settings",
         shortcut: shortcuts.openSettings,
-        action: emitOpenSettings,
+        action: openSettingsCommandAction,
       }),
       registerCommand({
         id: "new-session",
         title: "New Session",
         shortcut: shortcuts.newSession,
-        action: () => createSessionRef.current.mutate(),
+        action: newSessionCommandAction,
       }),
       registerCommand({
         id: "previous-session",
         title: "Previous Session",
         shortcut: shortcuts.previousSession,
-        action: () => handleSelectAdjacentSessionRef.current("previous"),
+        action: previousSessionCommandAction,
       }),
       registerCommand({
         id: "next-session",
         title: "Next Session",
         shortcut: shortcuts.nextSession,
-        action: () => handleSelectAdjacentSessionRef.current("next"),
+        action: nextSessionCommandAction,
       }),
       registerCommand({
         id: "open-file",
         title: "Open File",
         shortcut: shortcuts.openFile,
-        action: () => handleOpenFileRef.current(),
+        action: openFileCommandAction,
       }),
       registerCommand({
         id: "toggle-sidebar",
         title: "Toggle Sidebar",
         shortcut: shortcuts.toggleSidebar,
-        action: () => setLeftSidebarExpanded((prev) => !prev),
+        action: toggleSidebarCommandAction,
       }),
       registerCommand({
         id: "toggle-terminal",
         title: "Toggle Terminal",
         shortcut: shortcuts.toggleTerminal,
-        action: () => setTerminalExpanded((prev) => !prev),
+        action: toggleTerminalCommandAction,
       }),
       registerCommand({
         id: "toggle-file-tree",
         title: "Toggle File Tree",
         shortcut: shortcuts.toggleFileTree,
-        action: () => setRightSidebarExpanded((prev) => !prev),
+        action: toggleFileTreeCommandAction,
       }),
     ]
     return () => {
@@ -415,9 +456,11 @@ function App() {
     }
   }, [
     registerCommand,
-    setLeftSidebarExpanded,
-    setRightSidebarExpanded,
-    setTerminalExpanded,
+    newSessionCommandAction,
+    nextSessionCommandAction,
+    openFileCommandAction,
+    openSettingsCommandAction,
+    previousSessionCommandAction,
     shortcuts.openFile,
     shortcuts.openSettings,
     shortcuts.newSession,
@@ -426,6 +469,9 @@ function App() {
     shortcuts.toggleFileTree,
     shortcuts.toggleSidebar,
     shortcuts.toggleTerminal,
+    toggleFileTreeCommandAction,
+    toggleSidebarCommandAction,
+    toggleTerminalCommandAction,
   ])
 
   useEffect(() => {
@@ -479,13 +525,13 @@ function App() {
   }, [activeDirectory, activeSessionId, sessions, server.activeUrl, queryClient])
 
   return (
-    <div className="flex h-full flex-col bg-[#f7f5f1]">
+    <div className="flex h-full flex-col os-shell">
       <ToastHost />
       {connected && <TopBar connected={connected} />}
       
       {!connected ? (
-        <div className="app-shell flex h-full items-center justify-center bg-[#f7f5f1]">
-          <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-3xl p-8 text-center border-black/10 shadow-2xl bg-white">
+        <div className="app-shell flex h-full items-center justify-center">
+          <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-xl p-8 text-center border border-[var(--os-line)] shadow-2xl">
             <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
             <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
               <div className="text-sm text-muted">
@@ -525,11 +571,11 @@ function App() {
             />
           )}
 
-          <main className="flex h-full min-w-0 flex-1 flex-col p-4 pl-2 pr-4 pb-4">
-            <div className="flex h-full overflow-hidden rounded-[32px] border border-black/10 bg-white shadow-sm">
+          <main className="flex h-full min-w-0 flex-1 flex-col bg-[var(--os-bg-0)]">
+            <div className="flex h-full overflow-hidden border-r border-[var(--os-line)] bg-[var(--os-bg-0)]">
               <div className="flex flex-1 flex-col min-w-0 relative">
                 <div className="flex min-h-0 flex-1">
-                  <div className={activeWhiteboardPath ? "w-1/2 border-r" : "w-full"}>
+                  <div className={activeWhiteboardPath ? "w-1/2 border-r border-[var(--os-line)]" : "w-full"}>
                     <AgentConsole 
                       directory={activeDirectory}
                       sessionId={activeSessionId} 
@@ -537,7 +583,7 @@ function App() {
                     />
                   </div>
                   {activeWhiteboardPath && (
-                    <div className="w-1/2 relative bg-gray-50">
+                    <div className="w-1/2 relative bg-[var(--os-bg-1)]">
                       {activeWhiteboardPath.endsWith(".diagram.json") ? (
                         <TldrawWhiteboard
                           filePath={activeWhiteboardPath}
@@ -552,7 +598,7 @@ function App() {
                       <button
                         type="button"
                         onClick={() => setActiveWhiteboardPath(null)}
-                        className="absolute top-2 right-2 p-1 bg-white border rounded shadow hover:bg-gray-100 z-10"
+                        className="absolute top-2 right-2 p-1 bg-[var(--os-bg-1)] border border-[var(--os-line)] rounded shadow hover:bg-[var(--os-bg-2)] z-10 text-[var(--os-text-0)]"
                         title="Close Whiteboard"
                       >
                         <span className="text-xs font-bold px-1">×</span>
@@ -565,10 +611,10 @@ function App() {
                   <>
                     <div
                       onMouseDown={startResizing}
-                      className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-black/[0.05] transition-colors"
+                      className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-white/10 transition-colors"
                       style={{ bottom: terminalHeight - 3 }}
                     />
-                    <div className="border-t border-black/[0.03]" style={{ height: terminalHeight }}>
+                    <div className="border-t border-[var(--os-line)]" style={{ height: terminalHeight }}>
                       <Terminal resizeTrigger={terminalHeight} directory={activeDirectory} />
                     </div>
                   </>
@@ -576,7 +622,7 @@ function App() {
               </div>
 
               {rightSidebarExpanded && (
-                <aside className="hidden w-[280px] flex-shrink-0 flex-col border-l border-black/[0.03] md:flex animate-in slide-in-from-right duration-300">
+                <aside className="hidden w-[250px] flex-shrink-0 flex-col border-l border-[var(--os-line)] md:flex os-right-panel animate-in slide-in-from-right duration-300">
                   <FileTree directory={activeDirectory} />
                 </aside>
               )}

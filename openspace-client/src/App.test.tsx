@@ -290,4 +290,32 @@ describe('App', () => {
       expect(openCodeService.client.session.create).toHaveBeenCalledWith({ directory: '/default/path' })
     })
   })
+
+  it('does not trigger a maximum update depth loop when sessions are empty', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    vi.mocked(useSessions).mockImplementation(
+      () =>
+        ({
+          sessions: [],
+          loadMore: vi.fn(),
+          hasMore: false,
+          data: [],
+          isPending: false,
+          error: null,
+        }) as unknown as ReturnType<typeof useSessions>
+    )
+
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('agent-console')).toBeInTheDocument()
+    })
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('Maximum update depth exceeded')
+    )
+
+    consoleErrorSpy.mockRestore()
+  })
 })

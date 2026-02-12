@@ -4,11 +4,7 @@
     "openspace": {
       "type": "local",
       "command": ["node", "/Users/Shared/dev/openspace/runtime-hub/dist/mcp/modality-mcp.js"],
-      "enabled": true,
-      "env": {
-        "HUB_URL": "http://localhost:3001",
-        "PROJECT_ROOT": "/Users/Shared/dev/openspace"
-      }
+      "enabled": true
     }
   }
 }

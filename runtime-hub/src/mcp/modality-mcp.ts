@@ -42,6 +42,8 @@ const logIo = (status: 'start' | 'success' | 'failure', operation: string, meta:
   console.log(prefix, payload);
 };
 
+const patchesStore = new Map<string, any>();
+
 // Helper Functions
 async function getActiveContext(): Promise<ActiveContext | null> {
   try {
@@ -336,11 +338,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   }
 
-  // --- Drawing Tools (Stubs) ---
-  if (name.startsWith("drawing.")) {
+  // --- Drawing Tools ---
+  if (name === "drawing.inspect_scene") {
+    const ctx = await getActiveContext();
+    if (!ctx || ctx.modality !== "drawing") {
+      return { content: [{ type: "text", text: "No drawing is currently active." }], isError: true };
+    }
+    try {
+      const content = await readFile(ctx.filePath);
+      return { content: [{ type: "text", text: content }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error inspecting scene: ${error.message}` }], isError: true };
+    }
+  }
+
+  if (name === "drawing.propose_patch") {
+    const patch = (args as any).patch;
+    const patchId = `patch-${Date.now()}`;
+    patchesStore.set(patchId, patch);
     return {
-      content: [{ type: "text", text: `Tool '${name}' is not yet implemented (Phase 1).` }],
+      content: [{ type: "text", text: `Patch proposed with ID: ${patchId}\n${JSON.stringify(patch, null, 2)}` }],
     };
+  }
+
+  if (name === "drawing.apply_patch") {
+    const patchId = (args as any).patchId;
+    const patch = patchesStore.get(patchId);
+    if (!patch) {
+      return { content: [{ type: "text", text: `Patch ID '${patchId}' not found.` }], isError: true };
+    }
+
+    const ctx = await getActiveContext();
+    if (!ctx || ctx.modality !== "drawing") {
+      return { content: [{ type: "text", text: "No drawing is currently active to apply the patch to." }], isError: true };
+    }
+
+    try {
+      const res = await fetch(`${HUB_URL}/files/${ctx.filePath}/patch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Hub error: ${res.status} ${errorText}`);
+      }
+
+      patchesStore.delete(patchId);
+      return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.filePath}` }] };
+    } catch (error: any) {
+      return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };
+    }
   }
 
   throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);

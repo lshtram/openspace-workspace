@@ -19,8 +19,8 @@ echo "[dev] Starting runtime-hub (hub server)..."
 ( cd "$HUB_DIR" && npm run start:hub ) &
 HUB_PID=$!
 
-echo "[dev] Starting runtime-hub (whiteboard MCP)..."
-( cd "$HUB_DIR" && npm run start:whiteboard ) &
+echo "[dev] Starting runtime-hub (modality MCP)..."
+( cd "$HUB_DIR" && npm run start:modality ) &
 MCP_PID=$!
 
 echo "[dev] Starting openspace-client..."

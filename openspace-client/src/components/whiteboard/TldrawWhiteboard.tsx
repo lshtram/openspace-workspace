@@ -32,28 +32,57 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
     serialize: (next) => JSON.stringify(next, null, 2),
     debounceMs: 1000,
     onRemoteChange: (newData) => {
-      if (!editor) return;
+      if (!editor) {
+        console.log('[TldrawWhiteboard] onRemoteChange: No editor available yet');
+        return;
+      }
 
       console.log(`[${new Date().toISOString()}] ARTIFACT_REMOTE_CHANGE: ${filePath}`);
+      console.log('[TldrawWhiteboard] Remote data nodes:', newData.nodes.length);
+      console.log('[TldrawWhiteboard] Current editor shapes:', editor.getCurrentPageShapes().length);
+      
       isRemoteUpdateRef.current = true;
 
       const shapes = diagramToTldrawShapes(newData);
+      console.log('[TldrawWhiteboard] Converted to tldraw shapes:', shapes.length);
 
       editor.run(() => {
-        editor.updateShapes(shapes);
+        const currentShapeIds = new Set(editor.getCurrentPageShapes().map((s) => s.id));
+        const remoteShapeIds = new Set(shapes.map((s) => s.id));
 
-        const remoteShapeIds = new Set(shapes.map((shape) => shape.id));
+        // Split shapes into new and existing
+        const newShapes = shapes.filter((s) => !currentShapeIds.has(s.id));
+        const existingShapes = shapes.filter((s) => currentShapeIds.has(s.id));
+
+        // Create new shapes
+        if (newShapes.length > 0) {
+          console.log('[TldrawWhiteboard] Creating new shapes:', newShapes.map(s => s.id));
+          editor.createShapes(newShapes);
+        }
+
+        // Update existing shapes
+        if (existingShapes.length > 0) {
+          editor.updateShapes(existingShapes);
+        }
+
+        // Remove shapes that are not in remote data
         const shapesToRemove = editor
           .getCurrentPageShapes()
           .filter((shape) => !remoteShapeIds.has(shape.id))
           .map((shape) => shape.id);
 
         if (shapesToRemove.length > 0) {
+          console.log('[TldrawWhiteboard] Removing shapes:', shapesToRemove);
           editor.deleteShapes(shapesToRemove);
         }
       });
 
-      isRemoteUpdateRef.current = false;
+      console.log('[TldrawWhiteboard] After update, editor has shapes:', editor.getCurrentPageShapes().length);
+
+      // Keep the flag true for a bit longer to ensure all tldraw change events are ignored
+      setTimeout(() => {
+        isRemoteUpdateRef.current = false;
+      }, 100);
     },
   });
 
@@ -122,11 +151,30 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
 
     console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath}`);
     isRemoteUpdateRef.current = true;
-    const shapes = diagramToTldrawShapes(data);
-    editor.store.clear();
-    editor.createShapes(shapes);
-    isInitialLoadRef.current = false;
-    isRemoteUpdateRef.current = false;
+
+    try {
+      const shapes = diagramToTldrawShapes(data);
+      
+      editor.run(() => {
+        // Delete all existing shapes first
+        const existingShapes = editor.getCurrentPageShapes();
+        if (existingShapes.length > 0) {
+          editor.deleteShapes(existingShapes.map(s => s.id));
+        }
+        
+        // Create new shapes from diagram data
+        if (shapes.length > 0) {
+          editor.createShapes(shapes);
+        }
+      });
+
+      console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD_SUCCESS: ${filePath} (${shapes.length} shapes)`);
+    } catch (err) {
+      console.error(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD_FAIL: ${filePath}`, err);
+    } finally {
+      isInitialLoadRef.current = false;
+      isRemoteUpdateRef.current = false;
+    }
   }, [editor, data, filePath]);
 
   const onSendToAgent = async () => {

@@ -1,10 +1,9 @@
-# Requirements Documentation Index
+# Requirements Index
 
-## Sessions
+## Active
 
-| Session | Date | Topic | Transcript | Summary | Summary Verification | Requirements | Requirements Verification |
-|--------|------|-------|------------|---------|----------------------|--------------|---------------------------|
-| 001 | 2026-02-04 | initial-planning | conversations/session-001-2026-02-04-initial-planning.md | summaries/session-001-summary.md | summaries/session-001-verification.md | official/REQ-CORE-001-through-039.md | official/REQ-CORE-verification.md |
+- `docs/requirements/REQ-MODALITY-PLATFORM-V2.md`
 
-## Notes
-- Keep this index updated whenever a new session is documented.
+## Rule
+
+Deprecated or historical requirement drafts should be removed from active docs and preserved in git history only.

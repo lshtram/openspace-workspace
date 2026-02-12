@@ -462,6 +462,13 @@ export function useArtifact<T = string>(
             eventType: update.type,
           });
 
+          // CRITICAL: Cancel any pending debounced saves to prevent overwriting remote changes
+          if (debounceTimerRef.current) {
+            console.log('[useArtifact] Canceling pending save due to remote change');
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+          }
+
           // Fetch latest content
           const response = await fetch(`${HUB_URL}/files/${filePath}`);
           if (!response.ok) {

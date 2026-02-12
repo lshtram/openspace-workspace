@@ -1,5 +1,6 @@
 import express from 'express';
 import { ArtifactStore } from './services/ArtifactStore.js';
+import { PatchEngine } from './services/PatchEngine.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -21,6 +22,7 @@ app.use((req, res, next) => {
 });
 const projectRoot = process.env.PROJECT_ROOT || path.join(__dirname, '../../');
 const store = new ArtifactStore(projectRoot);
+const patchEngine = new PatchEngine();
 const designRoot = path.join(projectRoot, 'design');
 const now = () => new Date().toISOString();
 const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'];
@@ -161,45 +163,75 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
     if (isDeprecatedArtifactsRoute) {
         res.setHeader('Warning', '299 - Deprecated endpoint. Use /files/:path instead.');
     }
-    // Strip leading slash to make it relative to project root
+    // Use req.path for file routing within the mount point
     const rawPath = req.path.startsWith('/') ? req.path.substring(1) : req.path;
-    const validation = validateArtifactPath(rawPath);
-    if (!rawPath) {
+    if (!rawPath || rawPath === '/')
         return next();
+    if (req.method === 'POST') {
+        const isPatchRequest = rawPath.endsWith('/patch');
+        if (isPatchRequest) {
+            const targetPath = rawPath.slice(0, -6);
+            const v = validateArtifactPath(targetPath);
+            if (!v.ok)
+                return res.status(400).json({ error: v.reason });
+            const filePath = v.normalizedPath;
+            if (!filePath.endsWith('.diagram.json'))
+                return res.status(400).json({ error: 'Patch only supported for .diagram.json files' });
+            const { patch } = req.body;
+            if (!patch)
+                return res.status(400).json({ error: 'Patch data is required' });
+            try {
+                const contentBuffer = await store.read(filePath);
+                const diagram = JSON.parse(contentBuffer.toString());
+                const updatedDiagram = PatchEngine.applyPatch(diagram, patch);
+                await store.write(filePath, JSON.stringify(updatedDiagram, null, 2), {
+                    actor: patch.actor || 'agent',
+                    reason: patch.intent || 'Agent patch apply',
+                });
+                return res.json({ success: true, version: updatedDiagram.metadata.updatedAt });
+            }
+            catch (error) {
+                return res.status(500).json({ error: error.message });
+            }
+        }
+        else {
+            const v = validateArtifactPath(rawPath);
+            if (!v.ok)
+                return res.status(400).json({ error: v.reason });
+            const filePath = v.normalizedPath;
+            const { content, opts, encoding } = req.body;
+            // IF content is undefined, we might be hitting /patch without matching the suffix correctly?
+            // Let's force an error if it's NOT /patch and missing content.
+            if (content === undefined || content === null) {
+                return res.status(400).json({ error: 'Content is required' });
+            }
+            try {
+                let finalContent = content;
+                if (encoding === 'base64')
+                    finalContent = Buffer.from(content, 'base64');
+                await store.write(filePath, finalContent, opts);
+                return res.json({ success: true });
+            }
+            catch (error) {
+                return res.status(500).json({ error: error.message });
+            }
+        }
     }
-    if (!validation.ok) {
-        return res.status(400).json({ error: validation.reason });
-    }
-    const filePath = validation.normalizedPath;
+    // GET Handling
+    const v = validateArtifactPath(rawPath);
+    if (!v.ok)
+        return res.status(400).json({ error: v.reason });
+    const filePath = v.normalizedPath;
     if (req.method === 'GET') {
         try {
             const content = await store.read(filePath);
             res.send(content);
         }
         catch (error) {
-            if (error.code === 'ENOENT') {
+            if (error.code === 'ENOENT')
                 res.status(404).json({ error: 'Artifact not found' });
-            }
-            else {
+            else
                 res.status(500).json({ error: error.message });
-            }
-        }
-    }
-    else if (req.method === 'POST') {
-        const { content, opts, encoding } = req.body;
-        if (content === undefined || content === null) {
-            return res.status(400).json({ error: 'Content is required' });
-        }
-        try {
-            let finalContent = content;
-            if (encoding === 'base64') {
-                finalContent = Buffer.from(content, 'base64');
-            }
-            await store.write(filePath, finalContent, opts);
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
         }
     }
     else {

@@ -127,6 +127,7 @@ openspace-client/src/components/message/tool-renderers/
 ---
 
 #### Task 2A-2: Session Navigation Shortcuts (2 hours)
+**Status:** ✅ Completed (merged 2026-02-12, commit `f74d0bc`)
 **Priority:** P1 — Power user efficiency
 
 **Implementation:**
@@ -165,6 +166,7 @@ export function useSessionNavigation() {
 ---
 
 #### Task 2A-3: Duration Timer (2 hours)
+**Status:** ✅ Completed (merged 2026-02-12, commit `f74d0bc`)
 **Priority:** P2 — Nice-to-have metric
 
 **Implementation:**
@@ -187,6 +189,7 @@ openspace-client/src/types/index.ts (add startedAt to Turn type)
 ---
 
 #### Task 2A-4: File Watcher Integration (1 day)
+**Status:** ✅ Completed (merged 2026-02-12, commit `f74d0bc`)
 **Priority:** P1 — Live file updates without page refresh
 
 **Context:** opencode uses file watcher events from the Go server to update file tree. Our React port should do the same.
@@ -228,6 +231,10 @@ export function useFileWatcher(projectPath: string) {
 ---
 
 ### PHASE 2B: Settings & Customization (Week 2)
+
+Progress note (2026-02-12):
+- Core UX parity closure from Phase 2A is now complete for tasks 2A-1 through 2A-4.
+- Next highest-impact remaining parity stream remains Diff/Review capabilities (deferred stack).
 
 #### Task 2B-1: Theme System Expansion (2 days)
 **Priority:** P1 — Port 8 more themes from opencode

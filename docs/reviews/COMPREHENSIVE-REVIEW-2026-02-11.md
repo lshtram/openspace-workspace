@@ -644,3 +644,21 @@ If I were to recommend the top 5 things to do next, in order:
 ---
 
 *End of review.*
+
+---
+
+## Addendum (2026-02-12): Phase 2A Core UX Delta
+
+This review snapshot is accurate as of 2026-02-11, but parity status changed on 2026-02-12 after Team A merge (`f74d0bc`).
+
+### Newly Closed Parity Gaps
+
+- Feature 79 (Files): **File watcher integration** is now implemented (`file.watcher.updated` handling and file-tree refresh path).
+- Feature 25 (Chat): **Duration timer per turn** is now implemented.
+- Feature 47 / 95 (Sessions/Keys): **Session navigation via `Alt+ArrowUp/Down`** is now implemented.
+- Additional improvement beyond original table: **portable shortcut import/export** in Settings (`openspace-shortcuts.json`).
+
+### Current Interpretation
+
+- The major parity gap in this review remains the same: **diff viewer/review panel stack** is still the biggest missing block.
+- The gap counts in Part 3 are now slightly stale and should be read as historical baseline, not current exact totals.

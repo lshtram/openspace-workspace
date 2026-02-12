@@ -402,8 +402,8 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
         return
       }
 
-      if (envelope.type === "file.watcher.updated") {
-        const watcherEvent = parseFileWatcherEvent(envelope.properties)
+      if ((envelope.type as string) === "file.watcher.updated") {
+        const watcherEvent = parseFileWatcherEvent((envelope as any).properties)
         if (!watcherEvent || !directory) return
         if (typeof window !== "undefined") {
           const detail: FileWatcherUpdateDetail = {

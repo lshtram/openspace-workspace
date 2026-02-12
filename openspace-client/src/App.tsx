@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { AgentConsole } from "./components/AgentConsole"
 import { WhiteboardFrame } from "./components/whiteboard/WhiteboardFrame"
+import { TldrawWhiteboard } from "./components/whiteboard/TldrawWhiteboard"
 import { FileTree } from "./components/FileTree"
 import { Terminal } from "./components/Terminal"
 import { CommandPalette } from "./components/CommandPalette"
@@ -528,10 +529,17 @@ function App() {
                   </div>
                   {activeWhiteboardPath && (
                     <div className="w-1/2 relative bg-gray-50">
-                      <WhiteboardFrame 
-                        filePath={activeWhiteboardPath} 
-                        sessionId={activeSessionId}
-                      />
+                      {activeWhiteboardPath.endsWith('.diagram.json') ? (
+                        <TldrawWhiteboard 
+                          filePath={activeWhiteboardPath} 
+                          sessionId={activeSessionId}
+                        />
+                      ) : (
+                        <WhiteboardFrame 
+                          filePath={activeWhiteboardPath} 
+                          sessionId={activeSessionId}
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => setActiveWhiteboardPath(null)}

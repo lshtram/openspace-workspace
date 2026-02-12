@@ -1,6 +1,7 @@
 import express from 'express';
 import { ArtifactStore, WriteOptions } from './services/ArtifactStore.js';
 import { PatchEngine } from './services/PatchEngine.js';
+import { ActiveContext } from './interfaces/platform.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -32,12 +33,6 @@ const now = () => new Date().toISOString();
 
 const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'] as const;
 type ActiveModality = (typeof ACTIVE_MODALITIES)[number];
-
-interface ActiveContext {
-  modality: ActiveModality;
-  filePath: string;
-  timestamp: string;
-}
 
 const logDesignDir = (status: 'start' | 'success' | 'failure', meta: Record<string, unknown>) => {
   const payload = { ...meta, ts: now() };
@@ -96,23 +91,29 @@ const parseActiveContextBody = (body: unknown): ActiveContext => {
     throw new Error('Request body is required');
   }
 
-  const payload = body as Record<string, unknown>;
+  const payload = body as any;
   const modality = requireNonEmptyString(payload.modality, 'modality');
-  const filePath = requireNonEmptyString(payload.filePath, 'filePath');
+  const rawPath = payload.data?.path || payload.filePath;
 
-  if (!ACTIVE_MODALITIES.includes(modality as ActiveModality)) {
+  if (!rawPath) {
+    throw new Error('filePath or data.path is required');
+  }
+
+  if (!ACTIVE_MODALITIES.includes(modality as any)) {
     throw new Error(`modality must be one of: ${ACTIVE_MODALITIES.join(', ')}`);
   }
 
-  const validation = validateArtifactPath(filePath);
+  const validation = validateArtifactPath(rawPath);
   if (!validation.ok) {
     throw new Error(validation.reason);
   }
 
   return {
-    modality: modality as ActiveModality,
-    filePath: validation.normalizedPath,
-    timestamp: now(),
+    modality,
+    data: {
+      path: validation.normalizedPath,
+      location: payload.data?.location,
+    },
   };
 };
 
@@ -124,7 +125,7 @@ const getActiveWhiteboard = (): string | null => {
     return null;
   }
 
-  return activeContext.filePath;
+  return activeContext.data.path;
 };
 
 app.post('/context/active', (req, res) => {
@@ -152,10 +153,11 @@ app.post('/context/active-whiteboard', (req, res) => {
       }
       activeContext = {
         modality: 'whiteboard',
-        filePath: validation.normalizedPath,
-        timestamp: now(),
+        data: {
+          path: validation.normalizedPath,
+        },
       };
-      console.log('[HubServer] Active whiteboard set', { filePath: activeContext.filePath, ts: now() });
+      console.log('[HubServer] Active whiteboard set', { filePath: activeContext.data.path, ts: now() });
     } catch (error) {
       return res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
     }

@@ -5,6 +5,7 @@ import {
   assertPatchRequestEnvelope,
   createValidationErrorEnvelope,
 } from '../interfaces/platform.js';
+import { IDiagram, IOperation } from '../interfaces/IDrawing.js';
 
 interface ReplaceContentOp {
   op: 'replace_content';
@@ -58,6 +59,132 @@ const parseReplaceContentOp = (ops: unknown[]): ReplaceContentOp => {
   return { op: 'replace_content', content: op.content };
 };
 
+const applyDiagramOperations = (diagram: IDiagram, ops: IOperation[]): IDiagram => {
+  const next = { ...diagram, nodes: [...diagram.nodes], edges: [...diagram.edges] };
+
+  for (const op of ops) {
+    switch (op.type) {
+      case 'addNode': {
+        if (next.nodes.some((n) => n.id === op.node.id)) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'DUPLICATE_ID',
+              location: 'ops',
+              reason: `Node with ID ${op.node.id} already exists`,
+              remediation: 'Use a unique ID for the new node',
+            }),
+          );
+        }
+        next.nodes.push(op.node);
+        break;
+      }
+      case 'updateNode': {
+        const idx = next.nodes.findIndex((n) => n.id === op.nodeId);
+        if (idx === -1) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Node with ID ${op.nodeId} not found`,
+              remediation: 'Ensure the node ID exists before updating',
+            }),
+          );
+        }
+        next.nodes[idx] = { ...next.nodes[idx], ...op.patch };
+        break;
+      }
+      case 'removeNode': {
+        next.nodes = next.nodes.filter((n) => n.id !== op.nodeId);
+        next.edges = next.edges.filter((e) => e.from !== op.nodeId && e.to !== op.nodeId);
+        break;
+      }
+      case 'addEdge': {
+        if (next.edges.some((e) => e.id === op.edge.id)) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'DUPLICATE_ID',
+              location: 'ops',
+              reason: `Edge with ID ${op.edge.id} already exists`,
+              remediation: 'Use a unique ID for the new edge',
+            }),
+          );
+        }
+        if (!next.nodes.some((n) => n.id === op.edge.from) || !next.nodes.some((n) => n.id === op.edge.to)) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'INVALID_REFERENCE',
+              location: 'ops',
+              reason: `Edge references non-existent nodes: ${op.edge.from} -> ${op.edge.to}`,
+              remediation: 'Ensure both source and target nodes exist',
+            }),
+          );
+        }
+        next.edges.push(op.edge);
+        break;
+      }
+      case 'updateEdge': {
+        const idx = next.edges.findIndex((e) => e.id === op.edgeId);
+        if (idx === -1) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Edge with ID ${op.edgeId} not found`,
+              remediation: 'Ensure the edge ID exists before updating',
+            }),
+          );
+        }
+        next.edges[idx] = { ...next.edges[idx], ...op.patch };
+        break;
+      }
+      case 'removeEdge': {
+        next.edges = next.edges.filter((e) => e.id !== op.edgeId);
+        break;
+      }
+      case 'updateNodeLabel': {
+        const idx = next.nodes.findIndex((n) => n.id === op.nodeId);
+        if (idx === -1) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Node with ID ${op.nodeId} not found`,
+              remediation: 'Ensure the node ID exists before updating',
+            }),
+          );
+        }
+        next.nodes[idx] = { ...next.nodes[idx], label: op.label };
+        break;
+      }
+      case 'updateNodeLayout': {
+        const idx = next.nodes.findIndex((n) => n.id === op.nodeId);
+        if (idx === -1) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Node with ID ${op.nodeId} not found`,
+              remediation: 'Ensure the node ID exists before updating',
+            }),
+          );
+        }
+        next.nodes[idx] = {
+          ...next.nodes[idx],
+          layout: { ...next.nodes[idx].layout, ...op.layout },
+        };
+        break;
+      }
+    }
+  }
+
+  next.metadata = {
+    ...next.metadata,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return next;
+};
+
 export class PatchEngine {
   private versions = new Map<string, number>();
 
@@ -82,9 +209,19 @@ export class PatchEngine {
       );
     }
 
-    const op = parseReplaceContentOp(envelope.ops);
+    let nextContent: string;
 
-    await this.store.write(filePath, op.content, {
+    if (filePath.endsWith('.diagram.json')) {
+      const currentBuffer = await this.store.read(filePath);
+      const diagram = JSON.parse(currentBuffer.toString()) as IDiagram;
+      const nextDiagram = applyDiagramOperations(diagram, envelope.ops as IOperation[]);
+      nextContent = JSON.stringify(nextDiagram, null, 2);
+    } else {
+      const op = parseReplaceContentOp(envelope.ops);
+      nextContent = op.content;
+    }
+
+    await this.store.write(filePath, nextContent, {
       actor: envelope.actor,
       reason: envelope.intent,
       createSnapshot: true,
@@ -95,7 +232,7 @@ export class PatchEngine {
 
     return {
       version: nextVersion,
-      bytes: Buffer.byteLength(op.content, 'utf8'),
+      bytes: Buffer.byteLength(nextContent, 'utf8'),
     };
   }
 }

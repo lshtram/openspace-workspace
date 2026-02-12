@@ -12,6 +12,7 @@ import fetch from "node-fetch";
 import fs from "fs/promises";
 import path from "path";
 import { ActiveContext, MIN_INTERVAL } from "../interfaces/platform.js";
+import { IDiagram, IOperation } from "../interfaces/IDrawing.js";
 
 const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
@@ -42,7 +43,19 @@ const logIo = (status: 'start' | 'success' | 'failure', operation: string, meta:
   console.log(prefix, payload);
 };
 
-const patchesStore = new Map<string, any>();
+const patchesStore = new Map<string, { ops: IOperation[], intent: string }>();
+
+// Helper to validate drawing operations
+function validateDrawingOps(ops: any): ops is IOperation[] {
+  if (!Array.isArray(ops)) return false;
+  for (const op of ops) {
+    if (!op || typeof op.type !== 'string') return false;
+    // Basic type check for known operations
+    const knownTypes = ['addNode', 'updateNode', 'removeNode', 'addEdge', 'updateEdge', 'removeEdge', 'updateNodeLabel', 'updateNodeLayout'];
+    if (!knownTypes.includes(op.type)) return false;
+  }
+  return true;
+}
 
 // Helper Functions
 async function getActiveContext(): Promise<ActiveContext | null> {
@@ -53,9 +66,19 @@ async function getActiveContext(): Promise<ActiveContext | null> {
       logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, status: res.status });
       return null;
     }
-    const data = (await res.json()) as ActiveContext;
-    if (!data?.data?.path) {
-      logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, reason: 'missing data.path' });
+    const rawData = (await res.json()) as any;
+    
+    // Normalize response to ActiveContext structure
+    const data: ActiveContext = {
+      modality: rawData.modality,
+      data: {
+        path: rawData.data?.path || rawData.filePath,
+        location: rawData.data?.location
+      }
+    };
+
+    if (!data.data.path) {
+      logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, reason: 'missing path in response', rawData });
       return null;
     }
     logIo('success', 'CONTEXT_READ', { url: `${HUB_URL}/context/active` });
@@ -218,10 +241,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
 
-      // Drawing Tools (Phase 1 Stubs)
+      // Drawing Tools
       {
         name: "drawing.inspect_scene",
-        description: "Inspect the scene graph of a drawing artifact (Stub for Phase 1)",
+        description: "Inspect the scene graph of the currently active drawing",
         inputSchema: {
           type: "object",
           properties: {},
@@ -229,18 +252,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "drawing.propose_patch",
-        description: "Propose a patch to the drawing scene graph (Stub for Phase 1)",
+        description: "Propose a patch to the drawing scene graph",
         inputSchema: {
           type: "object",
           properties: {
-            patch: { type: "object" },
+            patch: { 
+              type: "array",
+              items: { type: "object" },
+              description: "Array of IOperation objects"
+            },
+            intent: {
+              type: "string",
+              description: "The purpose of this patch"
+            }
           },
           required: ["patch"],
         },
       },
       {
         name: "drawing.apply_patch",
-        description: "Apply a patch to the drawing scene graph (Stub for Phase 1)",
+        description: "Apply a previously proposed patch to the drawing scene graph",
         inputSchema: {
           type: "object",
           properties: {
@@ -346,18 +377,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
     try {
       const content = await readFile(ctx.data.path);
-      return { content: [{ type: "text", text: content }] };
+      const diagram = JSON.parse(content) as IDiagram;
+      
+      // Return a summarized view
+      const summary = {
+        title: diagram.metadata.title,
+        type: diagram.diagramType,
+        nodeCount: diagram.nodes.length,
+        edgeCount: diagram.edges.length,
+        nodes: diagram.nodes.map(n => ({ id: n.id, kind: n.kind, label: n.label })),
+        edges: diagram.edges.map(e => ({ id: e.id, from: e.from, to: e.to, relation: e.relation }))
+      };
+
+      return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
     } catch (error: any) {
       return { content: [{ type: "text", text: `Error inspecting scene: ${error.message}` }], isError: true };
     }
   }
 
   if (name === "drawing.propose_patch") {
-    const patch = (args as any).patch;
+    const ops = (args as any).patch;
+    const intent = (args as any).intent || "Modified via drawing.propose_patch";
+
+    if (!validateDrawingOps(ops)) {
+      return {
+        content: [{ type: "text", text: "Invalid patch format. Must be an array of IOperation." }],
+        isError: true
+      };
+    }
+
     const patchId = `patch-${Date.now()}`;
-    patchesStore.set(patchId, patch);
+    patchesStore.set(patchId, { ops, intent });
     return {
-      content: [{ type: "text", text: `Patch proposed with ID: ${patchId}\n${JSON.stringify(patch, null, 2)}` }],
+      content: [{ type: "text", text: `Patch proposed with ID: ${patchId}\nOperations: ${ops.length}` }],
     };
   }
 
@@ -373,21 +425,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: "No drawing is currently active to apply the patch to." }], isError: true };
     }
 
+    const filePath = ctx.data.path;
+    let baseVersion = artifactVersions.get(filePath) ?? 0;
+
     try {
-      const res = await fetch(`${HUB_URL}/files/${ctx.data.path}/patch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
+      logIo('start', 'PATCH_DRAWING', { filePath, patchId });
 
-      if (!res.ok) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const res = await fetch(`${HUB_URL}/files/${filePath}/patch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseVersion,
+            actor: "agent",
+            intent: patch.intent,
+            ops: patch.ops,
+          }),
+        });
+
+        if (res.ok) {
+          const payload = (await res.json()) as { version?: number };
+          if (typeof payload.version === 'number') {
+            artifactVersions.set(filePath, payload.version);
+          }
+          patchesStore.delete(patchId);
+          logIo('success', 'PATCH_DRAWING', { filePath, version: artifactVersions.get(filePath) });
+          return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${filePath}` }] };
+        }
+
+        if (res.status === 409 && attempt === 0) {
+          const conflict = (await res.json()) as { currentVersion?: number };
+          baseVersion = conflict.currentVersion ?? baseVersion + 1;
+          artifactVersions.set(filePath, baseVersion);
+          await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL));
+          continue;
+        }
+
         const errorText = await res.text();
-        throw new Error(`Hub error: ${res.status} ${errorText}`);
+        logIo('failure', 'PATCH_DRAWING', { filePath, status: res.status, error: errorText });
+        return { 
+          content: [{ type: "text", text: `Failed to apply patch: ${res.status} ${errorText}` }],
+          isError: true 
+        };
       }
-
-      patchesStore.delete(patchId);
-      return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.data.path}` }] };
+      
+      return { content: [{ type: "text", text: "Failed to apply patch after retrying." }], isError: true };
     } catch (error: any) {
+      logIo('failure', 'PATCH_DRAWING', { filePath, error: error.message });
       return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };
     }
   }

@@ -46,6 +46,12 @@ task_id: memory-patterns
   - Single pattern reduces boilerplate by ~30-40% per modality
   - Example: `useArtifact<SceneGraph>('design/auth.json', { parse: JSON.parse, serialize: JSON.stringify })`
 
+- **Incremental Patch Reducer Pattern**: For complex artifacts (like diagrams/whiteboards) where multiple tools/agents perform granular updates:
+  - Implement a `Reducer` (e.g., `DiagramReducer`) that accepts an array of `IOperation` patches.
+  - Each `IOperation` specifies `type` (add/remove/update), `entity` (node/edge), and `data`.
+  - The reducer manages the transformation from `Operation[]` to a new `ArtifactState`.
+  - This allows the Hub to perform validation and transaction-like updates before persisting.
+
 - **Registry Pattern for Tool UI**: Decoupling tool-specific rendering from the main message list using a central registry.
   - Define a standard `ToolRenderer` interface.
   - Implement a registry (`registerToolRenderer`, `getToolRenderer`).

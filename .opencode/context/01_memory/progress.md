@@ -25,6 +25,11 @@ task_id: progress-tracking
 - [in_progress] BLK-009 Drawing V2 implementation alignment
 - [completed] BLK-009 Drawing V2 merged to origin/master and worktree branches removed (2026-02-12)
 - [completed] Drawing V2 Fixes: Arrow bindings, Note shapes, and schema validation (2026-02-12)
+- [completed] Drawing Modality DEBUG: Incremental patch reducer and tool unification (2026-02-12)
+  - Implemented `DiagramReducer` for structured `IOperation[]` patches.
+  - Unified `ActiveContext` across Hub and MCP.
+  - Implemented functional `drawing.*` MCP tools.
+  - Verified with comprehensive unit tests.
 - [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
 
 ## NSO v2 Overhaul Summary (2026-02-12)

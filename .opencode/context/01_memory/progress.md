@@ -24,6 +24,7 @@ task_id: progress-tracking
 - [in_progress] BLK-001 Platform Foundations (REQ-PLT-001..010)
 - [in_progress] BLK-009 Drawing V2 implementation alignment
 - [completed] BLK-009 Drawing V2 merged to origin/master and worktree branches removed (2026-02-12)
+- [completed] Drawing V2 Fixes: Arrow bindings, Note shapes, and schema validation (2026-02-12)
 - [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
 
 ## NSO v2 Overhaul Summary (2026-02-12)

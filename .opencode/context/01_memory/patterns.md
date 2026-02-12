@@ -107,6 +107,9 @@ task_id: memory-patterns
 - **Test Cleanup**: E2E tests may create artifacts (worktrees, workspace dirs) with restrictive permissions requiring manual deletion
 - **Dirty Root Merge Pattern**: If root `master` is heavily dirty, perform merge/push from a separate clean integration worktree based on `origin/master`, then remove both integration and feature worktrees.
 
+- **Data Schema Migration Pattern**: When upgrading data-dependent libraries (like Tldraw), always implement a schema migration layer to handle version mismatches (e.g., `tldrawMapper` fixing V1 props to V2 props).
+- **Strict Validation Gotcha**: Validation logic for external data should be lenient or version-aware to avoid crashing on valid but slightly different data (e.g., optional props in Tldraw shapes).
+
 ## Approved Practices
 - Follow NSO instructions.md for all operations.
 - When fixing NSO duplication: prefer global location, keep better versions.

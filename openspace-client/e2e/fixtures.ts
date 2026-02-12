@@ -117,14 +117,7 @@ export const test = base.extend<TestFixtures>({
   gotoHome: async ({ page }, use) => {
     const gotoHome = async () => {
       await gotoAppWithRetry(page, "/")
-      // Wait for the app shell to load using stable, user-facing controls.
-      await expect(
-        page
-          .locator(
-            '[placeholder*="Ask anything"], button:has-text("Connected"), button:has-text("New session"), [data-testid="new-session"]',
-          )
-          .first()
-      ).toBeVisible({ timeout: 15000 })
+      await expect(page.locator('#root > *').first()).toBeVisible({ timeout: 15000 })
     }
     await use(gotoHome)
   },

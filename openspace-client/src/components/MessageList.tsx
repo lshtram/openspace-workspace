@@ -6,7 +6,7 @@ import * as ScrollArea from "@radix-ui/react-scroll-area"
 import { Copy, Check, ChevronDown, ChevronRight, Brain, Terminal as ToolIcon, ArrowDownToLine } from "lucide-react"
 import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react"
 import { cn } from "../lib/utils"
-import { getToolRenderer } from "./message/tool-renderers"
+import { toolRenderers } from "./message/tool-renderers/core"
 import { formatDurationLabel, isValidTurnDurationBoundaries } from "../utils/duration"
 
 type MessageListProps = {
@@ -106,7 +106,12 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
       if (!hash) return
       const match = hash.match(/^#message-(.+)$/)
       if (!match) return
-      const targetId = decodeURIComponent(match[1])
+      let targetId: string
+      try {
+        targetId = decodeURIComponent(match[1])
+      } catch {
+        return
+      }
       const turnId =
         turns.find((turn) => turn.id === targetId || turn.messageIds.includes(targetId))?.id ?? targetId
       const target = document.getElementById(messageAnchor(turnId))
@@ -384,11 +389,8 @@ function StepsFlow({ parts }: { parts: Part[] }) {
       return !Array.isArray(answers) || answers.length === 0
     })
   }, [parts])
-  const [expanded, setExpanded] = useState(hasPendingQuestion)
-
-  useEffect(() => {
-    if (hasPendingQuestion) setExpanded(true)
-  }, [hasPendingQuestion])
+  const [expanded, setExpanded] = useState(false)
+  const isExpanded = hasPendingQuestion || expanded
   
   const summary = useMemo(() => {
     const tools = parts.filter(p => p.type === "tool") as ToolPart[]
@@ -414,17 +416,17 @@ function StepsFlow({ parts }: { parts: Part[] }) {
     <div className="mb-2 flex flex-col items-start">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setExpanded((prev) => !prev)}
         className="flex max-w-full items-center gap-2 rounded-lg py-1 text-[12px] font-bold text-black/30 hover:text-black/50 transition-colors uppercase tracking-tight"
       >
         <div className="shrink-0 flex items-center gap-2">
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <Brain size={14} className="opacity-40" />
         </div>
         <span className="truncate">{summary}</span>
       </button>
       
-      {expanded && (
+      {isExpanded && (
         <div className="mt-1 flex w-full flex-col gap-2 pl-4 border-l border-black/5">
           {parts.map(part => (
             <PartRenderer key={part.id} part={part} isStep />
@@ -479,9 +481,9 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
   }
 
   if (part.type === "tool") {
-    const DedicatedRenderer = getToolRenderer(part.tool);
+    const DedicatedRenderer = toolRenderers[part.tool]
     if (DedicatedRenderer) {
-      return <DedicatedRenderer part={part} isStep={isStep} />;
+      return <DedicatedRenderer part={part} isStep={isStep} />
     }
 
     const status = part.state.status

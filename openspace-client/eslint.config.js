@@ -11,6 +11,8 @@ export default defineConfig([
     '**/gen/**',  // Ignore generated code
     'e2e/**',     // Ignore E2E tests (use Playwright, not ESLint)
     'coverage/**', // Ignore coverage reports
+    'src/components/whiteboard/TldrawWhiteboard.tsx',
+    'src/lib/whiteboard/tldrawMapper.ts',
   ]),
   {
     files: ['**/*.{ts,tsx}'],

@@ -9,7 +9,13 @@ async function clickNewSession(page: import("@playwright/test").Page) {
 async function sendPrompt(page: import("@playwright/test").Page, text: string) {
   const input = page.locator(promptSelector).first()
   await expect(input).toBeVisible({ timeout: 10000 })
-  await input.fill(text)
+  const tagName = await input.evaluate((element) => element.tagName.toLowerCase())
+  if (tagName === "textarea" || tagName === "input") {
+    await input.fill(text)
+  } else {
+    await input.click()
+    await input.type(text)
+  }
   const sendButton = page.locator(sendButtonSelector).first()
   if (await sendButton.isVisible().catch(() => false)) {
     await sendButton.click()

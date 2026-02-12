@@ -30,17 +30,16 @@ function wrapLabel(id: string, label: string, shape: NodeShape): string {
 // ---------------------------------------------------------------------------
 
 export function serializeToMermaid(graph: GraphIR): string {
-  const g = graph as any;
-  if (g.type === 'sequence') {
+  if (graph.type === 'sequence') {
     return serializeSequence(graph);
   }
-  if (g.type === 'class') {
+  if (graph.type === 'class') {
     return serializeClass(graph);
   }
-  if (g.type === 'state') {
+  if (graph.type === 'state') {
     return serializeState(graph);
   }
-  if (g.type === 'er') {
+  if (graph.type === 'er') {
     return serializeER(graph);
   }
 

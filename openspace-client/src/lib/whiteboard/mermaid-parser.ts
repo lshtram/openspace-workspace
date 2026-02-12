@@ -193,13 +193,13 @@ function parseClassDiagram(lines: string[]): GraphIR {
     }
 
     if (targetClass && targetClass.sections) {
-      const m = memberLine.match(memberRegex);
-      if (m) {
-        const [, visibility, content, params] = m;
-        const member: ClassMember = {
-          text: content.trim() + (params !== undefined ? `(${params})` : ''),
-          visibility: (visibility as any) || undefined,
-        };
+        const m = memberLine.match(memberRegex);
+        if (m) {
+          const [, visibility, content, params] = m;
+          const member: ClassMember = {
+            text: content.trim() + (params !== undefined ? `(${params})` : ''),
+            visibility: visibility as ClassMember['visibility'] | undefined,
+          };
         
         if (params !== undefined) {
           targetClass.sections.methods.push(member);
@@ -298,11 +298,17 @@ function parseERDiagram(lines: string[]): GraphIR {
 // ---------------------------------------------------------------------------
 // Other Stubs
 // ---------------------------------------------------------------------------
-function parseGantt(_lines: string[]): GraphIR { return emptyGraph('LR', 'gantt'); }
-function parseMindmap(_lines: string[]): GraphIR { return emptyGraph('LR', 'mindmap'); }
-function parseC4(_lines: string[]): GraphIR {
+function parseGantt(lines: string[]): GraphIR {
+  void lines;
+  return emptyGraph('LR', 'gantt');
+}
+function parseMindmap(lines: string[]): GraphIR {
+  void lines;
+  return emptyGraph('LR', 'mindmap');
+}
+function parseC4(lines: string[]): GraphIR {
   // Use code content for flowchart fallback
-  return parseFlowchart(_lines.join('\n'));
+  return parseFlowchart(lines.join('\n'));
 }
 
 // ---------------------------------------------------------------------------
@@ -474,7 +480,7 @@ function parseNodeToken(token: string): ShapeParse | null {
   if (!token) return null;
 
   // Shapes: A["label"], A("label"), A{"label"}, A(("label")), A(["label"]), A{{"label"}}
-  const match = token.match(/^(\w[\w-]*)(?:([\[\(\{]+(?:"?)(.*?)(?:"?)[\]\)\}]+))?$/);
+  const match = token.match(/^(\w[\w-]*)(?:((?:\[|\(|\{)+(?:"?)(.*?)(?:"?)(?:\]|\)|\})+))?$/);
   if (!match) return { id: token, label: token, shape: 'rectangle' };
 
   const [, id, bracket, label] = match;

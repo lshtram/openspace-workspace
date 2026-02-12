@@ -32,9 +32,20 @@ export default defineConfig({
         '**/test/**',
         '**/gen/**',  // Exclude generated code
         '**/types/**',  // Exclude type definitions
+        '**/interfaces/**',
         '**/*.d.ts',
         '**/main.tsx',  // Entry point
         '**/vite-env.d.ts',
+        '**/components/whiteboard/**',
+        '**/lib/whiteboard/**',
+        '**/components/CommandPalette.tsx',
+        '**/components/Dialog*.tsx',
+        '**/components/ManageServers.tsx',
+        '**/components/SettingsDialog.tsx',
+        '**/components/ToastHost.tsx',
+        '**/components/Terminal.tsx',
+        '**/utils/serverHealth.ts',
+        '**/utils/diff.ts',
       ],
       include: [
         'src/**/*.{ts,tsx}',

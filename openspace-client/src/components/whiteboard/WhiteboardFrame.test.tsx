@@ -84,7 +84,6 @@ vi.mock('../../lib/whiteboard/reconcile', () => ({
 describe('WhiteboardFrame', () => {
   let excalidrawSetDataMock: ReturnType<typeof vi.fn>;
   let mermaidSetDataMock: ReturnType<typeof vi.fn>;
-  let excalidrawRemoteChange: ((data: { elements: readonly any[] }, actor: 'user' | 'agent') => void) | undefined;
   let mermaidRemoteChange: ((mmd: string, actor: 'user' | 'agent') => void) | undefined;
 
   beforeEach(() => {
@@ -92,7 +91,6 @@ describe('WhiteboardFrame', () => {
     latestApi = null;
     excalidrawSetDataMock = vi.fn();
     mermaidSetDataMock = vi.fn();
-    excalidrawRemoteChange = undefined;
     mermaidRemoteChange = undefined;
 
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -108,7 +106,6 @@ describe('WhiteboardFrame', () => {
     );
     useArtifactMock.mockImplementation((path: string, options?: { onRemoteChange?: (...args: any[]) => void }) => {
       if (path.endsWith('.excalidraw')) {
-        excalidrawRemoteChange = options?.onRemoteChange as typeof excalidrawRemoteChange;
         return {
           data: { elements: [] },
           setData: excalidrawSetDataMock,

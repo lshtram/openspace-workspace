@@ -13,24 +13,10 @@ import {
   FILE_TREE_REFRESH_EVENT,
   WATCHER_REFRESH_MIN_INTERVAL_MS,
   buildFileTreeRefreshKey,
-  assertNonEmptyString,
   type FileWatcherUpdatedProperties,
   type FileTreeRefreshDetail,
 } from "../types/fileWatcher"
 
-type FileWatcherEvent = {
-  file: string
-  event: "add" | "change" | "unlink"
-}
-
-type FileWatcherUpdateDetail = {
-  directory: string
-  file: string
-  event: "add" | "change" | "unlink"
-  timestamp: number
-}
-
-const FILE_WATCHER_UPDATED_EVENT = "openspace:file-watcher-updated"
 const MIN_INTERVAL_MS = 1000
 
 function assertValidHookInput(sessionId: string | undefined) {
@@ -50,14 +36,6 @@ function logExternalIo(stage: "start" | "success" | "failure", message: string, 
     return
   }
   console.info(prefix)
-}
-
-function parseFileWatcherEvent(properties: Record<string, unknown> | undefined): FileWatcherEvent | null {
-  const file = properties?.file
-  const event = properties?.event
-  if (typeof file !== "string" || file.trim().length === 0) return null
-  if (event !== "add" && event !== "change" && event !== "unlink") return null
-  return { file, event }
 }
 
 const updateMessageEntries = (
@@ -175,8 +153,8 @@ const getEnvelopeDedupeKey = (envelope: { type: string; properties?: Record<stri
 export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   assertValidHookInput(sessionId)
   const queryClient = useQueryClient()
-  const directory = directoryProp ?? openCodeService.directory
-  assertNonEmptyString(directory, "directory")
+  const rawDirectory = directoryProp ?? openCodeService.directory
+  const directory = typeof rawDirectory === "string" ? rawDirectory.trim() : ""
   const server = useServer()
   const lastErrorRef = useRef(0)
   const hasShownErrorRef = useRef(false)
@@ -184,7 +162,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
   const pendingQuestionMapRef = useRef<Map<string, QuestionRequest>>(new Map())
 
   useEffect(() => {
-    if (!sessionId) return
+    if (!sessionId || !directory) return
     const controller = new AbortController()
     let alive = true
     const pendingWatcherFiles = new Set<string>()
@@ -216,8 +194,7 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
     }
 
     const scheduleWatcherRefresh = (targetDirectory: string, filePath: string) => {
-      assertNonEmptyString(targetDirectory, "targetDirectory")
-      assertNonEmptyString(filePath, "filePath")
+      if (!targetDirectory || !filePath) return
       pendingWatcherFiles.add(filePath)
       if (watcherRefreshTimer !== null) return
 
@@ -399,21 +376,6 @@ export function useSessionEvents(sessionId?: string, directoryProp?: string) {
             }))
           },
         )
-        return
-      }
-
-      if (envelope.type === "file.watcher.updated") {
-        const watcherEvent = parseFileWatcherEvent(envelope.properties)
-        if (!watcherEvent || !directory) return
-        if (typeof window !== "undefined") {
-          const detail: FileWatcherUpdateDetail = {
-            directory,
-            file: watcherEvent.file,
-            event: watcherEvent.event,
-            timestamp: Date.now(),
-          }
-          window.dispatchEvent(new CustomEvent(FILE_WATCHER_UPDATED_EVENT, { detail }))
-        }
         return
       }
 

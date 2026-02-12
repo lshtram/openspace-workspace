@@ -41,7 +41,7 @@ describe("useArtifact", () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(fetchMock).toHaveBeenCalledWith(`${hubUrl}/artifacts/${filePath}`)
+    expect(fetchMock).toHaveBeenCalledWith(`${hubUrl}/files/${filePath}`)
     expect(result.current.data).toBe("hello")
     expect(result.current.error).toBeNull()
   })
@@ -201,6 +201,43 @@ describe("useArtifact", () => {
     })
 
     expect(onRemoteChange).toHaveBeenCalledWith("updated", "agent")
+  })
+
+  it("handles canonical ARTIFACT_UPDATED events", async () => {
+    const responses = [
+      new Response("initial", { status: 200 }),
+      new Response("updated-from-canonical", { status: 200 }),
+    ]
+    fetchMock.mockImplementation(() => Promise.resolve(responses.shift() ?? new Response("updated-from-canonical", { status: 200 })))
+
+    const onRemoteChange = vi.fn()
+
+    const { result } = renderHook(() => useArtifact(filePath, { onRemoteChange }))
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false)
+    })
+
+    const eventSource = eventSourceMock.getLatest()
+
+    act(() => {
+      eventSource.emitOpen()
+      eventSource.emitMessage(
+        JSON.stringify({
+          type: "ARTIFACT_UPDATED",
+          artifact: filePath,
+          actor: "agent",
+          modality: "whiteboard",
+          timestamp: new Date().toISOString(),
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(result.current.data).toBe("updated-from-canonical")
+    })
+
+    expect(onRemoteChange).toHaveBeenCalledWith("updated-from-canonical", "agent")
   })
 
   it("falls back to raw content when parse throws", async () => {

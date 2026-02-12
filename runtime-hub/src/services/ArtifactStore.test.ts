@@ -36,7 +36,7 @@ describe('ArtifactStore', () => {
   it('should serialize concurrent writes', async () => {
     const filePath = 'counter.txt';
     const writes = 10;
-    const promises = [];
+    const promises: Array<Promise<void>> = [];
 
     // We want to test that they are executed one by one.
     // We can mock fs.writeFile to track calls.
@@ -102,5 +102,30 @@ describe('ArtifactStore', () => {
     const renameCall = spy.mock.calls[0];
     expect(renameCall[0]).toContain('.tmp');
     expect(renameCall[1]).toContain(filePath);
+  });
+
+  it('emits canonical ARTIFACT_UPDATED events', async () => {
+    const eventPromise = new Promise<unknown>((resolve) => {
+      store.once('ARTIFACT_UPDATED', resolve);
+    });
+
+    await store.write('design/canonical.graph.mmd', 'graph TD\nA-->B', {
+      actor: 'agent',
+      reason: 'canonical event test',
+    });
+
+    const event = (await eventPromise) as {
+      type: string;
+      modality: string;
+      artifact: string;
+      actor: string;
+      timestamp: string;
+    };
+
+    expect(event.type).toBe('ARTIFACT_UPDATED');
+    expect(event.modality).toBe('whiteboard');
+    expect(event.artifact).toBe('design/canonical.graph.mmd');
+    expect(event.actor).toBe('agent');
+    expect(typeof event.timestamp).toBe('string');
   });
 });

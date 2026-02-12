@@ -129,6 +129,32 @@ interface BroadcastMessage<T> {
   timestamp: number;
 }
 
+interface LegacyFileChangedEvent {
+  type: 'FILE_CHANGED';
+  path: string;
+  actor: 'user' | 'agent';
+}
+
+interface CanonicalArtifactEvent {
+  type: 'ARTIFACT_UPDATED' | 'PATCH_APPLIED' | 'VALIDATION_FAILED';
+  artifact: string;
+  actor: 'user' | 'agent' | 'system';
+}
+
+type ArtifactEvent = LegacyFileChangedEvent | CanonicalArtifactEvent;
+
+const isRelevantArtifactEvent = (event: ArtifactEvent, filePath: string): event is LegacyFileChangedEvent | CanonicalArtifactEvent => {
+  if (event.type === 'FILE_CHANGED') {
+    return event.path === filePath && event.actor === 'agent';
+  }
+
+  if (event.type === 'ARTIFACT_UPDATED' || event.type === 'PATCH_APPLIED') {
+    return event.artifact === filePath && event.actor === 'agent';
+  }
+
+  return false;
+};
+
 // ============================================================================
 // Default Options
 // ============================================================================
@@ -202,7 +228,7 @@ export function useArtifact<T = string>(
 
     try {
       logStart('load', { filePath });
-      const response = await fetch(`${HUB_URL}/artifacts/${filePath}`);
+      const response = await fetch(`${HUB_URL}/files/${filePath}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -261,9 +287,12 @@ export function useArtifact<T = string>(
         return;
       }
 
-      const response = await fetch(`${HUB_URL}/artifacts/${filePath}`, {
+      const response = await fetch(`${HUB_URL}/files/${filePath}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-openspace-write-mode': 'user-direct',
+        },
         body: JSON.stringify({
           content,
           opts: {
@@ -424,17 +453,17 @@ export function useArtifact<T = string>(
       try {
         if (event.data === ': heartbeat') return;
 
-        const update = JSON.parse(event.data);
+        const update = JSON.parse(event.data) as ArtifactEvent;
 
-        if (
-          update.type === 'FILE_CHANGED' &&
-          update.path === stateRef.current.filePath &&
-          update.actor !== 'user'
-        ) {
-          logStart('sse-reload', { filePath, actor: update.actor });
+        if (isRelevantArtifactEvent(update, stateRef.current.filePath)) {
+          logStart('sse-reload', {
+            filePath,
+            actor: update.actor,
+            eventType: update.type,
+          });
 
           // Fetch latest content
-          const response = await fetch(`${HUB_URL}/artifacts/${filePath}`);
+          const response = await fetch(`${HUB_URL}/files/${filePath}`);
           if (!response.ok) {
             logFailure('sse-reload', { filePath, status: response.status, error: response.statusText });
             return;
@@ -454,7 +483,7 @@ export function useArtifact<T = string>(
             lastSavedRef.current = parsed;
             lastTimestampRef.current = Date.now();
 
-            onRemoteChangeRef.current?.(parsed, update.actor);
+            onRemoteChangeRef.current?.(parsed, 'agent');
             logSuccess('sse-reload', { filePath, status: response.status });
           }
         }

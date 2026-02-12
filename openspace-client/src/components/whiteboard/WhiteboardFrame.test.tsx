@@ -209,4 +209,27 @@ describe('WhiteboardFrame', () => {
     expect(body.opts.reason).toBe('whiteboard snapshot send-to-agent');
     expect(promptMock).toHaveBeenCalledTimes(1);
   });
+
+  it('posts canonical active context to /context/active', async () => {
+    render(<WhiteboardFrame filePath="design/test.graph.mmd" />);
+
+    await screen.findByTestId('excalidraw');
+
+    await waitFor(() => {
+      const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+      const contextCall = fetchMock.mock.calls.find((call: any[]) =>
+        String(call[0]).includes('/context/active'),
+      );
+
+      expect(contextCall).toBeDefined();
+      const requestInit = contextCall?.[1] as RequestInit;
+      const body = JSON.parse(requestInit.body as string) as {
+        modality: string;
+        data: { path: string };
+      };
+
+      expect(body.modality).toBe('whiteboard');
+      expect(body.data.path).toBe('design/test.graph.mmd');
+    });
+  });
 });

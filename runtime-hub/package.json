@@ -8,7 +8,7 @@
     "start:modality": "tsx src/mcp/modality-mcp.ts",
     "start:whiteboard": "tsx src/mcp/whiteboard-mcp.ts",
     "build": "tsc",
-    "test": "vitest run"
+    "test": "node ./node_modules/vitest/vitest.mjs run"
   },
   "keywords": [],
   "author": "",

@@ -1,37 +1,29 @@
-import { 
-  createShapeId, 
-} from '@tldraw/tldraw';
-import type { 
-  TLShape, 
-  TLGeoShape, 
-  TLArrowShape,
-  // TLShapeId, // Not used explicitly
-  IndexKey
-} from '@tldraw/tldraw';
-import type { IDiagram, IDiagramNode, IDiagramEdge } from '../../interfaces/IDrawing';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createShapeId } from '@tldraw/tldraw';
+import type { TLArrowShape, TLGeoShape, TLShape } from '@tldraw/tldraw';
+import type { IDiagram, IDiagramEdge, IDiagramNode } from '../../interfaces/IDrawing';
 
 /**
- * Maps our canonical IDiagram to tldraw shapes.
+ * Maps canonical IDiagram to tldraw shapes.
  */
 export function diagramToTldrawShapes(diagram: IDiagram): TLShape[] {
   const shapes: TLShape[] = [];
-  
-  // Nodes
-  diagram.nodes.forEach((node, i) => {
+
+  diagram.nodes.forEach((node, index) => {
     shapes.push({
       id: createShapeId(node.id),
       type: 'geo',
       x: node.layout.x,
       y: node.layout.y,
       rotation: 0,
-      index: `a${i}` as IndexKey,
+      index: `a${index}` as any,
       parentId: 'page:page' as any,
       isLocked: node.layout.locked || false,
       opacity: 1,
       meta: {
         kind: node.kind,
         semantics: node.semantics,
-        styleToken: node.styleToken
+        styleToken: node.styleToken,
       },
       props: {
         w: node.layout.w,
@@ -49,40 +41,39 @@ export function diagramToTldrawShapes(diagram: IDiagram): TLShape[] {
         growY: 0,
         url: '',
       },
-      typeName: 'shape'
+      typeName: 'shape',
     } as unknown as TLGeoShape);
   });
 
-  // Edges
-  diagram.edges.forEach((edge, i) => {
+  diagram.edges.forEach((edge, index) => {
     shapes.push({
       id: createShapeId(edge.id),
       type: 'arrow',
       x: 0,
       y: 0,
       rotation: 0,
-      index: `a${diagram.nodes.length + i}` as IndexKey,
+      index: `a${diagram.nodes.length + index}` as any,
       parentId: 'page:page' as any,
       isLocked: false,
       opacity: 1,
       meta: {
         relation: edge.relation,
-        styleToken: edge.styleToken
+        styleToken: edge.styleToken,
       },
       props: {
         arrowheadStart: 'none',
         arrowheadEnd: 'arrow',
-        start: { 
-          type: 'binding', 
-          boundShapeId: createShapeId(edge.from), 
-          normalizedAnchor: { x: 0.5, y: 0.5 }, 
-          isExact: false 
+        start: {
+          type: 'binding',
+          boundShapeId: createShapeId(edge.from),
+          normalizedAnchor: { x: 0.5, y: 0.5 },
+          isExact: false,
         },
-        end: { 
-          type: 'binding', 
-          boundShapeId: createShapeId(edge.to), 
-          normalizedAnchor: { x: 0.5, y: 0.5 }, 
-          isExact: false 
+        end: {
+          type: 'binding',
+          boundShapeId: createShapeId(edge.to),
+          normalizedAnchor: { x: 0.5, y: 0.5 },
+          isExact: false,
         },
         text: edge.label || '',
         bend: 0,
@@ -93,9 +84,9 @@ export function diagramToTldrawShapes(diagram: IDiagram): TLShape[] {
         size: 'm',
         font: 'draw',
         align: 'middle',
-        scale: 1
+        scale: 1,
       },
-      typeName: 'shape'
+      typeName: 'shape',
     } as unknown as TLArrowShape);
   });
 
@@ -103,9 +94,8 @@ export function diagramToTldrawShapes(diagram: IDiagram): TLShape[] {
 }
 
 /**
- * Maps tldraw shapes back to our canonical IDiagram.
+ * Maps tldraw shapes back to canonical IDiagram shape data.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function tldrawShapesToDiagram(shapes: TLShape[], _bindings: any[] = []): IDiagram {
   const nodes: IDiagramNode[] = [];
   const edges: IDiagramEdge[] = [];
@@ -127,9 +117,11 @@ export function tldrawShapesToDiagram(shapes: TLShape[], _bindings: any[] = []):
         semantics: (shape.meta?.semantics as any) || {},
         styleToken: (shape.meta?.styleToken as string) || '',
       });
-    } else if (shape.type === 'arrow') {
+      continue;
+    }
+
+    if (shape.type === 'arrow') {
       const props = shape.props as any;
-      // Only include edges that are bound to nodes
       if (props.start?.boundShapeId && props.end?.boundShapeId) {
         edges.push({
           id: shape.id.replace(/^shape:/, ''),

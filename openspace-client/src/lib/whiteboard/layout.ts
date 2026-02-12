@@ -20,6 +20,8 @@ interface LayoutStrategy {
   layoutNewNodes(graph: GraphIR, newNodeIds: Set<string>, opts: Required<LayoutOptions>): GraphNode[];
 }
 
+type SequenceLayoutNode = GraphNode & { _sequenceMaxY?: number }
+
 // ---------------------------------------------------------------------------
 // Layout options
 // ---------------------------------------------------------------------------
@@ -318,7 +320,7 @@ const SequenceStrategy: LayoutStrategy = {
     const totalHeight = currentY + o.ranksep;
     nodes.forEach(node => {
       if (node.geometry) {
-        (node as any)._sequenceMaxY = totalHeight;
+        (node as SequenceLayoutNode)._sequenceMaxY = totalHeight;
       }
     });
 

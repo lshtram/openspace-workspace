@@ -84,7 +84,6 @@ vi.mock('../../lib/whiteboard/reconcile', () => ({
 describe('WhiteboardFrame', () => {
   let excalidrawSetDataMock: ReturnType<typeof vi.fn>;
   let mermaidSetDataMock: ReturnType<typeof vi.fn>;
-  let excalidrawRemoteChange: ((data: { elements: readonly any[] }, actor: 'user' | 'agent') => void) | undefined;
   let mermaidRemoteChange: ((mmd: string, actor: 'user' | 'agent') => void) | undefined;
 
   beforeEach(() => {
@@ -92,7 +91,6 @@ describe('WhiteboardFrame', () => {
     latestApi = null;
     excalidrawSetDataMock = vi.fn();
     mermaidSetDataMock = vi.fn();
-    excalidrawRemoteChange = undefined;
     mermaidRemoteChange = undefined;
 
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -108,7 +106,6 @@ describe('WhiteboardFrame', () => {
     );
     useArtifactMock.mockImplementation((path: string, options?: { onRemoteChange?: (...args: any[]) => void }) => {
       if (path.endsWith('.excalidraw')) {
-        excalidrawRemoteChange = options?.onRemoteChange as typeof excalidrawRemoteChange;
         return {
           data: { elements: [] },
           setData: excalidrawSetDataMock,
@@ -211,5 +208,28 @@ describe('WhiteboardFrame', () => {
     expect(body.encoding).toBe('base64');
     expect(body.opts.reason).toBe('whiteboard snapshot send-to-agent');
     expect(promptMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('posts canonical active context to /context/active', async () => {
+    render(<WhiteboardFrame filePath="design/test.graph.mmd" />);
+
+    await screen.findByTestId('excalidraw');
+
+    await waitFor(() => {
+      const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+      const contextCall = fetchMock.mock.calls.find((call: any[]) =>
+        String(call[0]).includes('/context/active'),
+      );
+
+      expect(contextCall).toBeDefined();
+      const requestInit = contextCall?.[1] as RequestInit;
+      const body = JSON.parse(requestInit.body as string) as {
+        modality: string;
+        data: { path: string };
+      };
+
+      expect(body.modality).toBe('whiteboard');
+      expect(body.data.path).toBe('design/test.graph.mmd');
+    });
   });
 });

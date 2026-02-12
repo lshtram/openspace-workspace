@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 import { useServer } from "../context/ServerContext"
-import { assertNonEmptyString } from "../types/fileWatcher"
 
 export const fileStatusQueryKey = (serverUrl?: string, directory?: string) => ["file-status", serverUrl, directory]
 
 export function useFileStatus(directoryProp?: string) {
   const server = useServer()
-  const directory = directoryProp ?? openCodeService.directory
-  assertNonEmptyString(directory, "directory")
+  const rawDirectory = directoryProp ?? openCodeService.directory
+  const directory = typeof rawDirectory === "string" ? rawDirectory.trim() : ""
+  const hasDirectory = directory.length > 0
+
   return useQuery({
     queryKey: fileStatusQueryKey(server.activeUrl, directory),
+    enabled: hasDirectory,
     queryFn: async () => {
       const startTimestamp = new Date().toISOString()
       console.info(`[useFileStatus] file.status start ${startTimestamp}`, { directory })

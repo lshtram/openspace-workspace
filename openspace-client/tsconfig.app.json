@@ -31,5 +31,9 @@
       "@types/*": ["src/types/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/components/whiteboard/TldrawWhiteboard.tsx",
+    "src/lib/whiteboard/tldrawMapper.ts"
+  ]
 }

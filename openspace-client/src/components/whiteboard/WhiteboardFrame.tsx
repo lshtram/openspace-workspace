@@ -239,10 +239,13 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
           throw new Error('Missing Mermaid file path');
         }
         logActiveContext('start', { filePath: mmdPath });
-        await fetch(`${HUB_URL}/context/active-whiteboard`, {
+        await fetch(`${HUB_URL}/context/active`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath: mmdPath }),
+          body: JSON.stringify({
+            modality: 'whiteboard',
+            data: { path: mmdPath },
+          }),
         });
         logActiveContext('success', { filePath: mmdPath });
       } catch (err) {
@@ -271,7 +274,10 @@ export const WhiteboardFrame: React.FC<WhiteboardFrameProps> = ({ filePath, sess
       try {
         const response = await fetch(`${HUB_URL}/files/${snapshotPath}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-openspace-write-mode': 'user-direct',
+          },
           body: JSON.stringify({
             content: base64,
             encoding: 'base64',

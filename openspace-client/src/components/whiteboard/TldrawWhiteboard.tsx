@@ -15,7 +15,6 @@ interface TldrawWhiteboardProps {
   sessionId?: string;
 }
 
-
 export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, sessionId }) => {
   const [editor, setEditor] = useState<Editor | null>(null);
   const isRemoteUpdateRef = useRef(false);
@@ -30,100 +29,97 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
     connected,
   } = useArtifact<IDiagram>(filePath, {
     parse: (content) => JSON.parse(content),
-    serialize: (data) => JSON.stringify(data, null, 2),
+    serialize: (next) => JSON.stringify(next, null, 2),
     debounceMs: 1000,
     onRemoteChange: (newData) => {
       if (!editor) return;
-      
+
       console.log(`[${new Date().toISOString()}] ARTIFACT_REMOTE_CHANGE: ${filePath}`);
       isRemoteUpdateRef.current = true;
-      
+
       const shapes = diagramToTldrawShapes(newData);
-      
+
       editor.run(() => {
-        // Update or create shapes
         editor.updateShapes(shapes);
-        
-        // Find shapes to remove (those in editor but not in remote)
-        const remoteShapeIds = new Set(shapes.map(s => s.id));
-        const shapesToRemove = editor.getCurrentPageShapes()
-            .filter(s => !remoteShapeIds.has(s.id))
-            .map(s => s.id);
-        
+
+        const remoteShapeIds = new Set(shapes.map((shape) => shape.id));
+        const shapesToRemove = editor
+          .getCurrentPageShapes()
+          .filter((shape) => !remoteShapeIds.has(shape.id))
+          .map((shape) => shape.id);
+
         if (shapesToRemove.length > 0) {
-            editor.deleteShapes(shapesToRemove);
+          editor.deleteShapes(shapesToRemove);
         }
       });
-      
+
       isRemoteUpdateRef.current = false;
-    }
+    },
   });
 
   const handleChange = useCallback((editorInstance: Editor) => {
     if (isRemoteUpdateRef.current || isInitialLoadRef.current) return;
-    
-    // Get all shapes from the current page
+
     const shapes = editorInstance.getCurrentPageShapes() as TLShape[];
-    
     const partialDiagram = tldrawShapesToDiagram(shapes);
-    
-    setData(prev => {
-        if (!prev) {
-            return {
-                schemaVersion: '1.0',
-                diagramType: 'generic',
-                metadata: { 
-                    title: filePath, 
-                    createdAt: new Date().toISOString(), 
-                    updatedAt: new Date().toISOString() 
-                },
-                style: { theme: 'light', tokens: {} },
-                nodes: partialDiagram.nodes || [],
-                edges: partialDiagram.edges || [],
-                groups: [],
-                constraints: [],
-                sourceRefs: {}
-            } as IDiagram;
-        }
 
-        // Deep equality check for nodes and edges to avoid unnecessary updates
-        if (JSON.stringify(prev.nodes) === JSON.stringify(partialDiagram.nodes) && 
-            JSON.stringify(prev.edges) === JSON.stringify(partialDiagram.edges)) {
-            return prev;
-        }
-
+    setData((prev) => {
+      if (!prev) {
         return {
-            ...prev,
-            nodes: partialDiagram.nodes || [],
-            edges: partialDiagram.edges || [],
-            metadata: {
-                ...prev.metadata,
-                updatedAt: new Date().toISOString()
-            }
-        };
+          schemaVersion: '1.0',
+          diagramType: 'generic',
+          metadata: {
+            title: filePath,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          style: { theme: 'light', tokens: {} },
+          nodes: partialDiagram.nodes || [],
+          edges: partialDiagram.edges || [],
+          groups: [],
+          constraints: [],
+          sourceRefs: {},
+        } as IDiagram;
+      }
+
+      if (
+        JSON.stringify(prev.nodes) === JSON.stringify(partialDiagram.nodes) &&
+        JSON.stringify(prev.edges) === JSON.stringify(partialDiagram.edges)
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        nodes: partialDiagram.nodes || [],
+        edges: partialDiagram.edges || [],
+        metadata: {
+          ...prev.metadata,
+          updatedAt: new Date().toISOString(),
+        },
+      };
     });
   }, [setData, filePath]);
 
-  const handleMount = useCallback((editor: Editor) => {
-    setEditor(editor);
-    
-    unlistenRef.current = editor.store.listen(() => {
-        handleChange(editor);
+  const handleMount = useCallback((editorInstance: Editor) => {
+    setEditor(editorInstance);
+
+    unlistenRef.current = editorInstance.store.listen(() => {
+      handleChange(editorInstance);
     }, { source: 'user', scope: 'document' });
   }, [handleChange]);
 
   useEffect(() => {
     return () => {
-        if (unlistenRef.current) {
-            unlistenRef.current();
-        }
+      if (unlistenRef.current) {
+        unlistenRef.current();
+      }
     };
   }, []);
 
-  // Sync initial data
   useEffect(() => {
     if (!editor || !data || !isInitialLoadRef.current) return;
-    
+
     console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath}`);
     isRemoteUpdateRef.current = true;
     const shapes = diagramToTldrawShapes(data);
@@ -135,23 +131,23 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
 
   const onSendToAgent = async () => {
     if (!data) return;
-    
+
     try {
-        console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_START: ${filePath}`);
-        if (sessionId) {
-            await openCodeService.client.session.prompt({
-                sessionID: sessionId,
-                directory: openCodeService.directory,
-                parts: [
-                    { type: 'text', text: `I've updated the diagram in ${filePath}.` },
-                ]
-            });
-            pushToast({ title: 'Diagram sent to Agent', tone: 'success' });
-            console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_SUCCESS: ${filePath}`);
-        }
+      console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_START: ${filePath}`);
+      if (sessionId) {
+        await openCodeService.client.session.prompt({
+          sessionID: sessionId,
+          directory: openCodeService.directory,
+          parts: [
+            { type: 'text', text: `I've updated the diagram in ${filePath}.` },
+          ],
+        });
+        pushToast({ title: 'Diagram sent to Agent', tone: 'success' });
+        console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_SUCCESS: ${filePath}`);
+      }
     } catch (err: any) {
-        console.error(`[${new Date().toISOString()}] SEND_TO_AGENT_FAIL: ${filePath}`, err);
-        pushToast({ title: 'Failed to send to Agent', description: err.message, tone: 'error' });
+      console.error(`[${new Date().toISOString()}] SEND_TO_AGENT_FAIL: ${filePath}`, err);
+      pushToast({ title: 'Failed to send to Agent', description: err.message, tone: 'error' });
     }
   };
 
@@ -193,9 +189,9 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
         </div>
       </div>
       <div className="flex-1 relative">
-        <Tldraw 
-            onMount={handleMount}
-            autoFocus
+        <Tldraw
+          onMount={handleMount}
+          autoFocus
         />
       </div>
     </div>

@@ -2,9 +2,21 @@ import fs from 'fs/promises';
 import path from 'path';
 import PQueue from 'p-queue';
 import { EventEmitter } from 'events';
+import { createPlatformEvent } from '../interfaces/platform.js';
 
 // @ts-ignore
 const PQueueCtor = (PQueue.default || PQueue) as any;
+const now = () => new Date().toISOString();
+
+const logIo = (status: 'start' | 'success' | 'failure', operation: string, meta: Record<string, unknown>) => {
+  const payload = { ...meta, ts: now() };
+  const prefix = `[${payload.ts}] ARTIFACT_${operation}_${status.toUpperCase()}`;
+  if (status === 'failure') {
+    console.error(prefix, payload);
+    return;
+  }
+  console.log(prefix, payload);
+};
 
 export interface WriteOptions {
   actor: 'user' | 'agent';
@@ -54,15 +66,28 @@ export class ArtifactStore extends EventEmitter {
     return absolutePath;
   }
 
+  private inferModality(filePath: string): string {
+    if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw')) {
+      return 'whiteboard';
+    }
+    return 'editor';
+  }
+
   /**
    * Universal Read Method
    */
   async read(filePath: string): Promise<Buffer> {
     const absolutePath = this.resolvePath(filePath);
     try {
-      return await fs.readFile(absolutePath);
+      logIo('start', 'READ', { filePath });
+      const data = await fs.readFile(absolutePath);
+      logIo('success', 'READ', { filePath, bytes: data.byteLength });
+      return data;
     } catch (error) {
-      console.error(`[ArtifactStore] Failed to read ${filePath}:`, error);
+      logIo('failure', 'READ', {
+        filePath,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -80,6 +105,7 @@ export class ArtifactStore extends EventEmitter {
 
     return this.queue.add(async () => {
       try {
+        logIo('start', 'WRITE', { filePath, actor: opts.actor });
         const exists = await fs.access(absolutePath).then(() => true).catch(() => false);
 
         // 1. Ensure directory exists
@@ -106,10 +132,22 @@ export class ArtifactStore extends EventEmitter {
 
         // 5. Broadcast Change
         this.emit('FILE_CHANGED', { path: filePath, actor: opts.actor });
+        this.emit(
+          'ARTIFACT_UPDATED',
+          createPlatformEvent('ARTIFACT_UPDATED', {
+            modality: this.inferModality(filePath),
+            artifact: filePath,
+            actor: opts.actor,
+          }),
+        );
         
-        console.log(`[ArtifactStore] Saved: ${filePath} by ${opts.actor} (${exists ? 'UPDATE' : 'CREATE'})`);
+        logIo('success', 'WRITE', { filePath, actor: opts.actor, action: exists ? 'UPDATE' : 'CREATE' });
       } catch (error) {
-        console.error(`[ArtifactStore] Failed to write ${filePath}:`, error);
+        logIo('failure', 'WRITE', {
+          filePath,
+          actor: opts.actor,
+          error: error instanceof Error ? error.message : String(error),
+        });
         throw error;
       }
     });
@@ -139,6 +177,7 @@ export class ArtifactStore extends EventEmitter {
 
   private async createBackup(filePath: string, absolutePath: string): Promise<void> {
     try {
+      logIo('start', 'BACKUP', { filePath });
       const historyDir = path.join(this.projectRoot, '.opencode', 'artifacts', 'history', filePath);
       await fs.mkdir(historyDir, { recursive: true });
 
@@ -157,13 +196,18 @@ export class ArtifactStore extends EventEmitter {
           await fs.unlink(path.join(historyDir, file));
         }
       }
+      logIo('success', 'BACKUP', { filePath });
     } catch (error) {
-      console.warn(`[ArtifactStore] Backup failed for ${filePath}:`, error);
+      logIo('failure', 'BACKUP', {
+        filePath,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   private async logEvent(filePath: string, absolutePath: string, opts: WriteOptions, action: 'CREATE' | 'UPDATE'): Promise<void> {
     try {
+      logIo('start', 'EVENT_LOG', { filePath, action });
       const stats = await fs.stat(absolutePath);
       const event: ArtifactEvent = {
         ts: new Date().toISOString(),
@@ -178,8 +222,13 @@ export class ArtifactStore extends EventEmitter {
       const logPath = path.join(this.projectRoot, '.opencode', 'artifacts', 'events.ndjson');
       await fs.mkdir(path.dirname(logPath), { recursive: true });
       await fs.appendFile(logPath, JSON.stringify(event) + '\n');
+      logIo('success', 'EVENT_LOG', { filePath, action, size: stats.size });
     } catch (error) {
-      console.warn(`[ArtifactStore] Event logging failed:`, error);
+      logIo('failure', 'EVENT_LOG', {
+        filePath,
+        action,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

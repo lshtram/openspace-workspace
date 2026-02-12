@@ -2,6 +2,7 @@ import '@testing-library/jest-dom'
 import { beforeAll, afterEach, afterAll } from 'vitest'
 import { server } from './mocks/server'
 import { setupLocalStorageMock } from './utils/test-utils'
+import { openCodeService } from '../services/OpenCodeClient'
 
 // Mock ResizeObserver for Radix UI components
 globalThis.ResizeObserver = class ResizeObserver {
@@ -30,6 +31,7 @@ class MockEventSource {
 globalThis.EventSource = MockEventSource as typeof EventSource
 
 setupLocalStorageMock()
+openCodeService.setDirectory('/tmp')
 
 // Start MSW server before all tests
 beforeAll(() => {

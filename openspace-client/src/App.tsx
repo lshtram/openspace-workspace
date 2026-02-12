@@ -222,6 +222,11 @@ function App() {
     show(<DialogOpenFile directory={activeDirectory} />)
   }, [activeDirectory, show])
 
+  const handleOpenFileRef = useRef(handleOpenFile)
+  useEffect(() => {
+    handleOpenFileRef.current = handleOpenFile
+  }, [handleOpenFile])
+
   const handleDeleteSession = useCallback(
     (id: string) => {
       const remaining = sessions.filter((session) => session.id !== id)
@@ -235,6 +240,11 @@ function App() {
     },
     [activeSessionId, deleteSession, sessions, setActiveSession],
   )
+
+  const handleSelectAdjacentSessionRef = useRef(handleSelectAdjacentSession)
+  useEffect(() => {
+    handleSelectAdjacentSessionRef.current = handleSelectAdjacentSession
+  }, [handleSelectAdjacentSession])
 
   const startResizing = useCallback(() => {
     setIsResizingTerminal(true)
@@ -359,25 +369,25 @@ function App() {
         id: "new-session",
         title: "New Session",
         shortcut: shortcuts.newSession,
-        action: handleNewSession,
+        action: () => createSessionRef.current.mutate(),
       }),
       registerCommand({
         id: "previous-session",
         title: "Previous Session",
         shortcut: shortcuts.previousSession,
-        action: () => handleSelectAdjacentSession("previous"),
+        action: () => handleSelectAdjacentSessionRef.current("previous"),
       }),
       registerCommand({
         id: "next-session",
         title: "Next Session",
         shortcut: shortcuts.nextSession,
-        action: () => handleSelectAdjacentSession("next"),
+        action: () => handleSelectAdjacentSessionRef.current("next"),
       }),
       registerCommand({
         id: "open-file",
         title: "Open File",
         shortcut: shortcuts.openFile,
-        action: handleOpenFile,
+        action: () => handleOpenFileRef.current(),
       }),
       registerCommand({
         id: "toggle-sidebar",
@@ -399,12 +409,11 @@ function App() {
       }),
     ]
     return () => {
-      unregister.forEach((cleanup) => cleanup())
+      unregister.forEach((cleanup) => {
+        cleanup()
+      })
     }
   }, [
-    handleOpenFile,
-    handleNewSession,
-    handleSelectAdjacentSession,
     registerCommand,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
@@ -529,14 +538,14 @@ function App() {
                   </div>
                   {activeWhiteboardPath && (
                     <div className="w-1/2 relative bg-gray-50">
-                      {activeWhiteboardPath.endsWith('.diagram.json') ? (
-                        <TldrawWhiteboard 
-                          filePath={activeWhiteboardPath} 
+                      {activeWhiteboardPath.endsWith(".diagram.json") ? (
+                        <TldrawWhiteboard
+                          filePath={activeWhiteboardPath}
                           sessionId={activeSessionId}
                         />
                       ) : (
-                        <WhiteboardFrame 
-                          filePath={activeWhiteboardPath} 
+                        <WhiteboardFrame
+                          filePath={activeWhiteboardPath}
                           sessionId={activeSessionId}
                         />
                       )}

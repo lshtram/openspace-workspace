@@ -71,8 +71,9 @@ const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: stri
     return { ok: false, reason: 'Path traversal is not allowed' };
   }
 
-  if (!normalizedPath.startsWith('design/')) {
-    return { ok: false, reason: 'Artifacts must be under design/' };
+  const ALLOWED_ROOT_FILES = ['README.md', 'CONTRIBUTING.md'];
+  if (!normalizedPath.startsWith('design/') && !ALLOWED_ROOT_FILES.includes(normalizedPath)) {
+    return { ok: false, reason: 'Artifacts must be under design/ (except for root documentation)' };
   }
 
   return { ok: true, normalizedPath };

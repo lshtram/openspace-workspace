@@ -1,4 +1,4 @@
-import { ActiveContext, assertActiveContextPayload, normalizeArtifactPath } from './platform.js';
+import { ActiveContext, assertActiveContextPayload, normalizeWorkspacePath } from './platform.js';
 
 interface ParseOptions {
   legacyWhiteboardAlias?: boolean;
@@ -11,7 +11,30 @@ export function parseActiveContextRequest(body: unknown, options: ParseOptions =
       return {
         modality: 'whiteboard',
         data: {
-          path: normalizeArtifactPath(String(payload.filePath)),
+          path: normalizeWorkspacePath(String(payload.filePath)),
+        },
+      };
+    }
+  }
+
+  return assertActiveContextPayload(body);
+}
+
+export function parseActiveContextResponse(body: unknown): ActiveContext | null {
+  if (body === null) {
+    return null;
+  }
+
+  if (body && typeof body === 'object') {
+    const payload = body as {
+      activeWhiteboard?: unknown;
+    };
+
+    if (typeof payload.activeWhiteboard === 'string' && payload.activeWhiteboard.trim().length > 0) {
+      return {
+        modality: 'whiteboard',
+        data: {
+          path: normalizeWorkspacePath(payload.activeWhiteboard),
         },
       };
     }

@@ -25,13 +25,25 @@ describe('platform contracts', () => {
     expect(parsed.data.location?.startLine).toBe(1);
   });
 
-  it('rejects active context payloads outside design root', () => {
+  it('accepts non-design editor paths in unified context contract', () => {
+    const parsed = assertActiveContextPayload({
+      modality: 'editor',
+      data: {
+        path: 'src/main.ts',
+      },
+    });
+
+    expect(parsed.modality).toBe('editor');
+    expect(parsed.data.path).toBe('src/main.ts');
+  });
+
+  it('rejects active context payloads that escape workspace root', () => {
     expect(() =>
       assertActiveContextPayload({
         modality: 'whiteboard',
         data: { path: '../etc/passwd' },
       }),
-    ).toThrow('data.path must stay under design/');
+    ).toThrow('data.path must stay under workspace root');
   });
 
   it('accepts canonical patch request envelope', () => {

@@ -1,18 +1,47 @@
-import { describe, it, expect } from 'vitest';
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { describe, expect, it } from 'vitest';
+import { callToolHandler } from './modality-mcp.js';
 
-// We can't easily test the StdioServerTransport in a unit test,
-// but we can inspect the server's registered tools if we had access to them.
-// Since the server instance is local to the module, we might need to export it or test via a different approach.
+describe('modality-mcp contracts', () => {
+  it('validates and normalizes cross-modality handoff payloads', async () => {
+    const result = await callToolHandler({
+      params: {
+        name: 'modality.validate_handoff',
+        arguments: {
+          sourceModality: 'diff',
+          target: {
+            path: '/design/review.graph.mmd',
+          },
+          location: {
+            startLine: 4,
+            endLine: 5,
+          },
+        },
+      },
+    });
 
-describe('modality-mcp presentation tools registration', () => {
-  it('should define all required presentation tools', async () => {
-    // This is a bit of a hack since we can't easily access the internal 'server' variable
-    // without modifying modality-mcp.ts to export it.
-    // However, we can at least verify the file compiles and has the tool names in it.
-    
-    const content = await import('./modality-mcp.js');
-    // If it imports without error, it's a good sign.
-    expect(content).toBeDefined();
+    const parsed = JSON.parse(result.content[0].text as string) as {
+      sourceModality: string;
+      target: { path?: string };
+      location?: { startLine: number; endLine: number };
+    };
+
+    expect(parsed.sourceModality).toBe('diff');
+    expect(parsed.target.path).toBe('design/review.graph.mmd');
+    expect(parsed.location?.startLine).toBe(4);
+  });
+
+  it('rejects invalid handoff payloads', async () => {
+    const result = await callToolHandler({
+      params: {
+        name: 'modality.validate_handoff',
+        arguments: {
+          sourceModality: 'diff',
+          target: {},
+        },
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('target.path or target.id must be provided');
   });
 });

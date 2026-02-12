@@ -84,6 +84,9 @@ export class ArtifactStore extends EventEmitter {
         if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw')) {
             return 'whiteboard';
         }
+        if (filePath.endsWith('.deck.md')) {
+            return 'presentation';
+        }
         return 'editor';
     }
     /**

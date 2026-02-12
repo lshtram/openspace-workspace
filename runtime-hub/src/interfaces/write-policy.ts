@@ -41,3 +41,13 @@ export function assertUserDirectWriteMode(headerValue: string | undefined): void
     );
   }
 }
+
+export function assertLegacyWritePolicy(
+  opts: WriteOptions,
+  input: {
+    writeModeHeader: string | undefined;
+  },
+): void {
+  assertLegacyWriteAllowed(opts);
+  assertUserDirectWriteMode(input.writeModeHeader);
+}

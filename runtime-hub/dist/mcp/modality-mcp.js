@@ -5,10 +5,12 @@ import fetch from "node-fetch";
 import fs from "fs/promises";
 import path from "path";
 import { MIN_INTERVAL } from "../interfaces/platform.js";
+import { parseActiveContextResponse } from "../interfaces/context-contract.js";
+import { assertHandoffPayload } from "../interfaces/handoff-contract.js";
 const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
 const artifactVersions = new Map();
-const server = new Server({
+export const server = new Server({
     name: "modality-mcp-server",
     version: "0.1.0",
 }, {
@@ -28,6 +30,20 @@ const logIo = (status, operation, meta) => {
     console.log(prefix, payload);
 };
 const patchesStore = new Map();
+// Helper to validate drawing operations
+function validateDrawingOps(ops) {
+    if (!Array.isArray(ops))
+        return false;
+    for (const op of ops) {
+        if (!op || typeof op.type !== 'string')
+            return false;
+        // Basic type check for known operations
+        const knownTypes = ['addNode', 'updateNode', 'removeNode', 'addEdge', 'updateEdge', 'removeEdge', 'updateNodeLabel', 'updateNodeLayout'];
+        if (!knownTypes.includes(op.type))
+            return false;
+    }
+    return true;
+}
 // Helper Functions
 async function getActiveContext() {
     try {
@@ -37,9 +53,9 @@ async function getActiveContext() {
             logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, status: res.status });
             return null;
         }
-        const data = (await res.json());
-        if (!data?.data?.path) {
-            logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, reason: 'missing data.path' });
+        const rawData = (await res.json());
+        const data = parseActiveContextResponse(rawData);
+        if (!data) {
             return null;
         }
         logIo('success', 'CONTEXT_READ', { url: `${HUB_URL}/context/active` });
@@ -154,6 +170,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         tools: [
             // Whiteboard Tools (Legacy + Namespaced)
             {
+                name: "modality.validate_handoff",
+                description: "Validate and normalize a cross-modality handoff payload including source modality, target path/id, and optional location metadata",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        sourceModality: { type: "string" },
+                        target: {
+                            type: "object",
+                            properties: {
+                                path: { type: "string" },
+                                id: { type: "string" },
+                            },
+                        },
+                        location: {
+                            type: "object",
+                            properties: {
+                                startLine: { type: "integer" },
+                                endLine: { type: "integer" },
+                            },
+                        },
+                    },
+                    required: ["sourceModality", "target"],
+                },
+            },
+            {
                 name: "whiteboard.list",
                 description: "List all available whiteboard artifacts (.graph.mmd files) in the design directory",
                 inputSchema: {
@@ -192,10 +233,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["mermaid"],
                 },
             },
-            // Drawing Tools (Phase 1 Stubs)
+            // Drawing Tools
             {
                 name: "drawing.inspect_scene",
-                description: "Inspect the scene graph of a drawing artifact (Stub for Phase 1)",
+                description: "Inspect the scene graph of the currently active drawing",
                 inputSchema: {
                     type: "object",
                     properties: {},
@@ -203,18 +244,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: "drawing.propose_patch",
-                description: "Propose a patch to the drawing scene graph (Stub for Phase 1)",
+                description: "Propose a patch to the drawing scene graph",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        patch: { type: "object" },
+                        patch: {
+                            type: "array",
+                            items: { type: "object" },
+                            description: "Array of IOperation objects"
+                        },
+                        intent: {
+                            type: "string",
+                            description: "The purpose of this patch"
+                        }
                     },
                     required: ["patch"],
                 },
             },
             {
                 name: "drawing.apply_patch",
-                description: "Apply a patch to the drawing scene graph (Stub for Phase 1)",
+                description: "Apply a previously proposed patch to the drawing scene graph",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -223,12 +272,111 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["patchId"],
                 },
             },
+            // Presentation Tools
+            {
+                name: "presentation.list",
+                description: "List all available presentation decks (.deck.md files) in the design/deck directory",
+                inputSchema: {
+                    type: "object",
+                    properties: {},
+                },
+            },
+            {
+                name: "presentation.read",
+                description: "Read a presentation deck. If no name is provided, reads the currently active deck.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: {
+                            type: "string",
+                            description: "The name of the deck (e.g. 'Overview'). Optional if a deck is active.",
+                        },
+                    },
+                },
+            },
+            {
+                name: "presentation.update",
+                description: "Update a presentation deck content. If no name is provided, updates the currently active deck.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: {
+                            type: "string",
+                            description: "The name of the deck. Optional if active.",
+                        },
+                        content: {
+                            type: "string",
+                            description: "The full markdown content of the deck.",
+                        },
+                    },
+                    required: ["content"],
+                },
+            },
+            {
+                name: "presentation.read_slide",
+                description: "Read a specific slide from a deck.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: {
+                            type: "string",
+                            description: "The name of the deck. Optional if active.",
+                        },
+                        index: {
+                            type: "integer",
+                            description: "The slide index (0-based).",
+                        },
+                    },
+                    required: ["index"],
+                },
+            },
+            {
+                name: "presentation.update_slide",
+                description: "Update or insert a specific slide in a deck.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        name: {
+                            type: "string",
+                            description: "The name of the deck. Optional if active.",
+                        },
+                        index: {
+                            type: "integer",
+                            description: "The slide index (0-based).",
+                        },
+                        content: {
+                            type: "string",
+                            description: "The markdown content of the slide.",
+                        },
+                        operation: {
+                            type: "string",
+                            enum: ["replace", "insert", "delete"],
+                            description: "The operation to perform (default: replace).",
+                        },
+                    },
+                    required: ["index"],
+                },
+            },
         ],
     };
 });
 // Tool Handlers
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+export const callToolHandler = async (request) => {
     const { name, arguments: args } = request.params;
+    if (name === "modality.validate_handoff") {
+        try {
+            const payload = assertHandoffPayload(args ?? {});
+            return {
+                content: [{ type: "text", text: JSON.stringify(payload) }],
+            };
+        }
+        catch (error) {
+            return {
+                content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+                isError: true,
+            };
+        }
+    }
     // --- Whiteboard Tools ---
     if (name === "whiteboard.list") {
         try {
@@ -315,18 +463,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         try {
             const content = await readFile(ctx.data.path);
-            return { content: [{ type: "text", text: content }] };
+            const diagram = JSON.parse(content);
+            // Return a summarized view
+            const summary = {
+                title: diagram.metadata.title,
+                type: diagram.diagramType,
+                nodeCount: diagram.nodes.length,
+                edgeCount: diagram.edges.length,
+                nodes: diagram.nodes.map(n => ({ id: n.id, kind: n.kind, label: n.label })),
+                edges: diagram.edges.map(e => ({ id: e.id, from: e.from, to: e.to, relation: e.relation }))
+            };
+            return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
         }
         catch (error) {
             return { content: [{ type: "text", text: `Error inspecting scene: ${error.message}` }], isError: true };
         }
     }
     if (name === "drawing.propose_patch") {
-        const patch = args.patch;
+        const ops = args.patch;
+        const intent = args.intent || "Modified via drawing.propose_patch";
+        if (!validateDrawingOps(ops)) {
+            return {
+                content: [{ type: "text", text: "Invalid patch format. Must be an array of IOperation." }],
+                isError: true
+            };
+        }
         const patchId = `patch-${Date.now()}`;
-        patchesStore.set(patchId, patch);
+        patchesStore.set(patchId, { ops, intent });
         return {
-            content: [{ type: "text", text: `Patch proposed with ID: ${patchId}\n${JSON.stringify(patch, null, 2)}` }],
+            content: [{ type: "text", text: `Patch proposed with ID: ${patchId}\nOperations: ${ops.length}` }],
         };
     }
     if (name === "drawing.apply_patch") {
@@ -339,31 +504,169 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!ctx || ctx.modality !== "drawing") {
             return { content: [{ type: "text", text: "No drawing is currently active to apply the patch to." }], isError: true };
         }
+        const filePath = ctx.data.path;
+        let baseVersion = artifactVersions.get(filePath) ?? 0;
         try {
-            const res = await fetch(`${HUB_URL}/files/${ctx.data.path}/patch`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(patch),
-            });
-            if (!res.ok) {
+            logIo('start', 'PATCH_DRAWING', { filePath, patchId });
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                const res = await fetch(`${HUB_URL}/files/${filePath}/patch`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        baseVersion,
+                        actor: "agent",
+                        intent: patch.intent,
+                        ops: patch.ops,
+                    }),
+                });
+                if (res.ok) {
+                    const payload = (await res.json());
+                    if (typeof payload.version === 'number') {
+                        artifactVersions.set(filePath, payload.version);
+                    }
+                    patchesStore.delete(patchId);
+                    logIo('success', 'PATCH_DRAWING', { filePath, version: artifactVersions.get(filePath) });
+                    return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${filePath}` }] };
+                }
+                if (res.status === 409 && attempt === 0) {
+                    const conflict = (await res.json());
+                    baseVersion = conflict.currentVersion ?? baseVersion + 1;
+                    artifactVersions.set(filePath, baseVersion);
+                    await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL));
+                    continue;
+                }
                 const errorText = await res.text();
-                throw new Error(`Hub error: ${res.status} ${errorText}`);
+                logIo('failure', 'PATCH_DRAWING', { filePath, status: res.status, error: errorText });
+                return {
+                    content: [{ type: "text", text: `Failed to apply patch: ${res.status} ${errorText}` }],
+                    isError: true
+                };
             }
-            patchesStore.delete(patchId);
-            return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.data.path}` }] };
+            return { content: [{ type: "text", text: "Failed to apply patch after retrying." }], isError: true };
         }
         catch (error) {
+            logIo('failure', 'PATCH_DRAWING', { filePath, error: error.message });
             return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };
         }
     }
+    // --- Presentation Tools ---
+    if (name.startsWith("presentation.")) {
+        const subName = name.split(".")[1];
+        if (subName === "list") {
+            try {
+                const deckDir = path.join(PROJECT_ROOT, "design", "deck");
+                logIo('start', 'DECK_LIST', { deckDir });
+                const files = await fs.readdir(deckDir).catch(() => []);
+                const decks = files
+                    .filter(f => f.endsWith(".deck.md"))
+                    .map(f => f.replace(".deck.md", ""));
+                return {
+                    content: [{ type: "text", text: `Available presentation decks:\n${decks.length > 0 ? decks.join("\n") : "None"}` }],
+                };
+            }
+            catch (error) {
+                return { content: [{ type: "text", text: `Error listing decks: ${error.message}` }], isError: true };
+            }
+        }
+        // Common logic for read/update/read_slide/update_slide
+        let deckName = args?.name;
+        let filePath;
+        if (!deckName) {
+            const ctx = await getActiveContext();
+            if (!ctx || ctx.modality !== "presentation") {
+                return { content: [{ type: "text", text: "No deck name provided and no active presentation found." }], isError: true };
+            }
+            filePath = ctx.data.path;
+        }
+        else {
+            filePath = `design/deck/${deckName}.deck.md`;
+        }
+        if (subName === "read") {
+            try {
+                const content = await readFile(filePath);
+                return { content: [{ type: "text", text: content }] };
+            }
+            catch (error) {
+                return { content: [{ type: "text", text: `Error reading deck: ${error.message}` }], isError: true };
+            }
+        }
+        if (subName === "update") {
+            const content = args.content;
+            try {
+                await writeFile(filePath, content, "Updated via presentation.update tool");
+                return { content: [{ type: "text", text: `Successfully updated deck '${filePath}'.` }] };
+            }
+            catch (error) {
+                return { content: [{ type: "text", text: `Error updating deck: ${error.message}` }], isError: true };
+            }
+        }
+        if (subName === "read_slide") {
+            const index = args.index;
+            try {
+                const content = await readFile(filePath);
+                const sections = content.split('\n---\n');
+                const hasFrontmatter = sections[0].trim().startsWith('---');
+                const slideOffset = hasFrontmatter ? 1 : 0;
+                const actualIndex = index + slideOffset;
+                if (actualIndex >= sections.length) {
+                    return { content: [{ type: "text", text: `Slide index ${index} out of bounds.` }], isError: true };
+                }
+                return { content: [{ type: "text", text: sections[actualIndex] }] };
+            }
+            catch (error) {
+                return { content: [{ type: "text", text: `Error reading slide: ${error.message}` }], isError: true };
+            }
+        }
+        if (subName === "update_slide") {
+            const index = args.index;
+            const content = args.content;
+            const operation = args.operation || "replace";
+            let type;
+            if (operation === "replace")
+                type = "REPLACE_SLIDE";
+            else if (operation === "insert")
+                type = "INSERT_SLIDE";
+            else if (operation === "delete")
+                type = "DELETE_SLIDE";
+            else
+                return { content: [{ type: "text", text: `Invalid operation: ${operation}` }], isError: true };
+            try {
+                let baseVersion = artifactVersions.get(filePath) ?? 0;
+                const res = await fetch(`${HUB_URL}/files/${filePath}/patch`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        baseVersion,
+                        actor: "agent",
+                        intent: `Slide update (${operation}) at index ${index}`,
+                        ops: [{ type, index, content }],
+                    }),
+                });
+                if (res.ok) {
+                    const payload = (await res.json());
+                    if (typeof payload.version === 'number')
+                        artifactVersions.set(filePath, payload.version);
+                    return { content: [{ type: "text", text: `Successfully applied ${operation} slide at index ${index} to ${filePath}` }] };
+                }
+                const errorText = await res.text();
+                return { content: [{ type: "text", text: `Error updating slide: ${errorText}` }], isError: true };
+            }
+            catch (error) {
+                return { content: [{ type: "text", text: `Error updating slide: ${error.message}` }], isError: true };
+            }
+        }
+    }
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-});
+};
+server.setRequestHandler(CallToolRequestSchema, callToolHandler);
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("Modality MCP server running on stdio");
 }
-main().catch((error) => {
-    console.error("Fatal error in main():", error);
-    process.exit(1);
-});
+if (!process.env.VITEST) {
+    main().catch((error) => {
+        console.error("Fatal error in main():", error);
+        process.exit(1);
+    });
+}

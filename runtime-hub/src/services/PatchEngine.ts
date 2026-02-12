@@ -3,6 +3,7 @@ import {
   PatchRequestEnvelope,
   ValidationErrorEnvelope,
   assertPatchRequestEnvelope,
+  createPlatformEvent,
   createValidationErrorEnvelope,
 } from '../interfaces/platform.js';
 import { IDiagram, IOperation } from '../interfaces/IDrawing.js';
@@ -250,48 +251,103 @@ export class PatchEngine {
     return this.versions.get(filePath) ?? 0;
   }
 
+  private inferModality(filePath: string): string {
+    if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw') || filePath.endsWith('.diagram.json')) {
+      return 'whiteboard';
+    }
+    if (filePath.endsWith('.deck.md')) {
+      return 'presentation';
+    }
+    return 'editor';
+  }
+
+  private emitPatchApplied(filePath: string, actor: 'user' | 'agent', version: number, opCount: number): void {
+    this.store.emit(
+      'PATCH_APPLIED',
+      createPlatformEvent('PATCH_APPLIED', {
+        modality: this.inferModality(filePath),
+        artifact: filePath,
+        actor,
+        version,
+        details: {
+          opCount,
+        },
+      }),
+    );
+  }
+
+  private emitValidationFailed(
+    filePath: string,
+    actor: 'user' | 'agent',
+    validationError: Pick<ValidationErrorEnvelope, 'code' | 'location' | 'reason' | 'remediation'>,
+  ): void {
+    this.store.emit(
+      'VALIDATION_FAILED',
+      createPlatformEvent('VALIDATION_FAILED', {
+        modality: this.inferModality(filePath),
+        artifact: filePath,
+        actor,
+        details: {
+          code: validationError.code,
+          location: validationError.location,
+          reason: validationError.reason,
+          remediation: validationError.remediation,
+        },
+      }),
+    );
+  }
+
   async apply(filePath: string, envelopeBody: unknown): Promise<PatchApplyResult> {
     const envelope: PatchRequestEnvelope = assertPatchRequestEnvelope(envelopeBody);
-    const currentVersion = this.getVersion(filePath);
 
-    if (envelope.baseVersion !== currentVersion) {
-      throw new ValidationFailure(
-        createValidationErrorEnvelope({
-          code: 'VERSION_CONFLICT',
-          location: 'baseVersion',
-          reason: `baseVersion ${envelope.baseVersion} does not match current version ${currentVersion}`,
-          remediation: `Retry with baseVersion ${currentVersion}`,
-        }),
-      );
+    try {
+      const currentVersion = this.getVersion(filePath);
+
+      if (envelope.baseVersion !== currentVersion) {
+        throw new ValidationFailure(
+          createValidationErrorEnvelope({
+            code: 'VERSION_CONFLICT',
+            location: 'baseVersion',
+            reason: `baseVersion ${envelope.baseVersion} does not match current version ${currentVersion}`,
+            remediation: `Retry with baseVersion ${currentVersion}`,
+          }),
+        );
+      }
+
+      let nextContent: string;
+
+      if (filePath.endsWith('.diagram.json')) {
+        const currentBuffer = await this.store.read(filePath);
+        const diagram = JSON.parse(currentBuffer.toString()) as IDiagram;
+        const nextDiagram = applyDiagramOperations(diagram, envelope.ops as IOperation[]);
+        nextContent = JSON.stringify(nextDiagram, null, 2);
+      } else if (filePath.endsWith('.deck.md')) {
+        const currentBuffer = await this.store.read(filePath);
+        nextContent = applySlideOperations(currentBuffer.toString(), envelope.ops as SlideOperation[]);
+      } else {
+        const op = parseReplaceContentOp(envelope.ops);
+        nextContent = op.content;
+      }
+
+      await this.store.write(filePath, nextContent, {
+        actor: envelope.actor,
+        reason: envelope.intent,
+        createSnapshot: true,
+      });
+
+      const nextVersion = currentVersion + 1;
+      this.versions.set(filePath, nextVersion);
+      this.emitPatchApplied(filePath, envelope.actor, nextVersion, envelope.ops.length);
+
+      return {
+        version: nextVersion,
+        bytes: Buffer.byteLength(nextContent, 'utf8'),
+      };
+    } catch (error) {
+      if (error instanceof ValidationFailure) {
+        this.emitValidationFailed(filePath, envelope.actor, error);
+      }
+      throw error;
     }
-
-    let nextContent: string;
-
-    if (filePath.endsWith('.diagram.json')) {
-      const currentBuffer = await this.store.read(filePath);
-      const diagram = JSON.parse(currentBuffer.toString()) as IDiagram;
-      const nextDiagram = applyDiagramOperations(diagram, envelope.ops as IOperation[]);
-      nextContent = JSON.stringify(nextDiagram, null, 2);
-    } else if (filePath.endsWith('.deck.md')) {
-      const currentBuffer = await this.store.read(filePath);
-      nextContent = applySlideOperations(currentBuffer.toString(), envelope.ops as SlideOperation[]);
-    } else {
-      const op = parseReplaceContentOp(envelope.ops);
-      nextContent = op.content;
-    }
-
-    await this.store.write(filePath, nextContent, {
-      actor: envelope.actor,
-      reason: envelope.intent,
-      createSnapshot: true,
-    });
-
-    const nextVersion = currentVersion + 1;
-    this.versions.set(filePath, nextVersion);
-
-    return {
-      version: nextVersion,
-      bytes: Buffer.byteLength(nextContent, 'utf8'),
-    };
   }
 }

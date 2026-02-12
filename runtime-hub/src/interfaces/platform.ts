@@ -56,7 +56,7 @@ function assertNonEmptyString(value: unknown, fieldName: string): string {
   return value;
 }
 
-export function normalizeArtifactPath(rawPath: string): string {
+export function normalizeWorkspacePath(rawPath: string): string {
   const normalizedPath = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
 
   if (normalizedPath.length === 0) {
@@ -64,11 +64,7 @@ export function normalizeArtifactPath(rawPath: string): string {
   }
 
   if (normalizedPath.includes('..')) {
-    throw new Error('data.path must stay under design/');
-  }
-
-  if (!normalizedPath.startsWith('design/')) {
-    throw new Error('data.path must stay under design/');
+    throw new Error('data.path must stay under workspace root');
   }
 
   return normalizedPath;
@@ -78,7 +74,7 @@ export function assertActiveContextPayload(body: unknown): ActiveContext {
   const payload = assertRecord(body, 'body');
   const modality = assertNonEmptyString(payload.modality, 'modality');
   const data = assertRecord(payload.data, 'data');
-  const path = normalizeArtifactPath(assertNonEmptyString(data.path, 'data.path'));
+  const path = normalizeWorkspacePath(assertNonEmptyString(data.path, 'data.path'));
 
   let location: ActiveLocation | undefined;
   if (data.location !== undefined) {

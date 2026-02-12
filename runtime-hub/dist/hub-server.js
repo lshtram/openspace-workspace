@@ -1,6 +1,8 @@
 import express from 'express';
 import { ArtifactStore } from './services/ArtifactStore.js';
 import { PatchEngine } from './services/PatchEngine.js';
+import { parseActiveContextRequest } from './interfaces/context-contract.js';
+import { PolicyViolation, assertLegacyWritePolicy } from './interfaces/write-policy.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -25,7 +27,6 @@ const store = new ArtifactStore(projectRoot);
 const patchEngine = new PatchEngine(store);
 const designRoot = path.join(projectRoot, 'design');
 const now = () => new Date().toISOString();
-const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'];
 const logDesignDir = (status, meta) => {
     const payload = { ...meta, ts: now() };
     if (status === 'failure') {
@@ -59,35 +60,29 @@ const validateArtifactPath = (rawPath) => {
     if (normalizedPath.includes('..')) {
         return { ok: false, reason: 'Path traversal is not allowed' };
     }
-    if (!normalizedPath.startsWith('design/')) {
-        return { ok: false, reason: 'Artifacts must be under design/' };
+    const ALLOWED_ROOT_FILES = ['README.md', 'CONTRIBUTING.md'];
+    if (!normalizedPath.startsWith('design/') && !ALLOWED_ROOT_FILES.includes(normalizedPath)) {
+        return { ok: false, reason: 'Artifacts must be under design/ (except for root documentation)' };
     }
     return { ok: true, normalizedPath };
 };
-const requireNonEmptyString = (value, fieldName) => {
-    if (typeof value !== 'string' || value.trim().length === 0) {
-        throw new Error(`${fieldName} is required`);
+const parseWriteOptions = (value) => {
+    if (!value || typeof value !== 'object') {
+        throw new Error('opts is required');
     }
-    return value;
-};
-const parseActiveContextBody = (body) => {
-    if (!body || typeof body !== 'object') {
-        throw new Error('Request body is required');
+    const payload = value;
+    if (payload.actor !== 'user' && payload.actor !== 'agent') {
+        throw new Error('opts.actor must be one of: user, agent');
     }
-    const payload = body;
-    const modality = requireNonEmptyString(payload.modality, 'modality');
-    const filePath = requireNonEmptyString(payload.filePath, 'filePath');
-    if (!ACTIVE_MODALITIES.includes(modality)) {
-        throw new Error(`modality must be one of: ${ACTIVE_MODALITIES.join(', ')}`);
-    }
-    const validation = validateArtifactPath(filePath);
-    if (!validation.ok) {
-        throw new Error(validation.reason);
+    if (typeof payload.reason !== 'string' || payload.reason.trim().length === 0) {
+        throw new Error('opts.reason is required');
     }
     return {
-        modality: modality,
-        filePath: validation.normalizedPath,
-        timestamp: now(),
+        actor: payload.actor,
+        reason: payload.reason,
+        debounce: payload.debounce,
+        createSnapshot: payload.createSnapshot,
+        tool_call_id: payload.tool_call_id,
     };
 };
 // Active Context Store (In-Memory)
@@ -96,11 +91,11 @@ const getActiveWhiteboard = () => {
     if (!activeContext || activeContext.modality !== 'whiteboard') {
         return null;
     }
-    return activeContext.filePath;
+    return activeContext.data.path;
 };
 app.post('/context/active', (req, res) => {
     try {
-        activeContext = parseActiveContextBody(req.body);
+        activeContext = parseActiveContextRequest(req.body);
         console.log('[HubServer] Active context set', { ...activeContext, ts: now() });
         res.json({ success: true, activeContext });
     }
@@ -112,20 +107,10 @@ app.get('/context/active', (req, res) => {
     res.json(activeContext);
 });
 app.post('/context/active-whiteboard', (req, res) => {
-    const { filePath } = req.body;
-    if (filePath !== undefined) {
+    if (req.body?.filePath !== undefined) {
         try {
-            const normalizedFilePath = requireNonEmptyString(filePath, 'filePath');
-            const validation = validateArtifactPath(normalizedFilePath);
-            if (!validation.ok) {
-                return res.status(400).json({ error: validation.reason });
-            }
-            activeContext = {
-                modality: 'whiteboard',
-                filePath: validation.normalizedPath,
-                timestamp: now(),
-            };
-            console.log('[HubServer] Active whiteboard set', { filePath: activeContext.filePath, ts: now() });
+            activeContext = parseActiveContextRequest(req.body, { legacyWhiteboardAlias: true });
+            console.log('[HubServer] Active whiteboard set', { filePath: activeContext.data.path, ts: now() });
         }
         catch (error) {
             return res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
@@ -178,8 +163,9 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
             if (!v.ok)
                 return res.status(400).json({ error: v.reason });
             const filePath = v.normalizedPath;
-            if (!filePath.endsWith('.diagram.json'))
-                return res.status(400).json({ error: 'Patch only supported for .diagram.json files' });
+            if (!filePath.endsWith('.diagram.json') && !filePath.endsWith('.deck.md')) {
+                return res.status(400).json({ error: 'Patch only supported for .diagram.json or .deck.md files' });
+            }
             const { patch } = req.body;
             if (!patch)
                 return res.status(400).json({ error: 'Patch data is required' });
@@ -188,7 +174,15 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
                 return res.json({ success: true, version: result.version, bytes: result.bytes });
             }
             catch (error) {
-                if (error.code === 'VERSION_CONFLICT' || error.code === 'UNSUPPORTED_PATCH_OPS') {
+                if (error.code === 'VERSION_CONFLICT') {
+                    return res.status(409).json({
+                        error: error.reason,
+                        code: error.code,
+                        remediation: error.remediation,
+                        currentVersion: patchEngine.getVersion(filePath),
+                    });
+                }
+                if (error.code === 'UNSUPPORTED_PATCH_OPS') {
                     return res.status(409).json({ error: error.reason, code: error.code, remediation: error.remediation });
                 }
                 return res.status(500).json({ error: error.message });
@@ -206,13 +200,28 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
                 return res.status(400).json({ error: 'Content is required' });
             }
             try {
+                const parsedOpts = parseWriteOptions(opts);
+                assertLegacyWritePolicy(parsedOpts, {
+                    writeModeHeader: req.header('x-openspace-write-mode') ?? undefined,
+                });
                 let finalContent = content;
                 if (encoding === 'base64')
                     finalContent = Buffer.from(content, 'base64');
-                await store.write(filePath, finalContent, opts);
+                await store.write(filePath, finalContent, parsedOpts);
                 return res.json({ success: true });
             }
             catch (error) {
+                if (error instanceof PolicyViolation) {
+                    return res.status(403).json({
+                        error: error.reason,
+                        code: error.code,
+                        location: error.location,
+                        remediation: error.remediation,
+                    });
+                }
+                if (error instanceof Error && error.message.startsWith('opts')) {
+                    return res.status(400).json({ error: error.message });
+                }
                 return res.status(500).json({ error: error.message });
             }
         }

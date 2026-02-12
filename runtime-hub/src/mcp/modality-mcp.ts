@@ -13,6 +13,8 @@ import fs from "fs/promises";
 import path from "path";
 import { ActiveContext, MIN_INTERVAL } from "../interfaces/platform.js";
 import { IDiagram, IOperation } from "../interfaces/IDrawing.js";
+import { parseActiveContextResponse } from "../interfaces/context-contract.js";
+import { assertHandoffPayload } from "../interfaces/handoff-contract.js";
 
 const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
@@ -66,21 +68,13 @@ async function getActiveContext(): Promise<ActiveContext | null> {
       logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, status: res.status });
       return null;
     }
-    const rawData = (await res.json()) as any;
-    
-    // Normalize response to ActiveContext structure
-    const data: ActiveContext = {
-      modality: rawData.modality,
-      data: {
-        path: rawData.data?.path || rawData.filePath,
-        location: rawData.data?.location
-      }
-    };
+    const rawData = (await res.json()) as unknown;
+    const data = parseActiveContextResponse(rawData);
 
-    if (!data.data.path) {
-      logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, reason: 'missing path in response', rawData });
+    if (!data) {
       return null;
     }
+
     logIo('success', 'CONTEXT_READ', { url: `${HUB_URL}/context/active` });
     return data;
   } catch (error) {
@@ -201,6 +195,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       // Whiteboard Tools (Legacy + Namespaced)
+      {
+        name: "modality.validate_handoff",
+        description:
+          "Validate and normalize a cross-modality handoff payload including source modality, target path/id, and optional location metadata",
+        inputSchema: {
+          type: "object",
+          properties: {
+            sourceModality: { type: "string" },
+            target: {
+              type: "object",
+              properties: {
+                path: { type: "string" },
+                id: { type: "string" },
+              },
+            },
+            location: {
+              type: "object",
+              properties: {
+                startLine: { type: "integer" },
+                endLine: { type: "integer" },
+              },
+            },
+          },
+          required: ["sourceModality", "target"],
+        },
+      },
       {
         name: "whiteboard.list",
         description: "List all available whiteboard artifacts (.graph.mmd files) in the design directory",
@@ -372,6 +392,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Tool Handlers
 export const callToolHandler = async (request: { params: { name: string, arguments?: any } }) => {
   const { name, arguments: args } = request.params;
+
+  if (name === "modality.validate_handoff") {
+    try {
+      const payload = assertHandoffPayload(args ?? {});
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+      };
+    } catch (error: any) {
+      return {
+        content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+        isError: true,
+      };
+    }
+  }
 
   // --- Whiteboard Tools ---
   if (name === "whiteboard.list") {

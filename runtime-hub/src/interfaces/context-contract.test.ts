@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseActiveContextRequest } from './context-contract.js';
+import { parseActiveContextRequest, parseActiveContextResponse } from './context-contract.js';
 
 describe('context contract parser', () => {
   it('parses canonical /context/active payload', () => {
@@ -30,5 +30,28 @@ describe('context contract parser', () => {
         filePath: 'design/auth-flow.graph.mmd',
       }),
     ).toThrow('modality must be a non-empty string');
+  });
+
+  it('parses canonical active context response payload', () => {
+    const parsed = parseActiveContextResponse({
+      modality: 'editor',
+      data: {
+        path: 'design/editor-state.graph.mmd',
+      },
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.modality).toBe('editor');
+    expect(parsed?.data.path).toBe('design/editor-state.graph.mmd');
+  });
+
+  it('maps legacy active-whiteboard response to canonical shape', () => {
+    const parsed = parseActiveContextResponse({
+      activeWhiteboard: 'design/auth-flow.graph.mmd',
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.modality).toBe('whiteboard');
+    expect(parsed?.data.path).toBe('design/auth-flow.graph.mmd');
   });
 });

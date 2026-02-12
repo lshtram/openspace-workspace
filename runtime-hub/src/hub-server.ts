@@ -2,6 +2,8 @@ import express from 'express';
 import { ArtifactStore, WriteOptions } from './services/ArtifactStore.js';
 import { PatchEngine } from './services/PatchEngine.js';
 import { ActiveContext } from './interfaces/platform.js';
+import { parseActiveContextRequest } from './interfaces/context-contract.js';
+import { PolicyViolation, assertLegacyWritePolicy } from './interfaces/write-policy.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -30,9 +32,6 @@ const patchEngine = new PatchEngine(store);
 const designRoot = path.join(projectRoot, 'design');
 
 const now = () => new Date().toISOString();
-
-const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard', 'presentation'] as const;
-type ActiveModality = (typeof ACTIVE_MODALITIES)[number];
 
 const logDesignDir = (status: 'start' | 'success' | 'failure', meta: Record<string, unknown>) => {
   const payload = { ...meta, ts: now() };
@@ -79,42 +78,27 @@ const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: stri
   return { ok: true, normalizedPath };
 };
 
-const requireNonEmptyString = (value: unknown, fieldName: string): string => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new Error(`${fieldName} is required`);
+const parseWriteOptions = (value: unknown): WriteOptions => {
+  if (!value || typeof value !== 'object') {
+    throw new Error('opts is required');
   }
 
-  return value;
-};
+  const payload = value as Partial<WriteOptions>;
 
-const parseActiveContextBody = (body: unknown): ActiveContext => {
-  if (!body || typeof body !== 'object') {
-    throw new Error('Request body is required');
+  if (payload.actor !== 'user' && payload.actor !== 'agent') {
+    throw new Error('opts.actor must be one of: user, agent');
   }
 
-  const payload = body as any;
-  const modality = requireNonEmptyString(payload.modality, 'modality');
-  const rawPath = payload.data?.path || payload.filePath;
-
-  if (!rawPath) {
-    throw new Error('filePath or data.path is required');
-  }
-
-  if (!ACTIVE_MODALITIES.includes(modality as any)) {
-    throw new Error(`modality must be one of: ${ACTIVE_MODALITIES.join(', ')}`);
-  }
-
-  const validation = validateArtifactPath(rawPath);
-  if (!validation.ok) {
-    throw new Error(validation.reason);
+  if (typeof payload.reason !== 'string' || payload.reason.trim().length === 0) {
+    throw new Error('opts.reason is required');
   }
 
   return {
-    modality,
-    data: {
-      path: validation.normalizedPath,
-      location: payload.data?.location,
-    },
+    actor: payload.actor,
+    reason: payload.reason,
+    debounce: payload.debounce,
+    createSnapshot: payload.createSnapshot,
+    tool_call_id: payload.tool_call_id,
   };
 };
 
@@ -131,7 +115,7 @@ const getActiveWhiteboard = (): string | null => {
 
 app.post('/context/active', (req, res) => {
   try {
-    activeContext = parseActiveContextBody(req.body);
+    activeContext = parseActiveContextRequest(req.body);
     console.log('[HubServer] Active context set', { ...activeContext, ts: now() });
     res.json({ success: true, activeContext });
   } catch (error) {
@@ -144,20 +128,9 @@ app.get('/context/active', (req, res) => {
 });
 
 app.post('/context/active-whiteboard', (req, res) => {
-  const { filePath } = req.body as { filePath?: unknown };
-  if (filePath !== undefined) {
+  if (req.body?.filePath !== undefined) {
     try {
-      const normalizedFilePath = requireNonEmptyString(filePath, 'filePath');
-      const validation = validateArtifactPath(normalizedFilePath);
-      if (!validation.ok) {
-        return res.status(400).json({ error: validation.reason });
-      }
-      activeContext = {
-        modality: 'whiteboard',
-        data: {
-          path: validation.normalizedPath,
-        },
-      };
+      activeContext = parseActiveContextRequest(req.body, { legacyWhiteboardAlias: true });
       console.log('[HubServer] Active whiteboard set', { filePath: activeContext.data.path, ts: now() });
     } catch (error) {
       return res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
@@ -232,7 +205,16 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
           const result = await patchEngine.apply(filePath, patch);
           return res.json({ success: true, version: result.version, bytes: result.bytes });
       } catch (error: any) {
-          if (error.code === 'VERSION_CONFLICT' || error.code === 'UNSUPPORTED_PATCH_OPS') {
+          if (error.code === 'VERSION_CONFLICT') {
+              return res.status(409).json({
+                error: error.reason,
+                code: error.code,
+                remediation: error.remediation,
+                currentVersion: patchEngine.getVersion(filePath),
+              });
+          }
+
+          if (error.code === 'UNSUPPORTED_PATCH_OPS') {
               return res.status(409).json({ error: error.reason, code: error.code, remediation: error.remediation });
           }
           return res.status(500).json({ error: error.message });
@@ -250,11 +232,29 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
         }
 
         try {
+          const parsedOpts = parseWriteOptions(opts);
+          assertLegacyWritePolicy(parsedOpts, {
+            writeModeHeader: req.header('x-openspace-write-mode') ?? undefined,
+          });
+
           let finalContent = content;
           if (encoding === 'base64') finalContent = Buffer.from(content, 'base64');
-          await store.write(filePath, finalContent, opts as WriteOptions);
+          await store.write(filePath, finalContent, parsedOpts);
           return res.json({ success: true });
         } catch (error: any) {
+          if (error instanceof PolicyViolation) {
+            return res.status(403).json({
+              error: error.reason,
+              code: error.code,
+              location: error.location,
+              remediation: error.remediation,
+            });
+          }
+
+          if (error instanceof Error && error.message.startsWith('opts')) {
+            return res.status(400).json({ error: error.message });
+          }
+
           return res.status(500).json({ error: error.message });
         }
     }

@@ -4,6 +4,7 @@ import 'reveal.js/dist/reveal.css';
 import 'reveal.js/dist/theme/black.css';
 import { useArtifact } from '../hooks/useArtifact';
 import { usePlayback } from '../hooks/usePlayback';
+import { useLayout, type ArtifactPaneModality } from '../context/LayoutContext';
 import ReactMarkdown from 'react-markdown';
 
 interface PresentationFrameProps {
@@ -21,6 +22,7 @@ export const parseSlides = (markdown: string): string[] => {
 const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
   const deckRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef<any>(null);
+  const { setActiveArtifactPane } = useLayout();
 
   const { data: markdown, loading, error } = useArtifact<string>(filePath, {
     parse: content => content,
@@ -78,7 +80,32 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
             {slides.map((slideContent, index) => (
               <section key={`${index}-${slides.length}`}>
                 <div className="markdown-body h-full flex flex-col justify-center items-center text-center p-8">
-                  <ReactMarkdown>{slideContent}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ node, ...props }) => {
+                        const href = props.href;
+                        if (href && !href.startsWith('http')) {
+                          return (
+                            <a
+                              {...props}
+                              className="text-blue-400 hover:underline cursor-pointer"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                let modality: ArtifactPaneModality = 'editor';
+                                if (href.endsWith('.graph.mmd') || href.endsWith('.excalidraw')) modality = 'whiteboard';
+                                else if (href.endsWith('.diagram.json')) modality = 'drawing';
+                                else if (href.endsWith('.deck.md')) modality = 'presentation';
+                                setActiveArtifactPane({ path: href, modality });
+                              }}
+                            />
+                          );
+                        }
+                        return <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />;
+                      },
+                    }}
+                  >
+                    {slideContent}
+                  </ReactMarkdown>
                 </div>
               </section>
             ))}
@@ -109,6 +136,13 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
           onClick={() => playback.isPlaying ? playback.stopPlayback() : playback.startPlayback(3000)}
         >
           {playback.isPlaying ? 'Stop' : 'Play'}
+        </button>
+        <button 
+          className="ml-auto px-3 py-1 bg-green-900 hover:bg-green-800 rounded text-sm transition-colors"
+          type="button" 
+          onClick={() => window.open(`${window.location.origin}${window.location.pathname}?file=${filePath}&print-pdf`, '_blank')}
+        >
+          Export PDF
         </button>
       </div>
     </div>

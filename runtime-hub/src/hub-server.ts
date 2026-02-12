@@ -71,8 +71,8 @@ const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: stri
     return { ok: false, reason: 'Path traversal is not allowed' };
   }
 
-  if (!normalizedPath.startsWith('design/') && !normalizedPath.startsWith('docs/deck/')) {
-    return { ok: false, reason: 'Artifacts must be under design/ or docs/deck/' };
+  if (!normalizedPath.startsWith('design/')) {
+    return { ok: false, reason: 'Artifacts must be under design/' };
   }
 
   return { ok: true, normalizedPath };

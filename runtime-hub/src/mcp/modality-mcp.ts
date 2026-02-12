@@ -18,7 +18,7 @@ const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
 const artifactVersions = new Map<string, number>();
 
-const server = new Server(
+export const server = new Server(
   {
     name: "modality-mcp-server",
     version: "0.1.0",
@@ -283,7 +283,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Presentation Tools
       {
         name: "presentation.list",
-        description: "List all available presentation decks (.deck.md files) in the docs/deck directory",
+        description: "List all available presentation decks (.deck.md files) in the design/deck directory",
         inputSchema: {
           type: "object",
           properties: {},
@@ -370,7 +370,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Tool Handlers
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+export const callToolHandler = async (request: { params: { name: string, arguments?: any } }) => {
   const { name, arguments: args } = request.params;
 
   // --- Whiteboard Tools ---
@@ -567,7 +567,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     
     if (subName === "list") {
       try {
-        const deckDir = path.join(PROJECT_ROOT, "docs", "deck");
+        const deckDir = path.join(PROJECT_ROOT, "design", "deck");
         logIo('start', 'DECK_LIST', { deckDir });
         const files = await fs.readdir(deckDir).catch(() => []);
         const decks = files
@@ -593,7 +593,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       filePath = ctx.data.path;
     } else {
-      filePath = `docs/deck/${deckName}.deck.md`;
+      filePath = `design/deck/${deckName}.deck.md`;
     }
 
     if (subName === "read") {
@@ -673,7 +673,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-});
+};
+
+server.setRequestHandler(CallToolRequestSchema, callToolHandler);
 
 async function main() {
   const transport = new StdioServerTransport();
@@ -681,7 +683,9 @@ async function main() {
   console.error("Modality MCP server running on stdio");
 }
 
-main().catch((error) => {
-  console.error("Fatal error in main():", error);
-  process.exit(1);
-});
+if (!process.env.VITEST) {
+  main().catch((error) => {
+    console.error("Fatal error in main():", error);
+    process.exit(1);
+  });
+}

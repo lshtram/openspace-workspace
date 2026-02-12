@@ -34,7 +34,7 @@ type AgentConsoleProps = {
 export function AgentConsole({ sessionId, onSessionCreated, directory: directoryProp }: AgentConsoleProps) {
   const queryClient = useQueryClient()
   const server = useServer()
-  const { setActiveWhiteboardPath } = useLayout()
+  const { setActiveArtifactPane } = useLayout()
   const directory = directoryProp ?? openCodeService.directory
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
@@ -295,7 +295,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     if (firstPart?.type === 'text' && firstPart.content.startsWith('/whiteboard')) {
       const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
       const path = `design/${name}.graph.mmd`
-      setActiveWhiteboardPath(path)
+      setActiveArtifactPane({ path, modality: 'whiteboard' })
       setPrompt("")
       return
     }

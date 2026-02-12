@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
 
+export type ArtifactPaneModality = 'whiteboard' | 'drawing' | 'presentation' | 'editor';
+
+export interface ArtifactPane {
+  path: string;
+  modality: ArtifactPaneModality;
+}
+
 type LayoutContextType = {
   leftSidebarExpanded: boolean
   setLeftSidebarExpanded: Dispatch<SetStateAction<boolean>>
@@ -9,8 +16,8 @@ type LayoutContextType = {
   setTerminalExpanded: Dispatch<SetStateAction<boolean>>
   terminalHeight: number
   setTerminalHeight: Dispatch<SetStateAction<number>>
-  activeWhiteboardPath: string | null
-  setActiveWhiteboardPath: Dispatch<SetStateAction<string | null>>
+  activeArtifactPane: ArtifactPane | null
+  setActiveArtifactPane: Dispatch<SetStateAction<ArtifactPane | null>>
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
@@ -20,7 +27,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false)
   const [terminalExpanded, setTerminalExpanded] = useState(false)
   const [terminalHeight, setTerminalHeight] = useState(240)
-  const [activeWhiteboardPath, setActiveWhiteboardPath] = useState<string | null>(null)
+  const [activeArtifactPane, setActiveArtifactPane] = useState<ArtifactPane | null>(null)
 
   return (
     <LayoutContext.Provider
@@ -33,8 +40,8 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         setTerminalExpanded,
         terminalHeight,
         setTerminalHeight,
-        activeWhiteboardPath,
-        setActiveWhiteboardPath,
+        activeArtifactPane,
+        setActiveArtifactPane,
       }}
     >
       {children}

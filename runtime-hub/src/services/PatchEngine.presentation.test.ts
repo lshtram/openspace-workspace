@@ -24,7 +24,7 @@ Content 1
 Content 2
 `;
 
-    const filePath = 'docs/deck/test.deck.md';
+    const filePath = 'design/deck/test.deck.md';
     await store.write(filePath, initialContent, {
       actor: 'agent',
       reason: 'initial',
@@ -108,7 +108,7 @@ Content 2
     const engine = new PatchEngine(store);
 
     const initialContent = `# Slide 1\n---\n# Slide 2`;
-    const filePath = 'docs/deck/no-fm.deck.md';
+    const filePath = 'design/deck/no-fm.deck.md';
     await store.write(filePath, initialContent, { actor: 'user', reason: 'initial' });
 
     await engine.apply(filePath, {
@@ -130,7 +130,7 @@ Content 2
     const engine = new PatchEngine(store);
 
     const initialContent = `# Slide 1`;
-    const filePath = 'docs/deck/bounds.deck.md';
+    const filePath = 'design/deck/bounds.deck.md';
     await store.write(filePath, initialContent, { actor: 'user', reason: 'initial' });
 
     await expect(

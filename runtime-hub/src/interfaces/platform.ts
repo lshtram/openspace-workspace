@@ -67,8 +67,8 @@ export function normalizeArtifactPath(rawPath: string): string {
     throw new Error('data.path must stay under design/');
   }
 
-  if (!normalizedPath.startsWith('design/') && !normalizedPath.startsWith('docs/deck/')) {
-    throw new Error('data.path must stay under design/ or docs/deck/');
+  if (!normalizedPath.startsWith('design/')) {
+    throw new Error('data.path must stay under design/');
   }
 
   return normalizedPath;

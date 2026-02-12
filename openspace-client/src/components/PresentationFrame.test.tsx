@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import PresentationFrame, { parseSlides } from './PresentationFrame';
+import { LayoutProvider } from '../context/LayoutContext';
 
 describe('PresentationFrame', () => {
   it('renders without crashing', () => {
-    render(<PresentationFrame filePath="test.md" />);
+    render(
+      <LayoutProvider>
+        <PresentationFrame filePath="test.md" />
+      </LayoutProvider>
+    );
     expect(screen.getByText('Loading presentation...')).toBeInTheDocument();
   });
 

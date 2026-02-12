@@ -16,7 +16,8 @@ import { DEFAULT_MESSAGE_LIMIT, fetchMessages, messagesQueryKey } from "./hooks/
 import { useUpdateSession, useDeleteSession } from "./hooks/useSessionActions"
 import { DialogOpenFile } from "./components/DialogOpenFile"
 import { storage } from "./utils/storage"
-import { useLayout } from "./context/LayoutContext"
+import PresentationFrame from "./components/PresentationFrame"
+import { useLayout, type ArtifactPaneModality } from "./context/LayoutContext"
 import { useDialog } from "./context/DialogContext"
 import { useCommandPalette } from "./context/CommandPaletteContext"
 import { DialogSelectDirectory } from "./components/DialogSelectDirectory"
@@ -48,8 +49,8 @@ function App() {
     setRightSidebarExpanded,
     setTerminalExpanded,
     setTerminalHeight,
-    activeWhiteboardPath,
-    setActiveWhiteboardPath,
+    activeArtifactPane,
+    setActiveArtifactPane,
   } = useLayout()
   const { openPalette, registerCommand } = useCommandPalette()
 
@@ -167,6 +168,7 @@ function App() {
   }
 
   const activeProject = projects.find(p => p.id === activeProjectId)
+  const isPrinting = new URLSearchParams(window.location.search).has('print-pdf');
 
   const connectionQuery = useQuery({
     queryKey: ["connection", server.activeUrl],
@@ -205,10 +207,15 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const filePath = params.get('file')
-    if (filePath && !activeWhiteboardPath) {
-      setActiveWhiteboardPath(filePath)
+    if (filePath && !activeArtifactPane) {
+      let modality: ArtifactPaneModality = 'editor'
+      if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw')) modality = 'whiteboard'
+      else if (filePath.endsWith('.diagram.json')) modality = 'drawing'
+      else if (filePath.endsWith('.deck.md')) modality = 'presentation'
+      
+      setActiveArtifactPane({ path: filePath, modality })
     }
-  }, [activeWhiteboardPath, setActiveWhiteboardPath])
+  }, [activeArtifactPane, setActiveArtifactPane])
 
   const handleNewSession = useCallback(() => {
     createSessionRef.current.mutate()
@@ -527,112 +534,122 @@ function App() {
 
   return (
     <div className="flex h-full flex-col os-shell">
-      <ToastHost />
-      {connected && <TopBar connected={connected} />}
-      
-      {!connected ? (
-        <div className="app-shell flex h-full items-center justify-center">
-          <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-xl p-8 text-center border border-[var(--os-line)] shadow-2xl">
-            <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
-            <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
-              <div className="text-sm text-muted">
-              Make sure the OpenCode backend is running at <span className="code-inline">{server.activeUrl}</span>
-              </div>
-            </div>
-        </div>
+      {isPrinting && activeArtifactPane?.modality === 'presentation' ? (
+        <PresentationFrame filePath={activeArtifactPane.path} />
       ) : (
-        <div className="flex h-full min-h-0">
-          <ProjectRail
-            projects={projects}
-            activeProjectId={activeProjectId}
-            onSelectProject={handleSelectProject}
-            onAddProject={() => show(<DialogSelectDirectory onSelect={handleAddProject} />)}
-          />
+        <>
+          <ToastHost />
+          {connected && <TopBar connected={connected} />}
           
-          {leftSidebarExpanded && activeProject && (
-            <SessionSidebar
-              projectName={activeProject.name}
-              projectPath={activeProject.path}
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onSelectSession={setActiveSession}
-              onNewSession={handleNewSession}
-              onLoadMore={sessionsQuery.loadMore}
-              hasMore={sessionsQuery.hasMore}
-              onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
-              onDeleteSession={handleDeleteSession}
-              onArchiveSession={(id, archived) => updateSession.mutate({ sessionID: id, archived })}
-              unseenSessionIds={unseenSessionIds}
-              unseenCount={unseenSessionIds.size}
-              onSelectNextUnseen={() => {
-                if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
-              }}
-              currentDirectory={activeDirectory}
-              onSwitchWorkspace={handleSwitchWorkspace}
-            />
-          )}
-
-          <main className="flex h-full min-w-0 flex-1 flex-col bg-[var(--os-bg-0)]">
-            <div className="flex h-full overflow-hidden border-r border-[var(--os-line)] bg-[var(--os-bg-0)]">
-              <div className="flex flex-1 flex-col min-w-0 relative">
-                <div className="flex min-h-0 flex-1">
-                  <div className={activeWhiteboardPath ? "w-1/2 border-r border-[var(--os-line)]" : "w-full"}>
-                    <AgentConsole 
-                      directory={activeDirectory}
-                      sessionId={activeSessionId} 
-                      onSessionCreated={setActiveSession} 
-                    />
+          {!connected ? (
+            <div className="app-shell flex h-full items-center justify-center">
+              <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-xl p-8 text-center border border-[var(--os-line)] shadow-2xl">
+                <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
+                <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
+                  <div className="text-sm text-muted">
+                  Make sure the OpenCode backend is running at <span className="code-inline">{server.activeUrl}</span>
                   </div>
-                  {activeWhiteboardPath && (
-                    <div className="w-1/2 relative bg-[var(--os-bg-1)]">
-                      {activeWhiteboardPath.endsWith(".diagram.json") ? (
-                        <TldrawWhiteboard
-                          filePath={activeWhiteboardPath}
-                          sessionId={activeSessionId}
+                </div>
+            </div>
+          ) : (
+            <div className="flex h-full min-h-0">
+              <ProjectRail
+                projects={projects}
+                activeProjectId={activeProjectId}
+                onSelectProject={handleSelectProject}
+                onAddProject={() => show(<DialogSelectDirectory onSelect={handleAddProject} />)}
+              />
+              
+              {leftSidebarExpanded && activeProject && (
+                <SessionSidebar
+                  projectName={activeProject.name}
+                  projectPath={activeProject.path}
+                  sessions={sessions}
+                  activeSessionId={activeSessionId}
+                  onSelectSession={setActiveSession}
+                  onNewSession={handleNewSession}
+                  onLoadMore={sessionsQuery.loadMore}
+                  hasMore={sessionsQuery.hasMore}
+                  onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
+                  onDeleteSession={handleDeleteSession}
+                  onArchiveSession={(id, archived) => updateSession.mutate({ sessionID: id, archived })}
+                  unseenSessionIds={unseenSessionIds}
+                  unseenCount={unseenSessionIds.size}
+                  onSelectNextUnseen={() => {
+                    if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
+                  }}
+                  currentDirectory={activeDirectory}
+                  onSwitchWorkspace={handleSwitchWorkspace}
+                />
+              )}
+
+              <main className="flex h-full min-w-0 flex-1 flex-col bg-[var(--os-bg-0)]">
+                <div className="flex h-full overflow-hidden border-r border-[var(--os-line)] bg-[var(--os-bg-0)]">
+                  <div className="flex flex-1 flex-col min-w-0 relative">
+                    <div className="flex min-h-0 flex-1">
+                      <div className={activeArtifactPane ? "w-1/2 border-r border-[var(--os-line)]" : "w-full"}>
+                        <AgentConsole 
+                          directory={activeDirectory}
+                          sessionId={activeSessionId} 
+                          onSessionCreated={setActiveSession} 
                         />
-                      ) : (
-                        <WhiteboardFrame
-                          filePath={activeWhiteboardPath}
-                          sessionId={activeSessionId}
-                        />
+                      </div>
+                      {activeArtifactPane && (
+                        <div className="w-1/2 relative bg-[var(--os-bg-1)]">
+                          {activeArtifactPane.modality === 'drawing' ? (
+                            <TldrawWhiteboard
+                              filePath={activeArtifactPane.path}
+                              sessionId={activeSessionId}
+                            />
+                          ) : activeArtifactPane.modality === 'presentation' ? (
+                            <PresentationFrame
+                              filePath={activeArtifactPane.path}
+                            />
+                          ) : (
+                            <WhiteboardFrame
+                              filePath={activeArtifactPane.path}
+                              sessionId={activeSessionId}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setActiveArtifactPane(null)}
+                            className="absolute top-2 right-2 p-1 bg-[var(--os-bg-1)] border border-[var(--os-line)] rounded shadow hover:bg-[var(--os-bg-2)] z-10 text-[var(--os-text-0)]"
+                            title="Close Pane"
+                          >
+                            <span className="text-xs font-bold px-1">×</span>
+                          </button>
+                        </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setActiveWhiteboardPath(null)}
-                        className="absolute top-2 right-2 p-1 bg-[var(--os-bg-1)] border border-[var(--os-line)] rounded shadow hover:bg-[var(--os-bg-2)] z-10 text-[var(--os-text-0)]"
-                        title="Close Whiteboard"
-                      >
-                        <span className="text-xs font-bold px-1">×</span>
-                      </button>
                     </div>
+
+                    {terminalExpanded && (
+                      <>
+                        <div
+                          role="presentation"
+                          onMouseDown={startResizing}
+                          className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-white/10 transition-colors"
+                          style={{ bottom: terminalHeight - 3 }}
+                        />
+                        <div className="border-t border-[var(--os-line)]" style={{ height: terminalHeight }}>
+                          <Terminal resizeTrigger={terminalHeight} directory={activeDirectory} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {rightSidebarExpanded && (
+                    <aside className="hidden w-[250px] flex-shrink-0 flex-col border-l border-[var(--os-line)] md:flex os-right-panel animate-in slide-in-from-right duration-300">
+                      <FileTree directory={activeDirectory} />
+                    </aside>
                   )}
                 </div>
-
-                {terminalExpanded && (
-                  <>
-                    {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-                    <div
-                      onMouseDown={startResizing}
-                      className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-white/10 transition-colors"
-                      style={{ bottom: terminalHeight - 3 }}
-                    />
-                    <div className="border-t border-[var(--os-line)]" style={{ height: terminalHeight }}>
-                      <Terminal resizeTrigger={terminalHeight} directory={activeDirectory} />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {rightSidebarExpanded && (
-                <aside className="hidden w-[250px] flex-shrink-0 flex-col border-l border-[var(--os-line)] md:flex os-right-panel animate-in slide-in-from-right duration-300">
-                  <FileTree directory={activeDirectory} />
-                </aside>
-              )}
+              </main>
             </div>
-          </main>
-        </div>
+          )}
+          <CommandPalette />
+        </>
       )}
-      <CommandPalette />
     </div>
   )
 }

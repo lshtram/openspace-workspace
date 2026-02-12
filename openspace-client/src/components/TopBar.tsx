@@ -21,6 +21,7 @@ export function TopBar({ connected }: TopBarProps) {
     <header className="flex h-12 w-full items-center justify-between border-b border-black/[0.03] bg-[#fcfbf9] px-4 shrink-0">
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => setLeftSidebarExpanded(!leftSidebarExpanded)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/5",
@@ -30,10 +31,10 @@ export function TopBar({ connected }: TopBarProps) {
           <Sidebar size={18} strokeWidth={2} />
         </button>
         <div className="flex items-center gap-0.5 ml-2 text-black/20">
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 hover:text-black/40 transition-colors">
+          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 hover:text-black/40 transition-colors">
             <ArrowLeft size={18} />
           </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 hover:text-black/40 transition-colors">
+          <button type="button" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5 hover:text-black/40 transition-colors">
             <ArrowRight size={18} />
           </button>
         </div>
@@ -59,13 +60,14 @@ export function TopBar({ connected }: TopBarProps) {
           <StatusPopover connected={connected} />
         </div>
 
-        <button className="flex h-8 items-center gap-2 rounded-lg border border-black/[0.08] px-3 text-[13px] font-medium transition-colors hover:bg-black/5">
+        <button type="button" className="flex h-8 items-center gap-2 rounded-lg border border-black/[0.08] px-3 text-[13px] font-medium transition-colors hover:bg-black/5">
           <Share size={14} className="text-black/60" />
           <span>Share</span>
         </button>
 
         <div className="flex items-center border-l border-black/[0.05] ml-2 pl-2 gap-1 text-black/30">
           <button
+            type="button"
             onClick={() => setTerminalExpanded(!terminalExpanded)}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/5",
@@ -75,6 +77,7 @@ export function TopBar({ connected }: TopBarProps) {
             <PanelBottom size={18} />
           </button>
           <button
+            type="button"
             onClick={() => setRightSidebarExpanded(!rightSidebarExpanded)}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/5",

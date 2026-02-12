@@ -1,1 +1,0 @@
-/Users/opencode/.config/opencode/nso/hooks/pre_tool_use/validate_intent.py

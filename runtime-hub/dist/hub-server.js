@@ -12,7 +12,7 @@ app.use(express.json({ limit: '50mb' })); // Increase limit for images
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-openspace-write-mode');
     if (req.method === 'OPTIONS') {
         res.sendStatus(200);
     }
@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 });
 const projectRoot = process.env.PROJECT_ROOT || path.join(__dirname, '../../');
 const store = new ArtifactStore(projectRoot);
-const patchEngine = new PatchEngine();
+const patchEngine = new PatchEngine(store);
 const designRoot = path.join(projectRoot, 'design');
 const now = () => new Date().toISOString();
 const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'];
@@ -144,7 +144,9 @@ app.get('/events', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
+    console.log(`[HubServer] ✅ SSE client connected from ${req.ip}`);
     const onFileChanged = (event) => {
+        console.log(`[HubServer] ✅ Sending SSE event:`, { type: 'FILE_CHANGED', ...event });
         res.write(`data: ${JSON.stringify({ type: 'FILE_CHANGED', ...event })}\n\n`);
     };
     store.on('FILE_CHANGED', onFileChanged);
@@ -153,6 +155,7 @@ app.get('/events', (req, res) => {
         res.write(': heartbeat\n\n');
     }, 30000);
     req.on('close', () => {
+        console.log(`[HubServer] ❌ SSE client disconnected`);
         store.off('FILE_CHANGED', onFileChanged);
         clearInterval(heartbeat);
     });
@@ -181,16 +184,13 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
             if (!patch)
                 return res.status(400).json({ error: 'Patch data is required' });
             try {
-                const contentBuffer = await store.read(filePath);
-                const diagram = JSON.parse(contentBuffer.toString());
-                const updatedDiagram = PatchEngine.applyPatch(diagram, patch);
-                await store.write(filePath, JSON.stringify(updatedDiagram, null, 2), {
-                    actor: patch.actor || 'agent',
-                    reason: patch.intent || 'Agent patch apply',
-                });
-                return res.json({ success: true, version: updatedDiagram.metadata.updatedAt });
+                const result = await patchEngine.apply(filePath, patch);
+                return res.json({ success: true, version: result.version, bytes: result.bytes });
             }
             catch (error) {
+                if (error.code === 'VERSION_CONFLICT' || error.code === 'UNSUPPORTED_PATCH_OPS') {
+                    return res.status(409).json({ error: error.reason, code: error.code, remediation: error.remediation });
+                }
                 return res.status(500).json({ error: error.message });
             }
         }

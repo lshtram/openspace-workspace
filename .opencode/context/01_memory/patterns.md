@@ -22,15 +22,20 @@ task_id: memory-patterns
   - Low confidence (<20%) = normal conversation
   - No explicit `/router` command needed
 
-- **Internal Hub API Pattern (Spine Lite)**: For complex artifacts (like whiteboards) that require central storage and multimodal access:
+- **Internal Hub API Pattern (Modality Platform V2)**: For complex artifacts that require central storage and multimodal access:
   - Implement a central `ArtifactStore` (The Spine) in a dedicated hub service.
   - Expose the store via a local HTTP Internal API (e.g., Express) to allow communication from MCP servers and other tools.
   - Implement MCP servers (The Hands) that wrap the Internal API as tools (`read_whiteboard`, `update_whiteboard`).
   - Use ESM for MCP servers and Hub components to leverage modern SDKs and libraries (like `node-fetch`).
-  - **Evolution (2026-02-11)**: Spine Lite architecture consolidates all modalities into:
+  - **Evolution (2026-02-12)**: Modality Platform V2 consolidates all modalities into:
     - ONE Hub (:3001) with `/files/:path`, `/events`, `/context/active` endpoints
     - ONE MCP process (`modality-mcp.ts`) with namespaced tools (`drawing.*`, `editor.*`, etc.)
     - Universal `useArtifact()` hook in React client for consistent artifact management
+
+- **Artifact-First Documentation Pattern (NSO Global)**:
+  - Plans/specs/checklists/reports must be created as actual files (default under `docs/`).
+  - Chat summaries are secondary to persisted artifacts.
+  - Chat-only delivery is allowed only when user explicitly requests it.
 
 - **Universal Artifact Pattern**: Use `useArtifact<T>()` hook for all modalities (Drawing, Editor, Presentation, Voice, etc.):
   - Automatic SSE subscription for agent updates
@@ -100,6 +105,7 @@ task_id: memory-patterns
 - **E2E Test Failures**: Running E2E tests without proper config flag (`-c e2e/playwright.config.ts`) causes "Cannot navigate to invalid URL" errors
 - **UI Overlap**: Components at bottom of scrollable containers can block interactive elements - use constrained heights with internal scrolling
 - **Test Cleanup**: E2E tests may create artifacts (worktrees, workspace dirs) with restrictive permissions requiring manual deletion
+- **Dirty Root Merge Pattern**: If root `master` is heavily dirty, perform merge/push from a separate clean integration worktree based on `origin/master`, then remove both integration and feature worktrees.
 
 ## Approved Practices
 - Follow NSO instructions.md for all operations.

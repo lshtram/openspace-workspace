@@ -33,6 +33,8 @@ import {
 import { selectAdjacentSession, type SessionNavigationDirection } from "./utils/session-navigation"
 import "./App.css"
 
+const sessionSeenEvent = "openspace:session-seen"
+
 function App() {
   const queryClient = useQueryClient()
   const { show } = useDialog()
@@ -58,8 +60,7 @@ function App() {
   const [isResizingTerminal, setIsResizingTerminal] = useState(false)
   const [seenVersion, setSeenVersion] = useState(0)
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => ({ ...DEFAULT_SHORTCUTS, ...loadShortcuts() }))
-  const sessionSeenEvent = "openspace:session-seen"
-
+  
   const setActiveSession = useCallback((id?: string) => {
     setActiveSessionId(id)
     if (id) {
@@ -480,7 +481,7 @@ function App() {
     }
     window.addEventListener(sessionSeenEvent, handleSeen)
     return () => window.removeEventListener(sessionSeenEvent, handleSeen)
-  }, [sessionSeenEvent])
+  }, [])
 
   const unseenSessionIds = useMemo(() => {
     const seenTick = seenVersion
@@ -609,6 +610,7 @@ function App() {
 
                 {terminalExpanded && (
                   <>
+                    {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
                     <div
                       onMouseDown={startResizing}
                       className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-white/10 transition-colors"

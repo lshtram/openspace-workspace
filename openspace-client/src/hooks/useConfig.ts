@@ -10,10 +10,12 @@ export function useConfig() {
   return useQuery({
     queryKey: configQueryKey(server.activeUrl, directory),
     queryFn: async () => {
+      if (!directory) return {}
       const response = await openCodeService.client.config.get({
         directory,
       })
       return response.data
     },
+    enabled: !!directory,
   })
 }

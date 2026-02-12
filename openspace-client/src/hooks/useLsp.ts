@@ -9,11 +9,13 @@ export function useLspStatus() {
   return useQuery({
     queryKey: lspQueryKey(server.activeUrl, openCodeService.directory),
     queryFn: async () => {
+      if (!openCodeService.directory) return []
       const response = await openCodeService.client.lsp.status({
         directory: openCodeService.directory,
       })
       return response.data ?? []
     },
+    enabled: !!openCodeService.directory,
     refetchInterval: 5000,
   })
 }

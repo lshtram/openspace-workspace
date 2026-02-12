@@ -1,4 +1,4 @@
-export type ToastTone = "error" | "info" | "success"
+export type ToastTone = "error" | "info" | "success" | "warning"
 
 export type ToastInput = {
   title: string
@@ -25,7 +25,9 @@ let toasts: ToastItem[] = []
 const DEFAULT_DURATION = 5000
 
 const emit = () => {
-  listeners.forEach((listener) => listener())
+  listeners.forEach((listener) => {
+    listener()
+  })
 }
 
 const getId = () => `toast-${Date.now()}-${Math.round(Math.random() * 1e6)}`

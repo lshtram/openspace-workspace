@@ -3,6 +3,7 @@ import path from 'path';
 import PQueue from 'p-queue';
 import { EventEmitter } from 'events';
 import { createPlatformEvent } from '../interfaces/platform.js';
+import chokidar from 'chokidar';
 
 // @ts-ignore
 const PQueueCtor = (PQueue.default || PQueue) as any;
@@ -45,10 +46,64 @@ export class ArtifactStore extends EventEmitter {
   private queue = new PQueueCtor({ concurrency: 1 });
   private debounceContexts = new Map<string, DebounceContext>();
   private projectRoot: string;
+  private watcher: ReturnType<typeof chokidar.watch> | null = null;
+  private internalWriteInProgress = new Set<string>();
 
   constructor(projectRoot: string) {
     super();
     this.projectRoot = projectRoot;
+    this.initializeWatcher();
+  }
+
+  private initializeWatcher(): void {
+    const designPath = path.join(this.projectRoot, 'design');
+    console.log(`[ArtifactStore] Initializing file watcher for: ${designPath}`);
+    
+    this.watcher = chokidar.watch(designPath, {
+      ignoreInitial: true,
+      persistent: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 100,
+        pollInterval: 50
+      }
+    });
+
+    this.watcher.on('change', (absolutePath: string) => {
+      // Convert to relative path
+      const relativePath = path.relative(this.projectRoot, absolutePath).replace(/\\/g, '/');
+      
+      // Skip if this was an internal write (to prevent loops)
+      if (this.internalWriteInProgress.has(relativePath)) {
+        console.log(`[ArtifactStore] Skipping self-triggered change: ${relativePath}`);
+        return;
+      }
+
+      // External change detected (likely from agent via filesystem tools)
+      console.log(`[ArtifactStore] ✅ External file change detected: ${relativePath}`);
+      console.log(`[ArtifactStore] ✅ Emitting FILE_CHANGED event with actor=agent`);
+      
+      // Emit events for SSE subscribers
+      this.emit('FILE_CHANGED', { path: relativePath, actor: 'agent' });
+      this.emit(
+        'ARTIFACT_UPDATED',
+        createPlatformEvent('ARTIFACT_UPDATED', {
+          modality: this.inferModality(relativePath),
+          artifact: relativePath,
+          actor: 'agent',
+        }),
+      );
+    });
+
+    this.watcher.on('error', (error: unknown) => {
+      console.error('[ArtifactStore] Watcher error:', error);
+    });
+  }
+
+  public close(): void {
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+    }
   }
 
   private assertInsideProjectRoot(absolutePath: string): void {
@@ -104,6 +159,9 @@ export class ArtifactStore extends EventEmitter {
     }
 
     return this.queue.add(async () => {
+      // Mark as internal write to prevent watcher loop
+      this.internalWriteInProgress.add(filePath);
+      
       try {
         logIo('start', 'WRITE', { filePath, actor: opts.actor });
         const exists = await fs.access(absolutePath).then(() => true).catch(() => false);
@@ -149,6 +207,11 @@ export class ArtifactStore extends EventEmitter {
           error: error instanceof Error ? error.message : String(error),
         });
         throw error;
+      } finally {
+        // Clear internal write flag after a delay to let the watcher catch up
+        setTimeout(() => {
+          this.internalWriteInProgress.delete(filePath);
+        }, 500);
       }
     });
   }

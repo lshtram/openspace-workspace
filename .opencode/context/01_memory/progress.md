@@ -1,8 +1,8 @@
 ---
 id: PROGRESS-OPENSPACE-CLIENT
-author: oracle_9d3a
+author: oracle_7c4a
 status: FINAL
-date: 2026-02-11
+date: 2026-02-12
 task_id: progress-tracking
 ---
 
@@ -14,36 +14,64 @@ task_id: progress-tracking
 - [completed] Whiteboard Modality (Phase 1-5) (2026-02-08)
 - [completed] Sequence Diagram Support (2026-02-09)
 - [completed] NSO Infrastructure Hardening (2026-02-11)
-- [in_progress] Drawing Modality V2 - Phase 0 Infrastructure Prep (2026-02-11)
-- [parallel] Phase 2 Feature Parity (separate stream) (2026-02-11)
+- [completed] Drawing Modality V2 - Phase 0 Infrastructure Prep (2026-02-12)
+- [completed] Phase 2A Core UX Parity (Tasks 202-204) (2026-02-12)
+- [completed] NSO v2 Overhaul — Superpowers-Inspired (2026-02-12)
+  - **STATUS:** Implementation complete. User must restart OpenCode session to activate.
+  - **FIRST TEST:** Next feature request will validate new workflows.
+- [pending] Diff/Review Modality as Multi-Modal Engine Track (awaiting NSO v2 activation)
+- [completed] Documentation consolidation to canonical V2 baseline (2026-02-12)
+- [in_progress] BLK-001 Platform Foundations (REQ-PLT-001..010)
+- [in_progress] BLK-009 Drawing V2 implementation alignment
+- [completed] BLK-009 Drawing V2 merged to origin/master and worktree branches removed (2026-02-12)
+- [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
+
+## NSO v2 Overhaul Summary (2026-02-12)
+- **Sessions:** 6 (analysis → planning → user decisions → wave 1 → wave 2 → waves 3-4)
+- **New Agents:** Analyst (mastermind), CodeReviewer (quality auditor)
+- **New Skills:** tdd, systematic-debugging, verification-gate, post-mortem (4 created)
+- **Deleted Skills:** 12 (8 superseded + 4 consolidated into post-mortem)
+- **Updated Prompts:** Oracle, Builder, Janitor, Librarian (4 rewritten)
+- **Created Prompts:** Analyst, CodeReviewer (2 new)
+- **Updated Docs:** instructions.md, BUILD.md, DEBUG.md, REVIEW.md, NSO-AGENTS.md (5 rewritten)
+- **Config:** opencode.json updated with 8 agents and correct skill assignments
+- **All 16 improvement backlog entries applied**
 
 ## Active Work
-- Drawing Modality V2 - Phase 0: <!-- id: 300 -->
-  - [x] Task 1: Extract `useArtifact()` hook. <!-- id: 301 -->
-  - [x] Task 2: Refactor whiteboard to `useArtifact()`, including deferred regression closure. <!-- id: 302 -->
-  - [x] Task 3: Hub API simplification and compatibility aliases. <!-- id: 303 -->
-  - [ ] Task 4: MCP consolidation (`whiteboard-mcp` -> `modality-mcp`). <!-- id: 304 -->
-- Phase 2A Core UX (parallel stream): <!-- id: 200 -->
-  - [x] Dedicated tool renderers. <!-- id: 201 -->
-  - [ ] File watcher integration. <!-- id: 202 -->
-  - [ ] Session navigation shortcuts. <!-- id: 203 -->
-  - [ ] Duration timer per turn. <!-- id: 204 -->
-
-## Regression Closure Record (Task 2 Deferred)
-- [x] Fixed post-agent-sync synthetic onChange loop causing draw degradation.
-- [x] Fixed Send-to-Agent PNG persistence gap by writing to Hub file API under `design/*.png`.
-- [x] Validation completed:
-  - `npm run test:run -- src/components/whiteboard/WhiteboardFrame.test.tsx`
-  - `npm run test:run -- src/hooks/useArtifact.test.tsx`
-  - `npx tsc --noEmit`
-  - independent Janitor pass
+- Drawing V2 merge closure:
+  - [x] Merged `feat/drawing-v2-tldraw` into clean integration branch from `origin/master`.
+  - [x] Pushed merge to `origin/master` (`900d6c3..4f21b5a`).
+  - [x] Removed worktrees `.worktrees/feat-drawing-v2-tldraw` and `.worktrees/merge-drawing-v2-clean`.
+  - [ ] User manual QA on latest pulled `master` pending.
+- Canonical documentation baseline:
+  - [x] Removed legacy docs from active `docs/` tree.
+  - [x] Consolidated architecture to `docs/architecture/TECHSPEC-MODALITY-PLATFORM-V2.md`.
+  - [x] Consolidated requirements to `docs/requirements/REQ-MODALITY-PLATFORM-V2.md`.
+  - [x] Added execution plan file `docs/requirements/PLAN-BLK-001-AND-BLK-009-ADOPTION.md`.
+- BLK-001 implementation planning:
+  - [x] Detailed checklist created and approved.
+  - [ ] Implement unified context contract hardening in runtime/client.
+  - [ ] Implement canonical event envelope and client handling.
+  - [ ] Enforce patch validation + baseVersion gate.
+  - [ ] Finalize path safety and endpoint canonicalization.
+  - [ ] Complete BLK-001 tests (unit/integration/e2e contract paths).
+- BLK-009 drawing alignment:
+  - [ ] Upgrade drawing MCP tool behavior from stub-like to contract-compliant.
+  - [ ] Migrate drawing client away from deprecated whiteboard context endpoint.
+  - [ ] Align drawing sync behavior with canonical platform events.
 
 ## Validation Status
 - Targeted Whiteboard regression tests: PASS
 - Targeted `useArtifact` tests: PASS
 - Typecheck: PASS
+- Team A parity targeted tests (202/203/204): PASS
+- NSO v2 config: Verified (opencode.json valid, all skills exist, all prompts exist)
+- Documentation references cleanup grep: PASS (no active legacy references remain in canonical docs)
 
 ## Evidence Links
 - Active context: `.opencode/context/01_memory/active_context.md`
 - Progress archive: `.opencode/context/01_memory/progress_archive.md`
 - Canonical NSO suggestions backlog: `.opencode/context/01_memory/nso-improvements.md`
+- Canonical architecture: `docs/architecture/TECHSPEC-MODALITY-PLATFORM-V2.md`
+- Canonical requirements: `docs/requirements/REQ-MODALITY-PLATFORM-V2.md`
+- BLK execution plan: `docs/requirements/PLAN-BLK-001-AND-BLK-009-ADOPTION.md`

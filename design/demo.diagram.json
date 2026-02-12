@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "1.0",
+  "diagramType": "generic",
+  "metadata": {
+    "title": "Drawing V2 Demo",
+    "createdAt": "2026-02-12T14:00:00Z",
+    "updatedAt": "2026-02-12T17:26:35.387Z"
+  },
+  "style": {
+    "theme": "light",
+    "tokens": {}
+  },
+  "nodes": [
+    {
+      "id": "4GdJd46WTdMZ3URE2Fsnw",
+      "kind": "block",
+      "label": "☁️ User's Cloud",
+      "layout": {
+        "x": 100,
+        "y": 150,
+        "w": 200,
+        "h": 130,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "cloud"
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "agent-victory-test",
+      "kind": "block",
+      "label": "🎉 Agent Here!",
+      "layout": {
+        "x": 700,
+        "y": 150,
+        "w": 180,
+        "h": 75,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "rectangle"
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "LvyBLbO_gSleUu_0Lp2lk",
+      "kind": "block",
+      "label": "user",
+      "layout": {
+        "x": 343.3985079070668,
+        "y": 312.1910769611523,
+        "w": 141.0372314453125,
+        "h": 152.37059411337347,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "heart"
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "UNYcJuuNs9GKlkdjm_svA",
+      "kind": "tldraw.text",
+      "label": "",
+      "layout": {
+        "x": 180.52446147139176,
+        "y": 546.589943541072,
+        "w": 100,
+        "h": 0,
+        "locked": false
+      },
+      "semantics": {
+        "font": "draw",
+        "size": "m",
+        "align": "start",
+        "color": "black",
+        "scale": 1
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "Gyq8GiKiA0AjcPEOQzdIX",
+      "kind": "tldraw.note",
+      "label": "",
+      "layout": {
+        "x": -74.85959218225707,
+        "y": 569.5390194452548,
+        "w": 200,
+        "h": 200,
+        "locked": false
+      },
+      "semantics": {
+        "font": "draw",
+        "size": "m",
+        "align": "middle",
+        "color": "black",
+        "verticalAlign": "middle",
+        "growY": 0
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "X-N7w1xGlQuETrTaS0og9",
+      "kind": "tldraw.draw",
+      "label": "",
+      "layout": {
+        "x": 27.423872276346714,
+        "y": 465.37687003110005,
+        "w": 0,
+        "h": 0,
+        "locked": false
+      },
+      "semantics": {
+        "segments": [
+          {
+            "type": "free",
+            "path": "AAAAAAAAAAAAAAA/rrMAAAAAALS4tgAAAABxvgAAAAB9xgAAAABkywAAbEQKzQAA8knKzgAA20uczwAAqEuPzQAAxEsEzAAAnUtEygAA6UpsxgAAGEu4vgAANEspNAAA00p7RAAAIUqqSQAA/UgATAAAAUhNTQAAuEgcUAAA/0jfUAAABkgaUAAAP0ixTwAA/UhBTwAA90hJTQAAHUmjSgAAkUmxRgAArUopQAAAwEzDwgAADE4cywAA70zVzAAAKEyozQAAHEz+zgAAM0lezgAAgESEzAAAcT4xygAA7Dn2yAAAe7SfxgAAH74zxAAAccDXwAAACr7DuwAAFLoftQAA"
+          }
+        ],
+        "color": "black",
+        "fill": "none",
+        "dash": "draw",
+        "size": "m",
+        "isComplete": true,
+        "isClosed": false,
+        "isPen": false
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "middle-circle-relay",
+      "kind": "block",
+      "label": "Relay",
+      "layout": {
+        "x": 400,
+        "y": 150,
+        "w": 100,
+        "h": 100,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "ellipse"
+      },
+      "styleToken": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "RNCMmcz8-SMiL1-P5Y33t",
+      "from": "LvyBLbO_gSleUu_0Lp2lk",
+      "to": "agent-victory-test",
+      "relation": "association",
+      "label": "",
+      "styleToken": ""
+    },
+    {
+      "id": "edge-cloud-to-circle",
+      "from": "4GdJd46WTdMZ3URE2Fsnw",
+      "to": "middle-circle-relay",
+      "relation": "association",
+      "label": "",
+      "styleToken": ""
+    },
+    {
+      "id": "edge-circle-to-agent",
+      "from": "middle-circle-relay",
+      "to": "agent-victory-test",
+      "relation": "association",
+      "label": "",
+      "styleToken": ""
+    }
+  ],
+  "groups": [],
+  "constraints": [],
+  "sourceRefs": {}
+}

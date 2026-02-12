@@ -9,11 +9,13 @@ export function useMcpStatus() {
   return useQuery({
     queryKey: mcpQueryKey(server.activeUrl, openCodeService.directory),
     queryFn: async () => {
+      if (!openCodeService.directory) return {}
       const response = await openCodeService.client.mcp.status({
         directory: openCodeService.directory,
       })
       return response.data ?? {}
     },
+    enabled: !!openCodeService.directory,
     refetchInterval: 5000,
   })
 }

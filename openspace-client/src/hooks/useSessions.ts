@@ -29,6 +29,7 @@ export function useSessions(options?: { initialLimit?: number; pageSize?: number
   const query = useQuery({
     queryKey: sessionsQueryKey(server.activeUrl, directory),
     queryFn: async () => {
+      if (!directory) return []
       const response = await openCodeService.client.session.list({
         directory,
         limit,
@@ -36,6 +37,7 @@ export function useSessions(options?: { initialLimit?: number; pageSize?: number
       // The API might return sessions sorted by date, usually we want newest first
       return response.data ?? []
     },
+    enabled: !!directory,
   })
 
   const hasMore = (query.data?.length ?? 0) >= limit

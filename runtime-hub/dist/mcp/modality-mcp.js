@@ -4,8 +4,10 @@ import { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSche
 import fetch from "node-fetch";
 import fs from "fs/promises";
 import path from "path";
+import { MIN_INTERVAL } from "../interfaces/platform.js";
 const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
 const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
+const artifactVersions = new Map();
 const server = new Server({
     name: "modality-mcp-server",
     version: "0.1.0",
@@ -15,46 +17,87 @@ const server = new Server({
         resources: {},
     },
 });
+const now = () => new Date().toISOString();
+const logIo = (status, operation, meta) => {
+    const payload = { ...meta, ts: now() };
+    const prefix = `[${payload.ts}] MCP_${operation}_${status.toUpperCase()}`;
+    if (status === 'failure') {
+        console.error(prefix, payload);
+        return;
+    }
+    console.log(prefix, payload);
+};
 const patchesStore = new Map();
 // Helper Functions
 async function getActiveContext() {
     try {
+        logIo('start', 'CONTEXT_READ', { url: `${HUB_URL}/context/active` });
         const res = await fetch(`${HUB_URL}/context/active`);
-        if (!res.ok)
+        if (!res.ok) {
+            logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, status: res.status });
             return null;
+        }
         const data = (await res.json());
-        if (!data.filePath)
+        if (!data?.data?.path) {
+            logIo('failure', 'CONTEXT_READ', { url: `${HUB_URL}/context/active`, reason: 'missing data.path' });
             return null;
+        }
+        logIo('success', 'CONTEXT_READ', { url: `${HUB_URL}/context/active` });
         return data;
     }
     catch (error) {
-        console.error("Error fetching active context:", error);
+        logIo('failure', 'CONTEXT_READ', {
+            url: `${HUB_URL}/context/active`,
+            error: error instanceof Error ? error.message : String(error),
+        });
         return null;
     }
 }
 async function readFile(filePath) {
-    // Use the /artifacts endpoint which aliases to /files
-    const res = await fetch(`${HUB_URL}/artifacts/${filePath}`);
+    logIo('start', 'FILE_READ', { filePath });
+    const res = await fetch(`${HUB_URL}/files/${filePath}`);
     if (!res.ok) {
+        logIo('failure', 'FILE_READ', { filePath, status: res.status });
         throw new Error(`Failed to read file '${filePath}': ${res.statusText}`);
     }
+    logIo('success', 'FILE_READ', { filePath, status: res.status });
     return await res.text();
 }
 async function writeFile(filePath, content, reason) {
-    const res = await fetch(`${HUB_URL}/artifacts/${filePath}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            content,
-            opts: {
+    logIo('start', 'PATCH_WRITE', { filePath });
+    let baseVersion = artifactVersions.get(filePath) ?? 0;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        const res = await fetch(`${HUB_URL}/files/${filePath}/patch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                baseVersion,
                 actor: "agent",
-                reason,
-                createSnapshot: true,
-            },
-        }),
-    });
-    if (!res.ok) {
-        throw new Error(`Failed to write file '${filePath}': ${res.statusText}`);
+                intent: reason,
+                ops: [{ op: "replace_content", content }],
+            }),
+        });
+        if (res.ok) {
+            const payload = (await res.json());
+            if (typeof payload.version === 'number') {
+                artifactVersions.set(filePath, payload.version);
+            }
+            else {
+                artifactVersions.set(filePath, baseVersion + 1);
+            }
+            logIo('success', 'PATCH_WRITE', { filePath, status: res.status, version: artifactVersions.get(filePath) });
+            return;
+        }
+        if (res.status === 409 && attempt === 0) {
+            const conflict = (await res.json());
+            baseVersion = conflict.currentVersion ?? baseVersion + 1;
+            artifactVersions.set(filePath, baseVersion);
+            await new Promise((resolve) => setTimeout(resolve, MIN_INTERVAL));
+            continue;
+        }
+        const errorText = await res.text();
+        logIo('failure', 'PATCH_WRITE', { filePath, status: res.status, error: errorText });
+        throw new Error(`Failed to patch file '${filePath}': ${res.status} ${res.statusText}`);
     }
 }
 // Resource Handlers
@@ -84,12 +127,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             };
         }
         try {
-            const content = await readFile(ctx.filePath);
+            const content = await readFile(ctx.data.path);
             return {
                 contents: [{
                         uri: "active://whiteboard",
                         mimeType: "text/vnd.mermaid",
-                        text: `// Active Whiteboard: ${ctx.filePath}\n${content}`,
+                        text: `// Active Whiteboard: ${ctx.data.path}\n${content}`,
                     }],
             };
         }
@@ -190,7 +233,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "whiteboard.list") {
         try {
             const designDir = path.join(PROJECT_ROOT, "design");
+            logIo('start', 'DESIGN_LIST', { designDir });
             const files = await fs.readdir(designDir);
+            logIo('success', 'DESIGN_LIST', { designDir, count: files.length });
             const whiteboards = files
                 .filter(f => f.endsWith(".graph.mmd"))
                 .map(f => f.replace(".graph.mmd", ""));
@@ -199,6 +244,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             };
         }
         catch (error) {
+            logIo('failure', 'DESIGN_LIST', {
+                designDir: path.join(PROJECT_ROOT, "design"),
+                error: error instanceof Error ? error.message : String(error),
+            });
             return {
                 content: [{ type: "text", text: `Error listing whiteboards: ${error.message}` }],
                 isError: true,
@@ -213,7 +262,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!ctx || ctx.modality !== "whiteboard") {
                 return { content: [{ type: "text", text: "No whiteboard name provided and no active whiteboard found." }], isError: true };
             }
-            filePath = ctx.filePath;
+            filePath = ctx.data.path;
         }
         else {
             filePath = `design/${wbName}.graph.mmd`;
@@ -240,7 +289,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (!ctx || ctx.modality !== "whiteboard") {
                 return { content: [{ type: "text", text: "No whiteboard name provided and no active whiteboard found." }], isError: true };
             }
-            filePath = ctx.filePath;
+            filePath = ctx.data.path;
         }
         else {
             filePath = `design/${wbName}.graph.mmd`;
@@ -265,7 +314,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             return { content: [{ type: "text", text: "No drawing is currently active." }], isError: true };
         }
         try {
-            const content = await readFile(ctx.filePath);
+            const content = await readFile(ctx.data.path);
             return { content: [{ type: "text", text: content }] };
         }
         catch (error) {
@@ -291,7 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             return { content: [{ type: "text", text: "No drawing is currently active to apply the patch to." }], isError: true };
         }
         try {
-            const res = await fetch(`${HUB_URL}/files/${ctx.filePath}/patch`, {
+            const res = await fetch(`${HUB_URL}/files/${ctx.data.path}/patch`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(patch),
@@ -301,7 +350,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 throw new Error(`Hub error: ${res.status} ${errorText}`);
             }
             patchesStore.delete(patchId);
-            return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.filePath}` }] };
+            return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.data.path}` }] };
         }
         catch (error) {
             return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };

@@ -11,6 +11,7 @@ const toneStyles: Record<ToastItem["tone"], { bar: string; title: string }> = {
   error: { bar: "bg-red-500", title: "text-red-800" },
   info: { bar: "bg-amber-500", title: "text-amber-800" },
   success: { bar: "bg-emerald-500", title: "text-emerald-800" },
+  warning: { bar: "bg-orange-500", title: "text-orange-800" },
 }
 
 export function ToastHost() {

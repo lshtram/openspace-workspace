@@ -345,7 +345,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: "No drawing is currently active." }], isError: true };
     }
     try {
-      const content = await readFile(ctx.filePath);
+      const content = await readFile(ctx.data.path);
       return { content: [{ type: "text", text: content }] };
     } catch (error: any) {
       return { content: [{ type: "text", text: `Error inspecting scene: ${error.message}` }], isError: true };
@@ -374,7 +374,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     try {
-      const res = await fetch(`${HUB_URL}/files/${ctx.filePath}/patch`, {
+      const res = await fetch(`${HUB_URL}/files/${ctx.data.path}/patch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
@@ -386,7 +386,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       patchesStore.delete(patchId);
-      return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.filePath}` }] };
+      return { content: [{ type: "text", text: `Successfully applied patch ${patchId} to ${ctx.data.path}` }] };
     } catch (error: any) {
       return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };
     }

@@ -78,6 +78,7 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
+          type="button"
           className={cn(
             "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors",
             connected ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700",
@@ -153,6 +154,7 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
 
                   return (
                     <button
+                      type="button"
                       key={url}
                       className={cn(
                         "flex w-full flex-col items-start rounded-xl p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
@@ -188,6 +190,7 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
               )}
 
                 <button
+                  type="button"
                   className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold shadow-sm transition hover:border-black/20"
                   onClick={() => dialog.show(<DialogManageServers />)}
                 >

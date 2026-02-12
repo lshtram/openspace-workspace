@@ -31,7 +31,7 @@ const designRoot = path.join(projectRoot, 'design');
 
 const now = () => new Date().toISOString();
 
-const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'] as const;
+const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard', 'presentation'] as const;
 type ActiveModality = (typeof ACTIVE_MODALITIES)[number];
 
 const logDesignDir = (status: 'start' | 'success' | 'failure', meta: Record<string, unknown>) => {
@@ -71,8 +71,8 @@ const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: stri
     return { ok: false, reason: 'Path traversal is not allowed' };
   }
 
-  if (!normalizedPath.startsWith('design/')) {
-    return { ok: false, reason: 'Artifacts must be under design/' };
+  if (!normalizedPath.startsWith('design/') && !normalizedPath.startsWith('docs/deck/')) {
+    return { ok: false, reason: 'Artifacts must be under design/ or docs/deck/' };
   }
 
   return { ok: true, normalizedPath };
@@ -221,7 +221,9 @@ app.use(['/artifacts', '/files'], async (req, res, next) => {
       if (!v.ok) return res.status(400).json({ error: v.reason });
       const filePath = v.normalizedPath;
 
-      if (!filePath.endsWith('.diagram.json')) return res.status(400).json({ error: 'Patch only supported for .diagram.json files' });
+      if (!filePath.endsWith('.diagram.json') && !filePath.endsWith('.deck.md')) {
+        return res.status(400).json({ error: 'Patch only supported for .diagram.json or .deck.md files' });
+      }
       const { patch } = req.body;
       if (!patch) return res.status(400).json({ error: 'Patch data is required' });
 

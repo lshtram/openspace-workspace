@@ -185,6 +185,54 @@ const applyDiagramOperations = (diagram: IDiagram, ops: IOperation[]): IDiagram 
   return next;
 };
 
+type SlideOperation =
+  | { type: 'REPLACE_SLIDE'; index: number; content: string }
+  | { type: 'INSERT_SLIDE'; index: number; content: string }
+  | { type: 'DELETE_SLIDE'; index: number };
+
+const applySlideOperations = (content: string, ops: SlideOperation[]): string => {
+  const slides = content.split('\n---\n');
+  const hasFrontmatter = slides[0].startsWith('---');
+  const slideOffset = hasFrontmatter ? 1 : 0;
+
+  for (const op of ops) {
+    const logicalIndex = op.index + slideOffset;
+    switch (op.type) {
+      case 'REPLACE_SLIDE':
+        if (logicalIndex >= slides.length) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Slide index ${op.index} out of bounds`,
+              remediation: `Ensure index is < ${slides.length - slideOffset}`,
+            }),
+          );
+        }
+        slides[logicalIndex] = op.content;
+        break;
+      case 'INSERT_SLIDE':
+        slides.splice(logicalIndex, 0, op.content);
+        break;
+      case 'DELETE_SLIDE':
+        if (logicalIndex >= slides.length) {
+          throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Slide index ${op.index} out of bounds`,
+              remediation: `Ensure index is < ${slides.length - slideOffset}`,
+            }),
+          );
+        }
+        slides.splice(logicalIndex, 1);
+        break;
+    }
+  }
+
+  return slides.join('\n---\n');
+};
+
 export class PatchEngine {
   private versions = new Map<string, number>();
 
@@ -216,6 +264,9 @@ export class PatchEngine {
       const diagram = JSON.parse(currentBuffer.toString()) as IDiagram;
       const nextDiagram = applyDiagramOperations(diagram, envelope.ops as IOperation[]);
       nextContent = JSON.stringify(nextDiagram, null, 2);
+    } else if (filePath.endsWith('.deck.md')) {
+      const currentBuffer = await this.store.read(filePath);
+      nextContent = applySlideOperations(currentBuffer.toString(), envelope.ops as SlideOperation[]);
     } else {
       const op = parseReplaceContentOp(envelope.ops);
       nextContent = op.content;

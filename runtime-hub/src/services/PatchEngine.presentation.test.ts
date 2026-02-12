@@ -84,6 +84,67 @@ Content 2
     expect(deletedContent).toContain('# Slide 2 Updated');
     expect(deletedContent).toContain('# Slide 3');
 
+    // Test multiple operations
+    await engine.apply(filePath, {
+      baseVersion: 3,
+      actor: 'agent',
+      intent: 'multiple ops',
+      ops: [
+        { type: 'INSERT_SLIDE', index: 0, content: '# New First Slide' },
+        { type: 'REPLACE_SLIDE', index: 2, content: '# Slide 3 Updated' }
+      ] as any,
+    });
+
+    const multiOpContent = (await store.read(filePath)).toString();
+    expect(multiOpContent).toContain('# New First Slide');
+    expect(multiOpContent).toContain('# Slide 3 Updated');
+
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('handles deck without frontmatter', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'patch-engine-no-fm-test-'));
+    const store = new ArtifactStore(tempDir);
+    const engine = new PatchEngine(store);
+
+    const initialContent = `# Slide 1\n---\n# Slide 2`;
+    const filePath = 'docs/deck/no-fm.deck.md';
+    await store.write(filePath, initialContent, { actor: 'user', reason: 'initial' });
+
+    await engine.apply(filePath, {
+      baseVersion: 0,
+      actor: 'agent',
+      intent: 'replace first slide',
+      ops: [{ type: 'REPLACE_SLIDE', index: 0, content: '# Slide 1 Updated' }] as any,
+    });
+
+    const content = (await store.read(filePath)).toString();
+    expect(content).toBe('# Slide 1 Updated\n---\n# Slide 2');
+
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('rejects out of bounds index', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'patch-engine-bounds-test-'));
+    const store = new ArtifactStore(tempDir);
+    const engine = new PatchEngine(store);
+
+    const initialContent = `# Slide 1`;
+    const filePath = 'docs/deck/bounds.deck.md';
+    await store.write(filePath, initialContent, { actor: 'user', reason: 'initial' });
+
+    await expect(
+      engine.apply(filePath, {
+        baseVersion: 0,
+        actor: 'agent',
+        intent: 'invalid index',
+        ops: [{ type: 'REPLACE_SLIDE', index: 1, content: 'fail' }] as any,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      reason: expect.stringContaining('out of bounds'),
+    });
+
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 });

@@ -6,6 +6,7 @@ import {
   createValidationErrorEnvelope,
 } from '../interfaces/platform.js';
 import { IDiagram, IOperation } from '../interfaces/IDrawing.js';
+import { SlideOperation } from '../interfaces/IPresentation.js';
 
 interface ReplaceContentOp {
   op: 'replace_content';
@@ -185,14 +186,10 @@ const applyDiagramOperations = (diagram: IDiagram, ops: IOperation[]): IDiagram 
   return next;
 };
 
-type SlideOperation =
-  | { type: 'REPLACE_SLIDE'; index: number; content: string }
-  | { type: 'INSERT_SLIDE'; index: number; content: string }
-  | { type: 'DELETE_SLIDE'; index: number };
-
 const applySlideOperations = (content: string, ops: SlideOperation[]): string => {
-  const slides = content.split('\n---\n');
-  const hasFrontmatter = slides[0].startsWith('---');
+  // Split by --- on its own line, allowing for optional trailing whitespace and different newlines
+  const slides = content.split(/\r?\n---\s*\r?\n/);
+  const hasFrontmatter = slides.length > 0 && slides[0].trim().startsWith('---');
   const slideOffset = hasFrontmatter ? 1 : 0;
 
   for (const op of ops) {
@@ -212,6 +209,17 @@ const applySlideOperations = (content: string, ops: SlideOperation[]): string =>
         slides[logicalIndex] = op.content;
         break;
       case 'INSERT_SLIDE':
+        // Allow inserting at the very end
+        if (logicalIndex > slides.length) {
+           throw new ValidationFailure(
+            createValidationErrorEnvelope({
+              code: 'NOT_FOUND',
+              location: 'ops',
+              reason: `Slide index ${op.index} out of bounds for insertion`,
+              remediation: `Ensure index is <= ${slides.length - slideOffset}`,
+            }),
+          );
+        }
         slides.splice(logicalIndex, 0, op.content);
         break;
       case 'DELETE_SLIDE':

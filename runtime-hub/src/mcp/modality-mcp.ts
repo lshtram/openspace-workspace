@@ -280,6 +280,91 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["patchId"],
         },
       },
+      // Presentation Tools
+      {
+        name: "presentation.list",
+        description: "List all available presentation decks (.deck.md files) in the docs/deck directory",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "presentation.read",
+        description: "Read a presentation deck. If no name is provided, reads the currently active deck.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the deck (e.g. 'Overview'). Optional if a deck is active.",
+            },
+          },
+        },
+      },
+      {
+        name: "presentation.update",
+        description: "Update a presentation deck content. If no name is provided, updates the currently active deck.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the deck. Optional if active.",
+            },
+            content: {
+              type: "string",
+              description: "The full markdown content of the deck.",
+            },
+          },
+          required: ["content"],
+        },
+      },
+      {
+        name: "presentation.read_slide",
+        description: "Read a specific slide from a deck.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the deck. Optional if active.",
+            },
+            index: {
+              type: "integer",
+              description: "The slide index (0-based).",
+            },
+          },
+          required: ["index"],
+        },
+      },
+      {
+        name: "presentation.update_slide",
+        description: "Update or insert a specific slide in a deck.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the deck. Optional if active.",
+            },
+            index: {
+              type: "integer",
+              description: "The slide index (0-based).",
+            },
+            content: {
+              type: "string",
+              description: "The markdown content of the slide.",
+            },
+            operation: {
+              type: "string",
+              enum: ["replace", "insert", "delete"],
+              description: "The operation to perform (default: replace).",
+            },
+          },
+          required: ["index"],
+        },
+      },
     ],
   };
 });
@@ -473,6 +558,117 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } catch (error: any) {
       logIo('failure', 'PATCH_DRAWING', { filePath, error: error.message });
       return { content: [{ type: "text", text: `Error applying patch: ${error.message}` }], isError: true };
+    }
+  }
+
+  // --- Presentation Tools ---
+  if (name.startsWith("presentation.")) {
+    const subName = name.split(".")[1];
+    
+    if (subName === "list") {
+      try {
+        const deckDir = path.join(PROJECT_ROOT, "docs", "deck");
+        logIo('start', 'DECK_LIST', { deckDir });
+        const files = await fs.readdir(deckDir).catch(() => []);
+        const decks = files
+          .filter(f => f.endsWith(".deck.md"))
+          .map(f => f.replace(".deck.md", ""));
+        
+        return {
+          content: [{ type: "text", text: `Available presentation decks:\n${decks.length > 0 ? decks.join("\n") : "None"}` }],
+        };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error listing decks: ${error.message}` }], isError: true };
+      }
+    }
+
+    // Common logic for read/update/read_slide/update_slide
+    let deckName = (args as any)?.name;
+    let filePath: string;
+
+    if (!deckName) {
+      const ctx = await getActiveContext();
+      if (!ctx || ctx.modality !== "presentation") {
+        return { content: [{ type: "text", text: "No deck name provided and no active presentation found." }], isError: true };
+      }
+      filePath = ctx.data.path;
+    } else {
+      filePath = `docs/deck/${deckName}.deck.md`;
+    }
+
+    if (subName === "read") {
+      try {
+        const content = await readFile(filePath);
+        return { content: [{ type: "text", text: content }] };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error reading deck: ${error.message}` }], isError: true };
+      }
+    }
+
+    if (subName === "update") {
+      const content = (args as any).content;
+      try {
+        await writeFile(filePath, content, "Updated via presentation.update tool");
+        return { content: [{ type: "text", text: `Successfully updated deck '${filePath}'.` }] };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error updating deck: ${error.message}` }], isError: true };
+      }
+    }
+
+    if (subName === "read_slide") {
+      const index = (args as any).index;
+      try {
+        const content = await readFile(filePath);
+        const sections = content.split('\n---\n');
+        const hasFrontmatter = sections[0].trim().startsWith('---');
+        const slideOffset = hasFrontmatter ? 1 : 0;
+        const actualIndex = index + slideOffset;
+        
+        if (actualIndex >= sections.length) {
+          return { content: [{ type: "text", text: `Slide index ${index} out of bounds.` }], isError: true };
+        }
+        
+        return { content: [{ type: "text", text: sections[actualIndex] }] };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error reading slide: ${error.message}` }], isError: true };
+      }
+    }
+
+    if (subName === "update_slide") {
+      const index = (args as any).index;
+      const content = (args as any).content;
+      const operation = (args as any).operation || "replace";
+      
+      let type: string;
+      if (operation === "replace") type = "REPLACE_SLIDE";
+      else if (operation === "insert") type = "INSERT_SLIDE";
+      else if (operation === "delete") type = "DELETE_SLIDE";
+      else return { content: [{ type: "text", text: `Invalid operation: ${operation}` }], isError: true };
+
+      try {
+        let baseVersion = artifactVersions.get(filePath) ?? 0;
+        const res = await fetch(`${HUB_URL}/files/${filePath}/patch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseVersion,
+            actor: "agent",
+            intent: `Slide update (${operation}) at index ${index}`,
+            ops: [{ type, index, content }],
+          }),
+        });
+
+        if (res.ok) {
+          const payload = (await res.json()) as { version?: number };
+          if (typeof payload.version === 'number') artifactVersions.set(filePath, payload.version);
+          return { content: [{ type: "text", text: `Successfully applied ${operation} slide at index ${index} to ${filePath}` }] };
+        }
+        
+        const errorText = await res.text();
+        return { content: [{ type: "text", text: `Error updating slide: ${errorText}` }], isError: true };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error updating slide: ${error.message}` }], isError: true };
+      }
     }
   }
 

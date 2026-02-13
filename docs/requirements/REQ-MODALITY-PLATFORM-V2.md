@@ -250,7 +250,7 @@ Status values:
 | BLK-004 | Diff Review MVP | REQ-DFR-001..007 | not_started | Diff load/render/select/handoff flows, tests green |
 | BLK-005 | Comments MVP | REQ-CMT-001..006 | not_started | Durable threads + lifecycle + interop, tests green |
 | BLK-006 | Annotation MVP | REQ-ANN-001..005 | not_started | Snapshot annotate/save/send + bridge compatibility, tests green |
-| BLK-007 | Voice MVP | REQ-VOI-001..007 | in_progress | Input/output/policy/interruption/streaming core, tests green |
+| BLK-007 | Voice MVP | REQ-VOI-001..007 | done | Input/output/policy/interruption/streaming core, tests green |
 | BLK-008 | Browser Snapshot MVP | REQ-BRP-001..005 | not_started | Clipboard intake + persistence + review launch, tests green |
 | BLK-009 | Drawing V2 implementation | Drawing V2 reference + REQ-PLT-001..010 | in_progress | Canonical scene graph + patch pipeline + adapters + tests green |
 
@@ -263,6 +263,7 @@ Update protocol:
 
 Current status note:
 - `BLK-001` is complete: platform contract gates and mapped validation checks are satisfied.
+- `BLK-007` is complete: voice interface layer implementation merged with QA/CodeReview approval.
 - `BLK-009` is in progress because drawing modality implementation has already started.
 
 BLK-001 completion checklist (required before switching primary execution to BLK-002):

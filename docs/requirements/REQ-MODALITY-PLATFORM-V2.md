@@ -244,7 +244,7 @@ Status values:
 
 | Backlog ID | Scope | Requirement IDs | Status | Exit Criteria |
 |---|---|---|---|---|
-| BLK-001 | Platform foundations | REQ-PLT-001..010 | in_progress | Contracts implemented, validation enforced, tests green |
+| BLK-001 | Platform foundations | REQ-PLT-001..010 | done | Contracts implemented, validation enforced, tests green |
 | BLK-002 | Presentation MVP | REQ-PRES-001..008 | not_started | Deck/slide ops, playback/export, tests green |
 | BLK-003 | Editor/Viewer MVP | REQ-EDT-001..006 | not_started | Open/edit/save/view flows, restore/conflicts, tests green |
 | BLK-004 | Diff Review MVP | REQ-DFR-001..007 | not_started | Diff load/render/select/handoff flows, tests green |
@@ -262,7 +262,7 @@ Update protocol:
 - Keep one primary backlog item `in_progress` at a time; a dependency track already underway may remain `in_progress` when explicitly noted.
 
 Current status note:
-- `BLK-001` is in progress because platform infrastructure work (runtime hub and unified modality MCP) has already started.
+- `BLK-001` is complete: platform contract gates and mapped validation checks are satisfied.
 - `BLK-009` is in progress because drawing modality implementation has already started.
 
 BLK-001 completion checklist (required before switching primary execution to BLK-002):

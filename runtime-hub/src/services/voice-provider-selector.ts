@@ -11,6 +11,55 @@ import {
   type TtsSynthesisResult,
 } from '../interfaces/voice-providers.js';
 
+// Lazy-loaded Kokoro TTS model
+let kokoroModel: any = null;
+let kokoroModelLoading = false;
+let kokoroModelLoadError: Error | null = null;
+
+async function getKokoroModel() {
+  if (kokoroModel) {
+    return kokoroModel;
+  }
+  
+  if (kokoroModelLoadError) {
+    throw kokoroModelLoadError;
+  }
+  
+  if (kokoroModelLoading) {
+    // Wait for existing load to complete
+    while (kokoroModelLoading) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (kokoroModelLoadError) {
+      throw kokoroModelLoadError;
+    }
+    return kokoroModel;
+  }
+  
+  kokoroModelLoading = true;
+  
+  try {
+    // Dynamic import of kokoro-js
+    const { KokoroTTS } = await import('kokoro-js');
+    
+    // Load the model - using ONNX format for better performance
+    kokoroModel = await KokoroTTS.from_pretrained(
+      'onnx-community/Kokoro-82M-v1.0-ONNX',
+      {
+        dtype: 'q8', // Quantized for faster loading
+        device: 'cpu',
+      }
+    );
+    
+    kokoroModelLoading = false;
+    return kokoroModel;
+  } catch (error) {
+    kokoroModelLoadError = error as Error;
+    kokoroModelLoading = false;
+    throw error;
+  }
+}
+
 interface AdapterAvailability {
   available?: boolean;
 }
@@ -277,14 +326,54 @@ export class BrowserNativeSttAdapter extends BaseAdapter implements SttProviderA
 export class KokoroTtsAdapter extends BaseAdapter implements TtsProviderAdapter {
   readonly kind = 'tts';
   readonly id = 'kokoro';
+  private voice: string = 'af_sarah'; // Default voice
 
   async synthesize(request: TtsSynthesisRequest): Promise<TtsSynthesisResult> {
-    const output = await this.runCommand(this.id, 'tts.synthesize', ['--language', request.language], Buffer.from(request.text, 'utf8'));
-    if (output.stdout.length === 0) {
-      this.failInvalidResponse(this.id, 'tts.synthesize', 'kokoro returned empty audio output');
+    try {
+      const model = await getKokoroModel();
+      
+      // Generate speech - kokoro-js returns RawAudio
+      const audio = await model.generate(request.text, {
+        voice: this.voice,
+      });
+      
+      // Convert RawAudio to Uint8Array
+      let audioBytes: Uint8Array;
+      
+      if (audio && typeof audio === 'object') {
+        // RawAudio has .data property which is the audio buffer
+        const audioData = (audio as any).data;
+        if (audioData instanceof Float32Array) {
+          // Convert Float32 to Int16 PCM
+          const int16Array = new Int16Array(audioData.length);
+          for (let i = 0; i < audioData.length; i++) {
+            int16Array[i] = Math.max(-1, Math.min(1, audioData[i])) * 32767;
+          }
+          audioBytes = new Uint8Array(int16Array.buffer);
+        } else if (audioData instanceof Uint8Array) {
+          audioBytes = audioData;
+        } else if (ArrayBuffer.isView(audioData)) {
+          audioBytes = new Uint8Array(audioData.buffer);
+        } else {
+          // Try to convert directly
+          audioBytes = new Uint8Array(audioData);
+        }
+      } else {
+        throw new Error('Invalid audio output from Kokoro');
+      }
+      
+      return { audio: audioBytes };
+    } catch (error) {
+      console.error('[KokoroTtsAdapter] Synthesis failed:', error);
+      throw new VoiceProviderRuntimeError({
+        code: 'VOICE_PROVIDER_EXEC_FAILED',
+        providerId: 'kokoro',
+        operation: 'tts.synthesize',
+        location: 'kokoro-js.synthesize',
+        reason: `Kokoro TTS synthesis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        remediation: 'Ensure kokoro-js is installed and model can be downloaded',
+      });
     }
-
-    return { audio: new Uint8Array(output.stdout) };
   }
 }
 

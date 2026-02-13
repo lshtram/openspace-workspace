@@ -862,5 +862,6 @@ function resolveRuntimeDevicePreference(requestedDevice: string | undefined, sys
     return systemDefaultDevice.trim();
   }
 
-  throw new Error('Voice output device unavailable: requested device and system default are not configured');
+  // Allow server-side TTS without physical audio device - just generate the audio
+  return 'server';
 }

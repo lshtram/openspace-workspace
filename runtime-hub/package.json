@@ -30,6 +30,7 @@
     "chokidar": "^5.0.0",
     "express": "^5.2.1",
     "json-rpc-2.0": "^1.7.1",
+    "kokoro-js": "^1.2.1",
     "node-fetch": "^3.3.2"
   }
 }

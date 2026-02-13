@@ -421,8 +421,7 @@ function resolveVoiceProviderSelectionFromRuntimeConfig(): VoiceProviderSelectio
       },
       tts: {
         kokoro: new KokoroTtsAdapter({
-          available: Boolean(kokoroCommandPath),
-          commandPath: kokoroCommandPath,
+          available: true, // kokoro-js npm package is installed
         }),
         browserNative: new BrowserNativeTtsAdapter({ available: true }),
       },

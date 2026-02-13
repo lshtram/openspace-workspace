@@ -132,7 +132,8 @@ Repeated identical user actions must emit identical payloads.
 - Derived: flattened annotated image outputs
 
 ### 5.7 Voice
-- Canonical: transcript segments and audio metadata artifacts
+- Canonical (general model): transcript segments and audio metadata artifacts
+- BLK-007 MVP exception: voice is implemented as an interface layer over active modality content; session/transcript state is ephemeral and not persisted as canonical `design/*` artifacts in MVP.
 - Derived: TTS queue and playback projections
 
 ### 5.8 Browser Snapshot Preview

@@ -46,10 +46,8 @@ describe('TopBar', () => {
   it('should toggle left sidebar expanded state when clicked', async () => {
     const user = userEvent.setup({ delay: null })
     renderTopBar()
-    
-    // The sidebar button is the first one
-    const buttons = screen.getAllByRole('button')
-    const sidebarButton = buttons[0]
+
+    const sidebarButton = screen.getByRole('button', { name: 'Toggle sessions sidebar' })
     
     // Should be inactive by default (LayoutProvider defaults to false)
     expect(sidebarButton).toHaveClass('text-black/30')
@@ -63,30 +61,11 @@ describe('TopBar', () => {
     expect(sidebarButton).toHaveClass('text-black/30')
   })
 
-  it('should toggle terminal expanded state when clicked', async () => {
-    const user = userEvent.setup({ delay: null })
-    renderTopBar()
-    
-    // Terminal button is the second to last one
-    const buttons = screen.getAllByRole('button')
-    const terminalButton = buttons[buttons.length - 2]
-    
-    // Should be inactive by default (LayoutProvider defaults to false)
-    expect(terminalButton).toHaveClass('text-black/20')
-    
-    await user.click(terminalButton)
-    
-    // Should now be active
-    expect(terminalButton).toHaveClass('text-black/60')
-  })
-
   it('should toggle right sidebar expanded state when clicked', async () => {
     const user = userEvent.setup({ delay: null })
     renderTopBar()
-    
-    // Right sidebar button is the last one
-    const buttons = screen.getAllByRole('button')
-    const rightSidebarButton = buttons[buttons.length - 1]
+
+    const rightSidebarButton = screen.getByRole('button', { name: 'Toggle file tree sidebar' })
     
     // Should be inactive by default (LayoutProvider defaults to false)
     expect(rightSidebarButton).toHaveClass('text-black/20')
@@ -105,5 +84,12 @@ describe('TopBar', () => {
     await user.type(searchInput, 'test search')
     
     expect(searchInput).toHaveValue('test search')
+  })
+
+  it('uses distinct session and file-tree icons for sidebar controls', () => {
+    const { container } = renderTopBar()
+
+    expect(container.querySelector('.lucide-history')).toBeInTheDocument()
+    expect(container.querySelector('.lucide-folder-tree')).toBeInTheDocument()
   })
 })

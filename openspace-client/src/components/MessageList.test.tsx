@@ -539,4 +539,60 @@ describe('MessageList', () => {
     expect(viewport.scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: 'smooth' })
     expect(screen.queryByTestId('resume-scroll')).not.toBeInTheDocument()
   })
+
+  it('keeps latest message anchored when user is at bottom', () => {
+    const user1 = createUserMessage('user-1', 1000)
+    const assistant1 = createAssistantMessage('assistant-1', 2000)
+    const baseParts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
+    const { rerender } = render(<MessageList messages={[user1, assistant1]} parts={baseParts} />)
+
+    const viewport = screen.getByTestId('message-viewport')
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 100 })
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1000 })
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 960 })
+    viewport.scrollTo = vi.fn()
+
+    fireEvent.scroll(viewport)
+    ;(viewport.scrollTo as ReturnType<typeof vi.fn>).mockClear()
+
+    const user2 = createUserMessage('user-2', 3000)
+    const assistant2 = createAssistantMessage('assistant-2', 4000)
+    const updatedParts = {
+      ...baseParts,
+      'assistant-2': [createTextPart('part-2', 'next reply')],
+    }
+
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1200 })
+    rerender(<MessageList messages={[user1, assistant1, user2, assistant2]} parts={updatedParts} />)
+
+    expect(viewport.scrollTo).toHaveBeenCalledWith({ top: 1200, behavior: 'auto' })
+  })
+
+  it('does not force jump when user has scrolled up', () => {
+    const user1 = createUserMessage('user-1', 1000)
+    const assistant1 = createAssistantMessage('assistant-1', 2000)
+    const baseParts = { 'assistant-1': [createTextPart('part-1', 'reply')] }
+    const { rerender } = render(<MessageList messages={[user1, assistant1]} parts={baseParts} />)
+
+    const viewport = screen.getByTestId('message-viewport')
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 100 })
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1000 })
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 200 })
+    viewport.scrollTo = vi.fn()
+
+    fireEvent.scroll(viewport)
+    ;(viewport.scrollTo as ReturnType<typeof vi.fn>).mockClear()
+
+    const user2 = createUserMessage('user-2', 3000)
+    const assistant2 = createAssistantMessage('assistant-2', 4000)
+    const updatedParts = {
+      ...baseParts,
+      'assistant-2': [createTextPart('part-2', 'next reply')],
+    }
+
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1200 })
+    rerender(<MessageList messages={[user1, assistant1, user2, assistant2]} parts={updatedParts} />)
+
+    expect(viewport.scrollTo).not.toHaveBeenCalled()
+  })
 })

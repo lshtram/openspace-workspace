@@ -8,6 +8,7 @@
 :root[data-design="obsidian-hybrid"] {
   --os-bg-0: #0d0d0d;
   --os-bg-1: #141414;
+  --os-bg-1-rgb: 20 20 20;
   --os-bg-2: #1a1a1a;
   --os-line: #232323;
   --os-line-strong: #333333;

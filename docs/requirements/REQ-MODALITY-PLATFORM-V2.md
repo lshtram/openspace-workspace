@@ -253,6 +253,7 @@ Status values:
 | BLK-007 | Voice MVP | REQ-VOI-001..007 | not_started | Input/output/policy/interruption/streaming core, tests green |
 | BLK-008 | Browser Snapshot MVP | REQ-BRP-001..005 | not_started | Clipboard intake + persistence + review launch, tests green |
 | BLK-009 | Drawing V2 implementation | Drawing V2 reference + REQ-PLT-001..010 | in_progress | Canonical scene graph + patch pipeline + adapters + tests green |
+| BLK-010 | Terminal-as-Pane content package | REQ-002 (REQ-2.2.2 terminal tab content, REQ-2.8.6 terminal surface model) + REQ-PLT-001..006 | not_started | Terminal opens only as pane content, no bottom-panel mode, session/project layout compatibility verified, tests green |
 
 Completion rule:
 - A backlog item can be marked `done` only if all mapped requirements are implemented and the relevant unit/integration/e2e tests from Section 8 pass.
@@ -264,6 +265,7 @@ Update protocol:
 Current status note:
 - `BLK-001` is in progress because platform infrastructure work (runtime hub and unified modality MCP) has already started.
 - `BLK-009` is in progress because drawing modality implementation has already started.
+- `BLK-010` is queued next for terminal-surface consolidation into pane-only modality behavior.
 
 BLK-001 completion checklist (required before switching primary execution to BLK-002):
 - Unified context contract implemented and consumed by runtime + MCP (`REQ-PLT-006`).

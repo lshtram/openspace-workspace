@@ -6,6 +6,7 @@ import { RichEditor, type Prompt } from "./RichEditor";
 import type { PromptAttachment } from "../types/opencode";
 import { ContextPanel } from "./ContextPanel";
 import { parseStringToParts } from "../utils/history";
+import { useSlashCommands } from "../hooks/useSlashCommands";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -48,6 +49,7 @@ export function RichPromptInput({
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(false);
   const [mode, setMode] = useState<'normal' | 'shell'>('normal');
   const lastRestoredSession = useRef<string | undefined>(undefined);
+  const { commands: slashCommands } = useSlashCommands();
 
   // Draft persistence
   useEffect(() => {
@@ -117,14 +119,7 @@ export function RichPromptInput({
             placeholder={mode === 'shell' ? "Enter shell command..." : 'Ask anything... "Review my code"'}
             fileSuggestions={fileSuggestions}
             agentSuggestions={agentSuggestions}
-            commandSuggestions={[
-              { name: 'reset', description: 'Reset the current session' },
-              { name: 'clear', description: 'Clear the terminal' },
-              { name: 'compact', description: 'Compact session history' },
-              { name: 'whiteboard', description: 'Open or create a whiteboard' },
-              { name: 'editor', description: 'Open a file in the editor' },
-              { name: 'presentation', description: 'Open a presentation deck' },
-            ]}
+            commandSuggestions={slashCommands}
           />
 
           {attachments.length > 0 && (

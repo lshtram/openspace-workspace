@@ -31,6 +31,13 @@ task_id: progress-tracking
   - Implemented functional `drawing.*` MCP tools.
   - Verified with comprehensive unit tests.
 - [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
+- [completed] Multi-Phase Codebase Consolidation Strategy (2026-02-14)
+  - **Phase 1:** Clean master + merge pane-system + fix whiteboard naming
+  - **Phase 2:** Integrate BLK-003 editor (Monaco) - COMPLETE
+    - Phase 2 fixes: Agent memory cleanup, slash command additions (0323aaa)
+  - **Phase 3:** Voice integration (pending)
+  - **Phase 4:** Presentation refactor (pending)
+  - **Phase 5:** Final cleanup (pending)
 
 ## NSO v2 Overhaul Summary (2026-02-12)
 - **Sessions:** 6 (analysis → planning → user decisions → wave 1 → wave 2 → waves 3-4)

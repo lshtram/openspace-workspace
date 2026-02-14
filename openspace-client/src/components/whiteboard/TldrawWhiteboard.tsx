@@ -212,7 +212,14 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
   }, []);
 
   useEffect(() => {
-    if (!editor || !data || !isInitialLoadRef.current) return;
+    if (!editor || !isInitialLoadRef.current) return;
+
+    // If data is null (new file / 404), mark initial load as done so handleChange can fire
+    if (!data) {
+      console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath} (new file, no data to load)`);
+      isInitialLoadRef.current = false;
+      return;
+    }
 
     console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath}`);
     isRemoteUpdateRef.current = true;

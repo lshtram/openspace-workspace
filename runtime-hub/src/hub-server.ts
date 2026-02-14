@@ -87,6 +87,27 @@ const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: stri
   return { ok: true, normalizedPath };
 };
 
+/**
+ * Relaxed path validation for read-only operations.
+ * Allows reading any file within the project root but prevents path traversal.
+ */
+const validateReadPath = (rawPath: string): { ok: true; normalizedPath: string } | { ok: false; reason: string } => {
+  if (!rawPath || rawPath.trim().length === 0) {
+    return { ok: false, reason: 'File path is required' };
+  }
+
+  const normalizedPath = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalizedPath.length === 0) {
+    return { ok: false, reason: 'File path is required' };
+  }
+
+  if (normalizedPath.includes('..')) {
+    return { ok: false, reason: 'Path traversal is not allowed' };
+  }
+
+  return { ok: true, normalizedPath };
+};
+
 const requireNonEmptyString = (value: unknown, fieldName: string): string => {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new Error(`${fieldName} is required`);
@@ -762,19 +783,25 @@ export function createHubApp(options: HubAppOptions = {}): {
       }
     }
 
-    const v = validateArtifactPath(rawPath);
-    if (!v.ok) return res.status(400).json({ error: v.reason });
-    const filePath = v.normalizedPath;
-
+    // For GET (read) operations, use relaxed validation (any file within project root)
+    // For other methods, keep the design/ restriction
     if (req.method === 'GET') {
+      const v = validateReadPath(rawPath);
+      if (!v.ok) return res.status(400).json({ error: v.reason });
+      const filePath = v.normalizedPath;
+
       try {
         const content = await store.read(filePath);
         return res.send(content);
       } catch (error: any) {
-        if (error.code === 'ENOENT') return res.status(404).json({ error: 'Artifact not found' });
+        if (error.code === 'ENOENT') return res.status(404).json({ error: 'File not found' });
         return res.status(500).json({ error: error.message });
       }
     }
+
+    // For non-GET, non-POST methods, validate with design/ restriction
+    const v = validateArtifactPath(rawPath);
+    if (!v.ok) return res.status(400).json({ error: v.reason });
 
     return next();
   });

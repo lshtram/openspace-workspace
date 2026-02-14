@@ -269,7 +269,11 @@ export function useArtifact<T = string>(
   const saveFile = useCallback(async (dataToSave: T) => {
     assertCondition(typeof filePath === 'string' && filePath.length > 0, 'filePath must be a non-empty string');
     assertCondition(dataToSave !== undefined, 'dataToSave is required');
-    // Skip save if data hasn't changed
+    // Skip save if data is null (nothing to save)
+    if (dataToSave === null) {
+      return;
+    }
+    // Skip save if data hasn't changed from last saved version
     if (lastSavedRef.current !== null && isEqualRef.current(dataToSave, lastSavedRef.current)) {
       return;
     }

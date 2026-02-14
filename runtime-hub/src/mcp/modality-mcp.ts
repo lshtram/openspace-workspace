@@ -17,7 +17,7 @@ import { parseActiveContextResponse } from "../interfaces/context-contract.js";
 import { assertHandoffPayload } from "../interfaces/handoff-contract.js";
 
 const HUB_URL = process.env.HUB_URL || "http://localhost:3001";
-const PROJECT_ROOT = process.env.PROJECT_ROOT || path.join(process.cwd(), "..");
+const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
 const artifactVersions = new Map<string, number>();
 
 export const server = new Server(
@@ -146,8 +146,8 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
       {
         uri: "active://whiteboard",
         name: "Active Whiteboard Context",
-        mimeType: "text/vnd.mermaid",
-        description: "The currently focused whiteboard diagram content (Mermaid syntax)",
+        mimeType: "application/json",
+        description: "The currently focused whiteboard diagram content (tldraw JSON format)",
       },
     ],
   };
@@ -173,7 +173,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       return {
         contents: [{
           uri: "active://whiteboard",
-          mimeType: "text/vnd.mermaid",
+          mimeType: "application/json",
           text: `// Active Whiteboard: ${ctx.data.path}\n${content}`,
         }],
       };
@@ -223,7 +223,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "whiteboard.list",
-        description: "List all available whiteboard artifacts (.graph.mmd files) in the design directory",
+        description: "List all available whiteboard artifacts (.diagram.json files) in the design directory",
         inputSchema: {
           type: "object",
           properties: {},
@@ -244,7 +244,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "whiteboard.update",
-        description: "Update the logical structure of a whiteboard using Mermaid syntax. If no name is provided, updates the currently active whiteboard.",
+        description: "Update the content of a whiteboard using tldraw JSON format. If no name is provided, updates the currently active whiteboard.",
         inputSchema: {
           type: "object",
           properties: {
@@ -252,12 +252,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "The name of the whiteboard (e.g. 'AuthFlow'). Optional if a whiteboard is active.",
             },
-            mermaid: {
+            content: {
               type: "string",
-              description: "The Mermaid code (flowchart or sequenceDiagram)",
+              description: "The JSON content for the tldraw whiteboard",
             },
           },
-          required: ["mermaid"],
+          required: ["content"],
         },
       },
 
@@ -462,7 +462,7 @@ export const callToolHandler = async (request: { params: { name: string, argumen
 
   if (name === "whiteboard.update") {
     const wbName = (args as any)?.name;
-    const mermaid = (args as any)?.mermaid;
+    const content = (args as any)?.content;
     let filePath: string;
 
     if (!wbName) {
@@ -476,9 +476,9 @@ export const callToolHandler = async (request: { params: { name: string, argumen
     }
 
     try {
-      await writeFile(filePath, mermaid, "Updated via whiteboard.update tool");
+      await writeFile(filePath, content, "Updated via whiteboard.update tool");
       return {
-        content: [{ type: "text", text: `Successfully updated whiteboard '${wbName || filePath}' with new Mermaid logic.` }],
+        content: [{ type: "text", text: `Successfully updated whiteboard '${wbName || filePath}' with new content.` }],
       };
     } catch (error: any) {
       return {

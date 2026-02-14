@@ -11,6 +11,15 @@ export type StoredWorkspaceMeta = {
   order?: number
 }
 
+export type EditorAppearance = {
+  fontSize: number
+  zoomLevel: number
+}
+
+export type AgentFocusPolicy = 'auto-focus' | 'suggest-only' | 'disabled'
+
+const DEFAULT_AGENT_FOCUS_POLICY: AgentFocusPolicy = 'auto-focus'
+
 const PROJECTS_KEY = "openspace.projects"
 const LAST_PROJECT_KEY = "openspace.last_project"
 const SERVERS_KEY = "openspace.servers"
@@ -18,6 +27,8 @@ const ACTIVE_SERVER_KEY = "openspace.active_server"
 const DEFAULT_SERVER_KEY = "openspace.default_server"
 const SESSION_SEEN_KEY = "openspace.session_seen"
 const WORKSPACES_KEY = "openspace.workspaces"
+const EDITOR_APPEARANCE_KEY = "openspace.editor_appearance"
+const AGENT_FOCUS_POLICY_KEY = "openspace.agent_focus_policy"
 export const STORAGE_SCHEMA_VERSION_KEY = "openspace.storage_version"
 export const STORAGE_SCHEMA_VERSION = 1
 
@@ -197,5 +208,34 @@ export const storage = {
       metas.push({ directory, ...patch })
     }
     storage.saveWorkspaceMeta(metas)
+  },
+  getEditorAppearance: (): EditorAppearance => {
+    ensureStorageSchema()
+    const raw = localStorage.getItem(EDITOR_APPEARANCE_KEY)
+    if (!raw) return { fontSize: 14, zoomLevel: 100 }
+    try {
+      const parsed = JSON.parse(raw)
+      return {
+        fontSize: typeof parsed.fontSize === "number" ? parsed.fontSize : 14,
+        zoomLevel: typeof parsed.zoomLevel === "number" ? parsed.zoomLevel : 100,
+      }
+    } catch {
+      return { fontSize: 14, zoomLevel: 100 }
+    }
+  },
+  saveEditorAppearance: (appearance: EditorAppearance) => {
+    ensureStorageSchema()
+    localStorage.setItem(EDITOR_APPEARANCE_KEY, JSON.stringify(appearance))
+  },
+  getAgentFocusPolicy: (): AgentFocusPolicy => {
+    ensureStorageSchema()
+    const raw = localStorage.getItem(AGENT_FOCUS_POLICY_KEY)
+    if (!raw) return DEFAULT_AGENT_FOCUS_POLICY
+    if (raw === 'auto-focus' || raw === 'suggest-only' || raw === 'disabled') return raw
+    return DEFAULT_AGENT_FOCUS_POLICY
+  },
+  saveAgentFocusPolicy: (policy: AgentFocusPolicy) => {
+    ensureStorageSchema()
+    localStorage.setItem(AGENT_FOCUS_POLICY_KEY, policy)
   },
 }

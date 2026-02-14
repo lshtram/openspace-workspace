@@ -1,15 +1,14 @@
-/* eslint-disable react-refresh/only-export-components */
 import React, { useEffect, useRef, useMemo } from 'react';
 import Reveal from 'reveal.js';
 import 'reveal.js/dist/reveal.css';
 import 'reveal.js/dist/theme/black.css';
 import { useArtifact } from '../hooks/useArtifact';
 import { usePlayback } from '../hooks/usePlayback';
+import { useLinkResolver } from '../hooks/useLinkResolver';
 import ReactMarkdown from 'react-markdown';
 
 interface PresentationFrameProps {
   filePath: string;
-  onOpenFile?: (path: string, type?: 'whiteboard' | 'drawing' | 'presentation' | 'editor') => void;
 }
 
 export const parseSlides = (markdown: string): string[] => {
@@ -20,13 +19,10 @@ export const parseSlides = (markdown: string): string[] => {
   return slides.map(s => s.trim()).filter(Boolean);
 };
 
-const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath, onOpenFile }) => {
+const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
   const deckRef = useRef<HTMLDivElement>(null);
-  const revealRef = useRef<{
-    destroy: () => void;
-    getIndices: () => { h: number };
-    slide: (index: number) => void;
-  } | null>(null);
+  const revealRef = useRef<any>(null);
+  const { resolveLink } = useLinkResolver();
 
   const { data: markdown, loading, error } = useArtifact<string>(filePath, {
     parse: content => content,
@@ -38,20 +34,15 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath, onOpenF
 
   useEffect(() => {
     if (deckRef.current && !revealRef.current && slides.length > 0) {
-      const revealOptions = {
+      revealRef.current = new (Reveal as any)(deckRef.current, {
         embedded: true,
         keyboardCondition: 'focused',
+        controls: false,
         progress: true,
         hash: false,
         respondToHashChanges: false,
-      } as unknown as ConstructorParameters<typeof Reveal>[1]
-      const reveal = new Reveal(deckRef.current, revealOptions)
-      reveal.initialize()
-      revealRef.current = reveal as unknown as {
-        destroy: () => void
-        getIndices: () => { h: number }
-        slide: (index: number) => void
-      }
+      });
+      revealRef.current.initialize();
     }
 
     return () => {
@@ -91,20 +82,23 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath, onOpenF
                 <div className="markdown-body h-full flex flex-col justify-center items-center text-center p-8">
                   <ReactMarkdown
                     components={{
-                      a: ({ ...props }) => {
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      a: ({ node, ...props }) => {
                         const href = props.href;
-                        if (href && !href.startsWith('http')) {
+
+                        if (href && (href.startsWith('openspace://') || !href.startsWith('http'))) {
                           return (
                             <a
                               {...props}
                               className="text-blue-400 hover:underline cursor-pointer"
                               onClick={(e) => {
                                 e.preventDefault();
-                                let contentType: 'whiteboard' | 'drawing' | 'presentation' | 'editor' = 'editor';
-                                if (href.endsWith('.graph.mmd') || href.endsWith('.excalidraw')) contentType = 'whiteboard';
-                                else if (href.endsWith('.diagram.json')) contentType = 'drawing';
-                                else if (href.endsWith('.deck.md')) contentType = 'presentation';
-                                onOpenFile?.(href, contentType);
+                                if (href.startsWith('openspace://')) {
+                                  resolveLink(href);
+                                } else {
+                                  // Legacy/Relative path support
+                                  window.location.hash = href; 
+                                }
                               }}
                             />
                           );

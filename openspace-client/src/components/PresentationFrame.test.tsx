@@ -1,14 +1,31 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import PresentationFrame, { parseSlides } from './PresentationFrame';
 import { LayoutProvider } from '../context/LayoutContext';
+import { FileTabsProvider } from '../context/FileTabsContext';
+import { HighlightProvider } from '../context/HighlightContext';
+import { ViewerRegistryProvider } from '../context/ViewerRegistryContext';
+import { MutationProvider } from '../context/MutationContext';
+import React from 'react';
+
+const render = (ui: React.ReactElement) => rtlRender(
+  <LayoutProvider>
+    <FileTabsProvider>
+      <HighlightProvider>
+        <ViewerRegistryProvider>
+          <MutationProvider>
+            {ui}
+          </MutationProvider>
+        </ViewerRegistryProvider>
+      </HighlightProvider>
+    </FileTabsProvider>
+  </LayoutProvider>
+)
 
 describe('PresentationFrame', () => {
   it('renders without crashing', () => {
     render(
-      <LayoutProvider>
-        <PresentationFrame filePath="test.md" />
-      </LayoutProvider>
+      <PresentationFrame filePath="test.md" />
     );
     expect(screen.getByText('Loading presentation...')).toBeInTheDocument();
   });

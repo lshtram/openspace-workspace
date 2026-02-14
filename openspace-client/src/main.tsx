@@ -8,6 +8,10 @@ import { LayoutProvider } from "./context/LayoutContext"
 import { ServerProvider } from "./context/ServerContext"
 import { CommandPaletteProvider } from "./context/CommandPaletteContext"
 import { PaneProvider } from "./context/PaneContext"
+import { FileTabsProvider } from "./context/FileTabsContext"
+import { HighlightProvider } from "./context/HighlightContext"
+import { ViewerRegistryProvider } from "./context/ViewerRegistryContext"
+import { MutationProvider } from "./context/MutationContext"
 import { applyStoredSettingsToDocument } from "./utils/shortcuts"
 
 const queryClient = new QueryClient({
@@ -29,7 +33,15 @@ createRoot(document.getElementById("root")!).render(
           <DialogProvider>
             <LayoutProvider>
               <PaneProvider>
-                <App />
+                <FileTabsProvider>
+                  <HighlightProvider>
+                    <ViewerRegistryProvider>
+                      <MutationProvider>
+                        <App />
+                      </MutationProvider>
+                    </ViewerRegistryProvider>
+                  </HighlightProvider>
+                </FileTabsProvider>
               </PaneProvider>
             </LayoutProvider>
           </DialogProvider>

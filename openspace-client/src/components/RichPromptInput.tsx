@@ -121,6 +121,9 @@ export function RichPromptInput({
               { name: 'reset', description: 'Reset the current session' },
               { name: 'clear', description: 'Clear the terminal' },
               { name: 'compact', description: 'Compact session history' },
+              { name: 'whiteboard', description: 'Open or create a whiteboard' },
+              { name: 'editor', description: 'Open a file in the editor' },
+              { name: 'presentation', description: 'Open a presentation deck' },
             ]}
           />
 

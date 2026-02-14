@@ -298,14 +298,36 @@ export function AgentConsole({
     const partsToUse = richParts || (text ? [{ type: 'text' as const, content: text }] : [])
     if (partsToUse.length === 0 && attachments.length === 0) return
 
-    // Handle /whiteboard command
+    // Handle slash commands
     const firstPart = partsToUse[0]
-    if (firstPart?.type === 'text' && firstPart.content.startsWith('/whiteboard')) {
-      const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
-      const path = `design/${name}.diagram.json`
-      onOpenContent?.(path, 'whiteboard')
-      setPrompt("")
-      return
+    if (firstPart?.type === 'text') {
+      // /whiteboard command
+      if (firstPart.content.startsWith('/whiteboard')) {
+        const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
+        const path = `design/${name}.diagram.json`
+        onOpenContent?.(path, 'whiteboard')
+        setPrompt("")
+        return
+      }
+      
+      // /editor command
+      if (firstPart.content.startsWith('/editor')) {
+        const path = firstPart.content.replace('/editor', '').trim()
+        if (path) {
+          onOpenContent?.(path, 'editor')
+          setPrompt("")
+          return
+        }
+      }
+      
+      // /presentation command
+      if (firstPart.content.startsWith('/presentation')) {
+        const name = firstPart.content.replace('/presentation', '').trim()
+        const path = name ? `design/deck/${name}.deck.md` : 'design/deck/presentation.deck.md'
+        onOpenContent?.(path, 'presentation')
+        setPrompt("")
+        return
+      }
     }
 
     if (!selectedModel || !activeAgent) return

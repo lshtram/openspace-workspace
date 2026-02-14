@@ -25,9 +25,9 @@ vi.mock('../hooks/useFileStatus', () => ({
   fileStatusQueryKey: vi.fn(() => ['file-status', 'http://localhost:3000', '/test/dir']),
 }))
 
-vi.mock('../context/LayoutContext', () => ({
-  useLayout: () => ({
-    setActiveWhiteboardPath: vi.fn(),
+vi.mock('../context/PaneContext', () => ({
+  usePane: () => ({
+    openContent: vi.fn(),
   }),
 }))
 

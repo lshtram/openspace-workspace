@@ -7,6 +7,7 @@ export type ModelOption = {
   providerName: string
   contextLimit?: number
   connected?: boolean
+  enabled?: boolean
 }
 
 export type EventEnvelope = {

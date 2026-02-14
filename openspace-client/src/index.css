@@ -26,7 +26,7 @@
   --radius-xl: 1.5rem;
   --radius-lg: 1rem;
   --radius-md: 0.75rem;
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", "Inter", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
@@ -90,6 +90,12 @@ body {
 
 .app-shell {
   background: var(--bg);
+}
+
+.os-shell,
+.panel-surface,
+.os-right-panel {
+  font-family: var(--font-sans);
 }
 
 .panel-surface {

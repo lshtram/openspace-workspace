@@ -1,10 +1,35 @@
 import { createContext, useContext, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { loadSettings, type LayoutOrganization } from "../utils/shortcuts"
 
-export type ArtifactPaneModality = 'whiteboard' | 'drawing' | 'presentation' | 'editor';
+export type AgentConversationSize = "minimal" | "expanded" | "full"
+export type AgentConversationMode = "floating" | "docked-pane"
 
-export interface ArtifactPane {
-  path: string;
-  modality: ArtifactPaneModality;
+export interface AgentFloatingRect {
+  size: Exclude<AgentConversationSize, "minimal">
+  position: {
+    x: number
+    y: number
+  }
+  dimensions: {
+    width: number
+    height: number
+  }
+}
+
+export interface AgentConversationState {
+  mode: AgentConversationMode
+  size: AgentConversationSize
+  position: {
+    x: number
+    y: number
+  }
+  dimensions: {
+    width: number
+    height: number
+  }
+  visible: boolean
+  dockedPaneId?: string
+  lastFloatingRect?: AgentFloatingRect
 }
 
 type LayoutContextType = {
@@ -12,22 +37,29 @@ type LayoutContextType = {
   setLeftSidebarExpanded: Dispatch<SetStateAction<boolean>>
   rightSidebarExpanded: boolean
   setRightSidebarExpanded: Dispatch<SetStateAction<boolean>>
-  terminalExpanded: boolean
-  setTerminalExpanded: Dispatch<SetStateAction<boolean>>
-  terminalHeight: number
-  setTerminalHeight: Dispatch<SetStateAction<number>>
-  activeArtifactPane: ArtifactPane | null
-  setActiveArtifactPane: Dispatch<SetStateAction<ArtifactPane | null>>
+  layoutOrganization: LayoutOrganization
+  setLayoutOrganization: Dispatch<SetStateAction<LayoutOrganization>>
+  agentConversation: AgentConversationState
+  setAgentConversation: Dispatch<SetStateAction<AgentConversationState>>
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined)
 
+const DEFAULT_AGENT_STATE: AgentConversationState = {
+  mode: "floating",
+  size: "minimal",
+  position: { x: 95, y: 92 },
+  dimensions: { width: 620, height: 420 },
+  visible: true,
+}
+
 export function LayoutProvider({ children }: { children: ReactNode }) {
   const [leftSidebarExpanded, setLeftSidebarExpanded] = useState(false)
   const [rightSidebarExpanded, setRightSidebarExpanded] = useState(false)
-  const [terminalExpanded, setTerminalExpanded] = useState(false)
-  const [terminalHeight, setTerminalHeight] = useState(240)
-  const [activeArtifactPane, setActiveArtifactPane] = useState<ArtifactPane | null>(null)
+  const [layoutOrganization, setLayoutOrganization] = useState<LayoutOrganization>(
+    () => loadSettings().layoutOrganization,
+  )
+  const [agentConversation, setAgentConversation] = useState<AgentConversationState>(DEFAULT_AGENT_STATE)
 
   return (
     <LayoutContext.Provider
@@ -36,12 +68,10 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         setLeftSidebarExpanded,
         rightSidebarExpanded,
         setRightSidebarExpanded,
-        terminalExpanded,
-        setTerminalExpanded,
-        terminalHeight,
-        setTerminalHeight,
-        activeArtifactPane,
-        setActiveArtifactPane,
+        layoutOrganization,
+        setLayoutOrganization,
+        agentConversation,
+        setAgentConversation,
       }}
     >
       {children}

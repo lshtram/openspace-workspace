@@ -1,0 +1,4 @@
+export const LAYER_FLOATING_AGENT = 9000
+export const LAYER_DIALOG_OVERLAY = 11000
+export const LAYER_DIALOG_CONTENT = 11010
+export const LAYER_POPOVER = 11020

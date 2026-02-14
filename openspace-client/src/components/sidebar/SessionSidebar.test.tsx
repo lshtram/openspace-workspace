@@ -155,4 +155,23 @@ describe('SessionSidebar', () => {
     fireEvent.click(screen.getByText('Next unseen'))
     expect(onSelectNextUnseen).toHaveBeenCalled()
   })
+
+  it('uses compact sidebar width with transition classes', () => {
+    const { container } = renderWithProviders(
+      <SessionSidebar
+        projectName="Test Project"
+        projectPath="/test/path"
+        sessions={mockSessions}
+        onSelectSession={vi.fn()}
+        onNewSession={vi.fn()}
+        onLoadMore={vi.fn()}
+        currentDirectory="/test/path"
+        onSwitchWorkspace={vi.fn()}
+      />
+    )
+
+    const sidebar = container.querySelector('aside')
+    expect(sidebar).toHaveClass('w-[224px]')
+    expect(sidebar).toHaveClass('transition-all')
+  })
 })

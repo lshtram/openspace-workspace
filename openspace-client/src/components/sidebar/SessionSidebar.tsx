@@ -5,6 +5,7 @@ import type { Session } from "../../lib/opencode/v2/gen/types.gen"
 import * as ScrollArea from "@radix-ui/react-scroll-area"
 import * as Popover from "@radix-ui/react-popover"
 import { WorkspaceManager } from "./WorkspaceManager"
+import { LAYER_POPOVER } from "../../constants/layers"
 
 type SessionSidebarProps = {
   projectName: string
@@ -71,34 +72,36 @@ export function SessionSidebar({
   }
 
   return (
-    <aside className="flex h-full w-[260px] flex-col bg-[#fcfbf9] border-r border-black/[0.03] animate-in slide-in-from-left duration-300">
+    <aside className="flex h-full w-[224px] flex-col border-r border-black/[0.03] bg-[#fcfbf9] transition-all duration-300 ease-in-out">
       {/* Fixed header section */}
       <div className="flex-shrink-0">
-        <div className="flex flex-col gap-1 px-6 pt-6 pb-4">
-          <h2 className="text-[17px] font-bold text-[#1d1a17]">{projectName}</h2>
-          <p className="truncate text-[13px] text-black/40" title={projectPath}>
+        <div className="flex flex-col gap-0.5 px-4.5 pb-3 pt-4.5">
+          <h2 className="text-[15px] font-bold text-[#1d1a17]">{projectName}</h2>
+          <p className="truncate text-[12px] text-black/40" title={projectPath}>
             {projectPath}
           </p>
           {currentDirectory && currentDirectory !== projectPath && (
-            <p className="truncate text-[12px] text-black/30" title={currentDirectory}>
+            <p className="truncate text-[11px] text-black/30" title={currentDirectory}>
               Workspace: {currentDirectory}
             </p>
           )}
         </div>
 
-        <div className="px-4 mb-4">
+        <div className="mb-3 px-3">
           <button
+            type="button"
             onClick={onNewSession}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/5 bg-white py-2.5 text-[14px] font-medium text-[#1d1a17] shadow-sm transition-all hover:bg-black/[0.02] active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-black/5 bg-white py-2 text-[13px] font-medium text-[#1d1a17] shadow-sm transition-all hover:bg-black/[0.02] active:scale-[0.98]"
           >
-            <Plus size={16} strokeWidth={2.5} />
+            <Plus size={14} strokeWidth={2.5} />
             <span>New session</span>
           </button>
         </div>
 
         {(unseenCount ?? 0) > 0 && onSelectNextUnseen && (
-          <div className="px-4 mb-3">
+          <div className="mb-2.5 px-3">
             <button
+              type="button"
               onClick={onSelectNextUnseen}
               className="flex w-full items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100"
             >
@@ -112,8 +115,8 @@ export function SessionSidebar({
       </div>
 
       {/* Scrollable sessions area - grows to fill available space */}
-      <ScrollArea.Root className="flex-1 overflow-hidden min-h-0">
-        <ScrollArea.Viewport className="h-full px-2 pb-4">
+      <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden">
+        <ScrollArea.Viewport className="h-full px-1.5 pb-3">
           <div className="space-y-0.5">
             {sessions.map((session) => {
               const isActive = activeSessionId === session.id
@@ -130,7 +133,7 @@ export function SessionSidebar({
                   data-unseen={isUnseen ? "true" : "false"}
                   data-archived={isArchived ? "true" : "false"}
                   className={cn(
-                    "group relative flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition-colors",
+                    "group relative flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-left transition-colors",
                     isActive
                       ? "bg-black/[0.04]"
                       : "hover:bg-black/[0.02]",
@@ -140,14 +143,15 @@ export function SessionSidebar({
                   <Popover.Root>
                     <Popover.Trigger asChild>
                       <button
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-black/5"
+                        type="button"
+                        className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-md hover:bg-black/5"
                         onClick={(e) => e.stopPropagation()}
                         data-testid="session-actions"
                         aria-label="Session actions"
                       >
                         <span
                           className={cn(
-                            "h-2.5 w-2.5 rounded-full",
+                            "h-2 w-2 rounded-full",
                             isWorking && "bg-blue-500 animate-ping",
                             !isWorking && isActive && "bg-[#1d1a17]",
                             !isWorking && !isActive && isUnseen && "bg-blue-500",
@@ -161,9 +165,11 @@ export function SessionSidebar({
                         side="right"
                         align="start"
                         sideOffset={6}
-                        className="z-50 w-[160px] overflow-hidden rounded-xl border border-black/5 bg-white p-1 shadow-xl animate-in fade-in zoom-in-95"
+                        className="w-[160px] overflow-hidden rounded-xl border border-black/5 bg-white p-1 shadow-xl animate-in fade-in zoom-in-95"
+                        style={{ zIndex: LAYER_POPOVER }}
                       >
                         <button
+                          type="button"
                           onClick={() => handleStartEdit(session)}
                           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-black/5"
                         >
@@ -171,6 +177,7 @@ export function SessionSidebar({
                           <span>Rename</span>
                         </button>
                         <button
+                          type="button"
                           onClick={() => onArchiveSession?.(session.id, !isArchived)}
                           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-black/5"
                         >
@@ -179,6 +186,7 @@ export function SessionSidebar({
                         </button>
                         <div className="my-1 h-px bg-black/5" />
                         <button
+                          type="button"
                           onClick={() => onDeleteSession?.(session.id)}
                           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-red-600 hover:bg-red-50"
                         >
@@ -190,8 +198,9 @@ export function SessionSidebar({
                   </Popover.Root>
 
                   <button
-                    onClick={() => onSelectSession(session.id)}
-                    className="flex flex-1 items-center gap-3 min-w-0"
+                    type="button"
+                     onClick={() => onSelectSession(session.id)}
+                     className="flex min-w-0 flex-1 items-center gap-2"
                   >
                     {isEditing ? (
                       <input
@@ -200,12 +209,12 @@ export function SessionSidebar({
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={handleSaveEdit}
                         onKeyDown={handleKeyDown}
-                        className="flex-1 bg-white rounded px-2 py-1 text-[14px] outline-none ring-1 ring-black/10"
+                        className="flex-1 rounded bg-white px-2 py-1 text-[13px] outline-none ring-1 ring-black/10"
                       />
                     ) : (
                       <span
                         className={cn(
-                          "flex-1 truncate text-[14px] text-left",
+                          "flex-1 truncate text-left text-[13px]",
                           isActive
                             ? "font-semibold text-[#1d1a17]"
                             : "text-black/60 group-hover:text-[#1d1a17]",
@@ -224,8 +233,9 @@ export function SessionSidebar({
 
           {(hasMore ?? sessions.length > 0) && (
             <button
+              type="button"
               onClick={onLoadMore}
-              className="mt-4 w-full px-4 text-left text-[13px] font-medium text-black/30 hover:text-black/50 transition-colors"
+              className="mt-3 w-full px-3 text-left text-[12px] font-medium text-black/30 transition-colors hover:text-black/50"
             >
               Load more
             </button>

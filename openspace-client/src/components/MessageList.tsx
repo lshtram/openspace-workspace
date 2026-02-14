@@ -163,6 +163,14 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
 
   const turnCount = turns.length
   const activeStreamingTurnId = isPending ? turns.at(-1)?.id : undefined
+  const latestContentKey = useMemo(() => {
+    const latestTurn = turns.at(-1)
+    if (!latestTurn) return ""
+    const signature = latestTurn.messageIds
+      .map((messageId) => `${messageId}:${parts[messageId]?.length ?? 0}`)
+      .join("|")
+    return `${latestTurn.id}::${signature}`
+  }, [parts, turns])
 
   const getTurnDurationLabel = useCallback(
     (turn: TurnGroup): string | undefined => {
@@ -189,11 +197,12 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
   useEffect(() => {
     const viewport = viewportRef.current
     if (!viewport) return
+    void latestContentKey
     if (isAtBottom) scrollToBottom("auto")
     if (turnCount === 0) return
     const frame = requestAnimationFrame(updateScrollState)
     return () => cancelAnimationFrame(frame)
-  }, [turnCount, isAtBottom, scrollToBottom, updateScrollState])
+  }, [latestContentKey, turnCount, isAtBottom, scrollToBottom, updateScrollState])
 
   useLayoutEffect(() => {
     if (turnCount === 0) return
@@ -231,9 +240,9 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
           }
         }}
       >
-        <div className="flex flex-col max-w-[840px] mx-auto pb-40">
+        <div className="mx-auto flex max-w-[840px] flex-col pb-2">
           {hasMore && onLoadMore && (
-            <div className="px-6 pt-4">
+            <div className="px-4 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -247,7 +256,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
                     onLoadMore()
                   }}
                   disabled={isFetching}
-                  className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[12px] font-medium text-black/60 shadow-sm transition hover:bg-black/[0.02] disabled:opacity-50"
+                  className="rounded-md border border-black/10 bg-white px-2.5 py-1.5 text-[11px] font-medium text-black/60 shadow-sm transition hover:bg-black/[0.02] disabled:opacity-50"
                 >
                 {isFetching ? "Loading..." : "Load earlier messages"}
               </button>
@@ -281,27 +290,27 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
                   />
                 )}
                 
-                <div className="flex flex-col px-6 py-2">
+                <div className="flex flex-col px-4 py-1.5">
                   {error && (
-                    <div className="mb-4 rounded-xl border border-red-100 bg-red-50/30 p-3 text-[13px] text-red-600">
+                    <div className="mb-2 rounded-lg border border-red-100 bg-red-50/30 p-2 text-[12px] text-red-600">
                       {typeof error.data?.message === "string" ? error.data.message : error.name}
                     </div>
                   )}
 
                   {stepParts.length > 0 && <StepsFlow parts={stepParts} />}
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5">
                     {contentParts.map((part) => (
                       <PartRenderer key={part.id} part={part} />
                     ))}
                   </div>
 
                   {turn.assistants.length > 0 && (
-                    <div className="mt-2 self-end flex items-center gap-2">
-                      <span className="text-[10px] text-black/10 font-bold uppercase tabular-nums">
+                    <div className="mt-1 self-end flex items-center gap-1">
+                      <span className="text-[9px] text-black/15 font-semibold uppercase tabular-nums">
                         {new Date(turn.assistants[0].time.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {durationLabel && <span className="text-[10px] text-black/25 font-bold uppercase tabular-nums">{durationLabel}</span>}
+                      {durationLabel && <span className="text-[9px] text-black/25 font-semibold uppercase tabular-nums">{durationLabel}</span>}
                       <CopyButton text={contentParts.filter(p => p.type === "text").map(p => p.type === "text" ? p.text : "").join("\n")} />
                     </div>
                   )}
@@ -311,8 +320,8 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
           })}
           
           {isPending && (
-            <div className="px-6 py-4">
-              <div className="flex items-center gap-2 text-[12px] font-medium text-black/40">
+            <div className="px-4 py-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-black/40">
                 <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                 <span>thinking {elapsed > 0 && `${elapsed}s`}</span>
               </div>
@@ -321,7 +330,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
         </div>
       </ScrollArea.Viewport>
       {canScroll && !isAtBottom && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-14 z-10 flex justify-center">
           <button
             type="button"
             data-testid="resume-scroll"
@@ -329,7 +338,7 @@ export function MessageList({ messages, parts, isPending, hasMore, onLoadMore, i
               scrollToBottom("smooth")
               setIsAtBottom(true)
             }}
-            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white text-black/60 shadow-sm transition hover:bg-black/[0.02]"
+            className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black/60 shadow-sm transition hover:bg-black/[0.02]"
             aria-label="Resume auto-scroll"
           >
             <ArrowDownToLine size={16} />
@@ -350,10 +359,10 @@ function UserMessageItem({ message, parts }: { message: Message; parts: Part[] }
 
   return (
     <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md transition-colors">
-      <div className="px-6 pt-4">
-        <div className="group relative rounded-2xl bg-black/[0.04] border border-black/[0.02] p-3 transition-all hover:bg-black/[0.06]">
+      <div className="px-4 pt-2">
+        <div className="group relative rounded-xl border border-black/[0.02] bg-black/[0.04] p-2.5 transition-all hover:bg-black/[0.06]">
           <div className={cn(
-            "text-[14px] leading-relaxed text-black/70",
+            "text-[13px] leading-[1.5] text-black/70",
             !isExpanded && isLong && "line-clamp-3"
           )}>
             {text}
@@ -362,7 +371,7 @@ function UserMessageItem({ message, parts }: { message: Message; parts: Part[] }
             <button 
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="mt-1 text-[11px] font-bold uppercase tracking-wider text-black/40 hover:text-black/60"
+              className="mt-1 text-[10px] font-bold uppercase tracking-wider text-black/40 hover:text-black/60"
             >
               {isExpanded ? "Show less" : "Show more"}
             </button>
@@ -370,12 +379,12 @@ function UserMessageItem({ message, parts }: { message: Message; parts: Part[] }
           <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyButton text={text} />
           </div>
-          <div className="absolute right-3 bottom-2 text-[9px] font-bold text-black/10 uppercase tabular-nums">
+          <div className="absolute bottom-1.5 right-2.5 text-[8px] font-semibold text-black/15 uppercase tabular-nums">
             {new Date(message.time.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
-      <div className="h-6 w-full bg-gradient-to-b from-white/80 to-transparent pointer-events-none" />
+      <div className="pointer-events-none h-3 w-full bg-gradient-to-b from-white/80 to-transparent" />
     </div>
   )
 }
@@ -442,12 +451,12 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
 
   if (part.type === "text") {
     return (
-      <div className="prose-content text-[15px] leading-[1.6] text-[#1d1a17]">
+      <div className="prose-content text-[14px] leading-[1.55] text-[#1d1a17]">
         <ReactMarkdown
           components={{
-            p: ({children}) => <p className="mb-3 last:mb-0">{children}</p>,
-            ul: ({children}) => <ul className="mb-3 list-disc pl-5 space-y-1">{children}</ul>,
-            ol: ({children}) => <ol className="mb-3 list-decimal pl-5 space-y-1">{children}</ol>,
+            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+            ul: ({children}) => <ul className="mb-2 list-disc pl-5 space-y-0.5">{children}</ul>,
+            ol: ({children}) => <ol className="mb-2 list-decimal pl-5 space-y-0.5">{children}</ol>,
             code({ className, children, ...props }: { className?: string, children?: React.ReactNode }) {
               const match = /language-(\w+)/.exec(className || "")
               const content = String(children).replace(/\n$/, "")
@@ -474,7 +483,7 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
 
   if (part.type === "reasoning") {
     return (
-      <div className="text-[13px] leading-relaxed text-black/30 italic py-1">
+      <div className="py-0.5 text-[12px] leading-relaxed italic text-black/30">
         {part.text}
       </div>
     )
@@ -528,8 +537,8 @@ function PartRenderer({ part, isStep }: { part: Part, isStep?: boolean }) {
 
   if (part.type === "file") {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-black/5 bg-white p-2 shadow-sm w-fit my-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/5 text-black/40">
+      <div className="my-0.5 flex w-fit items-center gap-2 rounded-lg border border-black/5 bg-white p-1.5 shadow-sm">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black/5 text-black/40">
           <ToolIcon size={14} />
         </div>
         <div className="flex flex-col pr-4">
@@ -601,9 +610,9 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="p-1.5 rounded-lg border border-black/[0.03] bg-white shadow-sm transition-all text-black/30 hover:text-black/60 hover:border-black/10 hover:bg-black/[0.02]"
+      className="rounded-md border border-black/[0.03] bg-white p-1 shadow-sm transition-all text-black/30 hover:border-black/10 hover:bg-black/[0.02] hover:text-black/60"
     >
-      {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+      {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
     </button>
   )
 }

@@ -14,6 +14,7 @@ import { ServerRow } from "./ServerRow"
 import { serverDisplayName } from "../utils/server"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { LAYER_POPOVER } from "../constants/layers"
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -98,7 +99,8 @@ export function StatusPopover({ connected }: StatusPopoverProps) {
           side="bottom"
           align="end"
           sideOffset={8}
-          className="panel-surface z-50 w-[360px] overflow-hidden rounded-2xl p-0 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+          className="panel-surface w-[360px] overflow-hidden rounded-2xl p-0 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+          style={{ zIndex: LAYER_POPOVER }}
         >
           <Tabs.Root defaultValue="servers" className="flex flex-col">
             <Tabs.List className="flex border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 pt-2">

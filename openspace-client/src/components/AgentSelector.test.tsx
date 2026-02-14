@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgentSelector } from './AgentSelector'
+import { LAYER_POPOVER } from '../constants/layers'
 
 describe('AgentSelector', () => {
   const mockAgents = ['general', 'code', 'explorer', 'debugger']
@@ -87,6 +88,18 @@ describe('AgentSelector', () => {
     await user.click(trigger)
     
     expect(screen.getAllByRole('button', { name: /general/i }).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders popover content above floating agent layer', async () => {
+    const user = userEvent.setup()
+    render(<AgentSelector agents={mockAgents} value="general" onChange={vi.fn()} />)
+
+    await user.click(screen.getByRole('button'))
+
+    const optionButton = await screen.findByRole('button', { name: /code/i })
+    const wrapper = optionButton.closest('[data-radix-popper-content-wrapper]')
+    const popoverContent = wrapper?.firstElementChild
+    expect(popoverContent).toHaveStyle({ zIndex: `${LAYER_POPOVER}` })
   })
 
   it('should apply semibold font to selected agent in dropdown', async () => {

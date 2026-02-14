@@ -13,6 +13,8 @@ export type ShortcutAction =
   | "toggleSidebar"
   | "toggleTerminal"
   | "toggleFileTree"
+  | "splitPaneRight"
+  | "splitPaneDown"
 
 export type ShortcutMap = Record<ShortcutAction, string>
 
@@ -25,7 +27,9 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   nextSession: "Alt+ArrowDown",
   toggleSidebar: "Mod+B",
   toggleTerminal: "Mod+J",
-  toggleFileTree: "Mod+\\",
+  toggleFileTree: "Alt+\\",
+  splitPaneRight: "Mod+\\",
+  splitPaneDown: "Mod+Shift+\\",
 }
 
 export const SHORTCUTS_EXPORT_SCHEMA = "openspace.shortcuts"
@@ -49,6 +53,7 @@ export type FontFamily = "Space Grotesk" | "Inter" | "IBM Plex Sans"
 export type Language = "English" | "Deutsch" | "Español" | "Français"
 export type DefaultShell = "Default" | "Bash" | "Zsh" | "Fish"
 export type AgentCompletionSound = "None" | "Chime" | "Ding"
+export type LayoutOrganization = "per-session" | "per-project"
 
 export type AppSettings = {
   colorScheme: ColorScheme
@@ -63,6 +68,7 @@ export type AppSettings = {
   defaultShell: DefaultShell
   language: Language
   defaultAgent: string
+  layoutOrganization: LayoutOrganization
   shortcuts: ShortcutMap
 }
 
@@ -79,6 +85,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultShell: "Default",
   language: "English",
   defaultAgent: "",
+  layoutOrganization: "per-session",
   shortcuts: { ...DEFAULT_SHORTCUTS },
 }
 
@@ -96,6 +103,7 @@ type StoredSettings = {
   language?: Language
   shortcuts?: Partial<ShortcutMap>
   defaultAgent?: string
+  layoutOrganization?: LayoutOrganization
   soundNotifications?: boolean
 }
 
@@ -118,6 +126,7 @@ const FONT_FAMILIES = new Set<FontFamily>(["Space Grotesk", "Inter", "IBM Plex S
 const LANGUAGES = new Set<Language>(["English", "Deutsch", "Español", "Français"])
 const SHELLS = new Set<DefaultShell>(["Default", "Bash", "Zsh", "Fish"])
 const SOUNDS = new Set<AgentCompletionSound>(["None", "Chime", "Ding"])
+const LAYOUT_ORGANIZATION = new Set<LayoutOrganization>(["per-session", "per-project"])
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -193,6 +202,11 @@ export function loadSettings(): AppSettings {
       SOUNDS,
       stored.soundNotifications ? "Chime" : DEFAULT_SETTINGS.soundOnAgentCompletion,
     )
+    const layoutOrganization = pickEnum(
+      stored.layoutOrganization,
+      LAYOUT_ORGANIZATION,
+      DEFAULT_SETTINGS.layoutOrganization,
+    )
 
     const next: AppSettings = {
       ...DEFAULT_SETTINGS,
@@ -221,6 +235,7 @@ export function loadSettings(): AppSettings {
       defaultShell,
       language,
       defaultAgent: typeof stored.defaultAgent === "string" ? stored.defaultAgent : DEFAULT_SETTINGS.defaultAgent,
+      layoutOrganization,
       shortcuts: {
         ...DEFAULT_SHORTCUTS,
         ...(stored.shortcuts ?? {}),

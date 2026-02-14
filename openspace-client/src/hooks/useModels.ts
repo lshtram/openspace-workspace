@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { openCodeService } from "../services/OpenCodeClient"
 import type { ModelOption } from "../types/opencode"
 import { useServer } from "../context/ServerContext"
+import { applyModelVisibility, filterEnabledModels } from "../utils/selector-governance"
 
 type ModelsResult = {
   models: ModelOption[]
@@ -11,11 +12,12 @@ type ModelsResult = {
 
 export const modelsQueryKey = (serverUrl?: string, directory?: string) => ["models", serverUrl, directory]
 
-export function useModels(directoryProp?: string) {
+export function useModels(directoryProp?: string, options?: { includeDisabled?: boolean }) {
   const server = useServer()
   const directory = directoryProp ?? openCodeService.directory
+  const includeDisabled = options?.includeDisabled ?? false
   return useQuery<ModelsResult>({
-    queryKey: modelsQueryKey(server.activeUrl, directory),
+    queryKey: [...modelsQueryKey(server.activeUrl, directory), includeDisabled],
     queryFn: async () => {
       const response = await openCodeService.client.provider.list({
         directory,
@@ -37,18 +39,24 @@ export function useModels(directoryProp?: string) {
           })),
         )
 
-      // Sort models by name
-      models.sort((a, b) => a.name.localeCompare(b.name))
+      const visibleAnnotated = applyModelVisibility(models)
+      const selectableModels = includeDisabled ? visibleAnnotated : filterEnabledModels(visibleAnnotated)
+
+      selectableModels.sort((a, b) => a.name.localeCompare(b.name))
 
       const defaultProvider = connectedProviders.find((p) => p !== "opencode") || connectedProviders[0]
-      let defaultModelId = defaultProvider ? defaults[defaultProvider] : models[0]?.id
+      let defaultModelId: string | undefined = defaultProvider ? defaults[defaultProvider] : selectableModels[0]?.id
 
-      if (!defaultModelId && models.length > 0) {
-        defaultModelId = models[0].id
+      if (defaultModelId && !selectableModels.some((model) => model.id === defaultModelId)) {
+        defaultModelId = undefined
+      }
+
+      if (!defaultModelId && selectableModels.length > 0) {
+        defaultModelId = selectableModels[0].id
       }
 
       return {
-        models,
+        models: selectableModels,
         connectedProviders,
         defaultModelId,
       }

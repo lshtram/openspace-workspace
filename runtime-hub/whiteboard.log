@@ -1,5 +1,0 @@
-
-> runtime-hub@1.0.0 start:whiteboard
-> tsx src/mcp/whiteboard-mcp.ts
-
-Whiteboard MCP server running on stdio

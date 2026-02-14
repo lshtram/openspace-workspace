@@ -20,3 +20,23 @@ runtime-hub/*.log
 
 # Local scratch files
 result.md
+
+# Session artifacts
+SESSION-SUMMARY-*.md
+GAP-ANALYSIS-*.md
+NSO-IMPROVEMENTS.md
+TEST-*.md
+
+# Test outputs
+test-results/
+coverage/
+
+# Whiteboard storage
+whiteboards/
+
+# Log files
+*.log
+
+# Backup files
+opencode.json.bk
+*.bak

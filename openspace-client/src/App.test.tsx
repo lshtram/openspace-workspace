@@ -75,11 +75,7 @@ vi.mock('./components/DialogOpenFile', () => ({
   DialogOpenFile: () => <div data-testid="dialog-open-file">DialogOpenFile</div>,
 }))
 
-vi.mock('./components/whiteboard/WhiteboardFrame', () => ({
-  WhiteboardFrame: ({ filePath }: { filePath: string }) => (
-    <div data-testid="whiteboard-frame" data-file-path={filePath}>WhiteboardFrame</div>
-  ),
-}))
+// WhiteboardFrame was removed, TldrawWhiteboard is now the only whiteboard component
 
 vi.mock('./components/sidebar/ProjectRail', () => ({
   ProjectRail: ({

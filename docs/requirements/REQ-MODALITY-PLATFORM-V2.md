@@ -81,6 +81,12 @@ This document consolidates requirements previously spread across legacy modality
 - `US-EDT-004` External change handling for clean vs dirty tabs.
 - `US-EDT-005` Markdown edit/view toggle with Mermaid rendering.
 - `US-EDT-006` Stable navigation and session restore.
+- `US-EDT-007` Follow agent-guided reveal to a specific file and exact location during explanation.
+- `US-EDT-008` See a transient visual highlight for the exact range the agent references.
+- `US-EDT-009` Reclaim manual control immediately from agent-guided focus via Escape.
+- `US-EDT-010` Return to prior location after agent-guided jumps.
+- `US-EDT-011` Review agent-proposed edits safely before applying when local file state is dirty.
+- `US-EDT-012` Preserve selected diff context when opening the same file in editor.
 
 #### Functional Requirements
 - `REQ-EDT-001` Text/code/markdown/config files supported for MVP.
@@ -89,6 +95,20 @@ This document consolidates requirements previously spread across legacy modality
 - `REQ-EDT-004` Viewer registry supports extensible viewer adapters.
 - `REQ-EDT-005` External open hook: `openFileAt(path, selection?)`.
 - `REQ-EDT-006` Keyboard save/close/switch shortcuts.
+- `REQ-EDT-007` `openFileAt(path, selection?, options?)` accepts normalized line/column range (`startLine`, `startColumn`, `endLine`, `endColumn`) and resolves deterministically.
+- `REQ-EDT-008` Agent walkthrough highlights support explicit lifecycle actions (`apply`, `update`, `clear`) with stable highlight IDs.
+- `REQ-EDT-009` Agent reveal default is `auto-focus`; user can change policy in settings to `suggest-only` or `disabled`.
+- `REQ-EDT-010` Escape immediately exits active agent-guided focus/highlight mode and returns control to user navigation.
+- `REQ-EDT-011` Agent reveal opens side-by-side editor pane by default.
+- `REQ-EDT-012` Dirty-tab agent edit flow is preview-first and non-destructive; default action applies to buffer, with optional explicit apply-to-disk path.
+- `REQ-EDT-013` Line-range highlight is required for MVP; highlight API remains extensible for token/text-range targeting without breaking contract.
+- `REQ-EDT-014` Agent-driven editor file writes use validated patch/operation pipeline; blind full-document rewrite is disallowed.
+- `REQ-EDT-015` Navigation history supports deterministic jump-back after any agent-guided reveal.
+- `REQ-EDT-016` Clickable file/location links from agent conversation and other modality surfaces (including presentation) resolve through `openFileAt` and open editor at target range deterministically.
+- `REQ-EDT-017` MVP editor command surface includes open/save/save-as, undo/redo, cut/copy/paste, find/replace (single-file), toggle line comment, and deterministic go-to-location reveal.
+- `REQ-EDT-018` Deferred editor commands outside MVP scope (including workspace-wide find and advanced IDE refactors) are explicitly unavailable; no silent no-op command paths.
+- `REQ-EDT-019` Multi-tab editor runtime preserves per-tab model + view state (cursor/scroll/selection) keyed by normalized path without cross-tab state leakage.
+- `REQ-EDT-020` Editor/viewer appearance controls include zoom in/out/reset and font size increase/decrease/reset, with keyboard shortcuts and settings persistence.
 
 ### 5.3 Diff Review
 
@@ -99,6 +119,7 @@ This document consolidates requirements previously spread across legacy modality
 - `US-DFR-004` Open reviewed file in editor at target location.
 - `US-DFR-005` Restore review state when navigating away and back.
 - `US-DFR-006` Handle binary diffs safely with previews/placeholders.
+- `US-DFR-007` Handoff to editor preserves selected diff context and allows return to diff anchor.
 
 #### Functional Requirements
 - `REQ-DFR-001` Diff source contract includes status/additions/deletions and before/after content references.
@@ -108,6 +129,9 @@ This document consolidates requirements previously spread across legacy modality
 - `REQ-DFR-005` Comment handoff payload includes deterministic range metadata.
 - `REQ-DFR-006` Focus/scroll contract opens collapsed target and scrolls to anchor.
 - `REQ-DFR-007` Review state persistence for style/open-files/scroll/focus.
+- `REQ-DFR-008` Diff-to-editor handoff payload includes normalized target path, start/end line-column metadata, and side context.
+- `REQ-DFR-009` Diff-to-editor handoff auto-applies transient editor highlight for selected range.
+- `REQ-DFR-010` Editor jump-back action restores originating diff file/anchor deterministically.
 
 ### 5.4 Comments
 
@@ -246,8 +270,8 @@ Status values:
 |---|---|---|---|---|
 | BLK-001 | Platform foundations | REQ-PLT-001..010 | done | Contracts implemented, validation enforced, tests green |
 | BLK-002 | Presentation MVP | REQ-PRES-001..008 | not_started | Deck/slide ops, playback/export, tests green |
-| BLK-003 | Editor/Viewer MVP | REQ-EDT-001..006 | not_started | Open/edit/save/view flows, restore/conflicts, tests green |
-| BLK-004 | Diff Review MVP | REQ-DFR-001..007 | not_started | Diff load/render/select/handoff flows, tests green |
+| BLK-003 | Editor/Viewer MVP | REQ-EDT-001..020 | done | Open/edit/save/view flows, command-surface baseline, appearance controls, agent reveal/highlight/link-navigation, restore/conflicts, tests green |
+| BLK-004 | Diff Review MVP | REQ-DFR-001..010 | not_started | Diff load/render/select/handoff/jump-back flows, tests green (diff-editor handoff edge done in BLK-003) |
 | BLK-005 | Comments MVP | REQ-CMT-001..006 | not_started | Durable threads + lifecycle + interop, tests green |
 | BLK-006 | Annotation MVP | REQ-ANN-001..005 | not_started | Snapshot annotate/save/send + bridge compatibility, tests green |
 | BLK-007 | Voice MVP | REQ-VOI-001..007 | done | Input/output/policy/interruption/streaming core, tests green |
@@ -285,3 +309,13 @@ Presentation fast-track rule:
 - Re-introducing multiple architecture sources of truth.
 - Bypassing validation or version checks for agent mutation paths.
 - Silent fallback behavior that hides validation or mutation failures.
+
+## 13. Risks and Mitigations (Multi-Perspective Audit)
+
+| Perspective | Risk | Mitigation Requirement |
+|---|---|---|
+| User | Agent auto-focus can feel disruptive during active manual navigation. | `REQ-EDT-009` configurable policy and `REQ-EDT-010` Escape override provide immediate control.
+| Security | Agent-guided file open/write could target unsafe paths or bypass guardrails. | Enforce `REQ-PLT-008` path normalization and `REQ-EDT-014` patch/operation-only write path.
+| SRE/Operations | Frequent reveal/highlight events can create noisy, hard-to-debug interaction traces. | Emit deterministic events under existing `REQ-PLT-005`; include actor/modality/artifact/timestamp for auditability.
+| Product Reliability | Dirty-tab agent edits can silently clobber user edits. | `REQ-EDT-012` preview-first non-destructive flow with explicit user choice.
+| Accessibility/Usability | Transient highlights may be missed in rapid walkthroughs. | Keep minimum visible dwell for active step and allow jump-back via `REQ-EDT-015`.

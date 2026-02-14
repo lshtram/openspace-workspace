@@ -1,7 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render as rtlRender, screen, act, fireEvent } from '@testing-library/react'
 import { MessageList } from './MessageList'
 import type { Part, AssistantMessage, UserMessage } from '../lib/opencode/v2/gen/types.gen'
+import { PaneProvider } from '../context/PaneContext'
+import { FileTabsProvider } from '../context/FileTabsContext'
+import { HighlightProvider } from '../context/HighlightContext'
+import { LayoutProvider } from '../context/LayoutContext'
+import { ViewerRegistryProvider } from '../context/ViewerRegistryContext'
+import { MutationProvider } from '../context/MutationContext'
+import React from 'react'
+
+const render = (ui: React.ReactElement) => rtlRender(
+  <LayoutProvider>
+    <PaneProvider>
+      <FileTabsProvider>
+        <HighlightProvider>
+          <ViewerRegistryProvider>
+            <MutationProvider>
+              {ui}
+            </MutationProvider>
+          </ViewerRegistryProvider>
+        </HighlightProvider>
+      </FileTabsProvider>
+    </PaneProvider>
+  </LayoutProvider>
+)
 
 // Mock clipboard API
 Object.assign(navigator, {

@@ -12,6 +12,10 @@ import { ServerContext, ServerProvider, type ServerContextType } from '../../con
 import { CommandPaletteProvider } from '../../context/CommandPaletteContext'
 import { LayoutProvider } from '../../context/LayoutContext'
 import { PaneProvider } from '../../context/PaneContext'
+import { FileTabsProvider } from '../../context/FileTabsContext'
+import { HighlightProvider } from '../../context/HighlightContext'
+import { ViewerRegistryProvider } from '../../context/ViewerRegistryContext'
+import { MutationProvider } from '../../context/MutationContext'
 
 /**
  * Create a new QueryClient for testing
@@ -51,7 +55,17 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
           <CommandPaletteProvider>
             <DialogProvider>
               <LayoutProvider>
-                <PaneProvider>{children}</PaneProvider>
+                <PaneProvider>
+                  <FileTabsProvider>
+                    <HighlightProvider>
+                      <ViewerRegistryProvider>
+                        <MutationProvider>
+                          {children}
+                        </MutationProvider>
+                      </ViewerRegistryProvider>
+                    </HighlightProvider>
+                  </FileTabsProvider>
+                </PaneProvider>
               </LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>
@@ -61,7 +75,17 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
           <CommandPaletteProvider>
             <DialogProvider>
               <LayoutProvider>
-                <PaneProvider>{children}</PaneProvider>
+                <PaneProvider>
+                  <FileTabsProvider>
+                    <HighlightProvider>
+                      <ViewerRegistryProvider>
+                        <MutationProvider>
+                          {children}
+                        </MutationProvider>
+                      </ViewerRegistryProvider>
+                    </HighlightProvider>
+                  </FileTabsProvider>
+                </PaneProvider>
               </LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>

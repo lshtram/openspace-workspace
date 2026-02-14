@@ -302,7 +302,7 @@ export function AgentConsole({
     const firstPart = partsToUse[0]
     if (firstPart?.type === 'text' && firstPart.content.startsWith('/whiteboard')) {
       const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
-      const path = `design/${name}.graph.mmd`
+      const path = `design/${name}.diagram.json`
       onOpenContent?.(path, 'whiteboard')
       setPrompt("")
       return

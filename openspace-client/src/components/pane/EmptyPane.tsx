@@ -18,7 +18,7 @@ export function EmptyPane({ paneId }: EmptyPaneProps) {
             pane.openContent({
               type: "whiteboard",
               title: "Untitled Whiteboard",
-              contentId: "design/untitled.graph.mmd",
+              contentId: "design/untitled.diagram.json",
               targetPaneId: paneId,
             })
           }

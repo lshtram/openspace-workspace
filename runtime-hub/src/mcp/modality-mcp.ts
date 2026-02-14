@@ -415,8 +415,8 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       const files = await fs.readdir(designDir);
       logIo('success', 'DESIGN_LIST', { designDir, count: files.length });
       const whiteboards = files
-        .filter(f => f.endsWith(".graph.mmd"))
-        .map(f => f.replace(".graph.mmd", ""));
+        .filter(f => f.endsWith(".diagram.json"))
+        .map(f => f.replace(".diagram.json", ""));
       
       return {
         content: [{ type: "text", text: `Available whiteboards:\n${whiteboards.join("\n")}` }],
@@ -444,7 +444,7 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       }
       filePath = ctx.data.path;
     } else {
-      filePath = `design/${wbName}.graph.mmd`;
+      filePath = `design/${wbName}.diagram.json`;
     }
     
     try {
@@ -472,7 +472,7 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       }
       filePath = ctx.data.path;
     } else {
-      filePath = `design/${wbName}.graph.mmd`;
+      filePath = `design/${wbName}.diagram.json`;
     }
 
     try {

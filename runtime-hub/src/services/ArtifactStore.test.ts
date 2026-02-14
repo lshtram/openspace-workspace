@@ -109,7 +109,7 @@ describe('ArtifactStore', () => {
       store.once('ARTIFACT_UPDATED', resolve);
     });
 
-    await store.write('design/canonical.graph.mmd', 'graph TD\nA-->B', {
+    await store.write('design/canonical.diagram.json', 'graph TD\nA-->B', {
       actor: 'agent',
       reason: 'canonical event test',
     });
@@ -124,7 +124,7 @@ describe('ArtifactStore', () => {
 
     expect(event.type).toBe('ARTIFACT_UPDATED');
     expect(event.modality).toBe('whiteboard');
-    expect(event.artifact).toBe('design/canonical.graph.mmd');
+    expect(event.artifact).toBe('design/canonical.diagram.json');
     expect(event.actor).toBe('agent');
     expect(typeof event.timestamp).toBe('string');
   });

@@ -11,14 +11,14 @@ describe('PatchEngine', () => {
     const store = new ArtifactStore(tempDir);
     const engine = new PatchEngine(store);
 
-    const first = await engine.apply('design/diagram.graph.mmd', {
+    const first = await engine.apply('design/test-data.txt', {
       baseVersion: 0,
       actor: 'agent',
       intent: 'create diagram',
       ops: [{ op: 'replace_content', content: 'graph TD\nA-->B' }],
     });
 
-    const second = await engine.apply('design/diagram.graph.mmd', {
+    const second = await engine.apply('design/test-data.txt', {
       baseVersion: 1,
       actor: 'agent',
       intent: 'append edge',
@@ -28,7 +28,7 @@ describe('PatchEngine', () => {
     expect(first.version).toBe(1);
     expect(second.version).toBe(2);
 
-    const saved = await store.read('design/diagram.graph.mmd');
+    const saved = await store.read('design/test-data.txt');
     expect(saved.toString()).toContain('B-->C');
 
     await fs.rm(tempDir, { recursive: true, force: true });
@@ -39,7 +39,7 @@ describe('PatchEngine', () => {
     const store = new ArtifactStore(tempDir);
     const engine = new PatchEngine(store);
 
-    await engine.apply('design/diagram.graph.mmd', {
+    await engine.apply('design/test-data.txt', {
       baseVersion: 0,
       actor: 'agent',
       intent: 'create diagram',
@@ -47,7 +47,7 @@ describe('PatchEngine', () => {
     });
 
     await expect(
-      engine.apply('design/diagram.graph.mmd', {
+      engine.apply('design/test-data.txt', {
         baseVersion: 0,
         actor: 'agent',
         intent: 'stale write',
@@ -70,7 +70,7 @@ describe('PatchEngine', () => {
       store.once('PATCH_APPLIED', resolve);
     });
 
-    await engine.apply('design/diagram.graph.mmd', {
+    await engine.apply('design/test-data.txt', {
       baseVersion: 0,
       actor: 'agent',
       intent: 'create diagram',
@@ -79,8 +79,8 @@ describe('PatchEngine', () => {
 
     const event = await eventPromise;
     expect(event.type).toBe('PATCH_APPLIED');
-    expect(event.modality).toBe('whiteboard');
-    expect(event.artifact).toBe('design/diagram.graph.mmd');
+    expect(event.modality).toBe('editor');
+    expect(event.artifact).toBe('design/test-data.txt');
     expect(event.actor).toBe('agent');
     expect(event.version).toBe(1);
     expect(typeof event.timestamp).toBe('string');
@@ -93,7 +93,7 @@ describe('PatchEngine', () => {
     const store = new ArtifactStore(tempDir);
     const engine = new PatchEngine(store);
 
-    await engine.apply('design/diagram.graph.mmd', {
+    await engine.apply('design/test-data.txt', {
       baseVersion: 0,
       actor: 'agent',
       intent: 'create diagram',
@@ -105,7 +105,7 @@ describe('PatchEngine', () => {
     });
 
     await expect(
-      engine.apply('design/diagram.graph.mmd', {
+      engine.apply('design/test-data.txt', {
         baseVersion: 0,
         actor: 'agent',
         intent: 'stale write',
@@ -117,8 +117,8 @@ describe('PatchEngine', () => {
 
     const event = await eventPromise;
     expect(event.type).toBe('VALIDATION_FAILED');
-    expect(event.modality).toBe('whiteboard');
-    expect(event.artifact).toBe('design/diagram.graph.mmd');
+    expect(event.modality).toBe('editor');
+    expect(event.artifact).toBe('design/test-data.txt');
     expect(event.actor).toBe('agent');
     expect(typeof event.timestamp).toBe('string');
 

@@ -9,7 +9,7 @@ describe('modality-mcp contracts', () => {
         arguments: {
           sourceModality: 'diff',
           target: {
-            path: '/design/review.graph.mmd',
+            path: '/design/review.diagram.json',
           },
           location: {
             startLine: 4,
@@ -26,7 +26,7 @@ describe('modality-mcp contracts', () => {
     };
 
     expect(parsed.sourceModality).toBe('diff');
-    expect(parsed.target.path).toBe('design/review.graph.mmd');
+    expect(parsed.target.path).toBe('design/review.diagram.json');
     expect(parsed.location?.startLine).toBe(4);
   });
 

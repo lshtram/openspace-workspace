@@ -223,8 +223,7 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
               void toggle(node.path)
             } else {
               let type: "editor" | "whiteboard" | "drawing" | "presentation" = "editor"
-              if (node.path.endsWith('.graph.mmd') || node.path.endsWith('.excalidraw')) type = 'whiteboard'
-              else if (node.path.endsWith('.diagram.json')) type = 'drawing'
+              if (node.path.endsWith('.diagram.json') || node.path.endsWith('.excalidraw')) type = 'whiteboard'
               else if (node.path.endsWith('.deck.md')) type = 'presentation'
 
               pane.openContent({

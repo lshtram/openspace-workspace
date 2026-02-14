@@ -10,7 +10,7 @@ import {
 describe("useArtifact", () => {
   let fetchMock: ReturnType<typeof vi.fn>
   const hubUrl = "http://localhost:3001"
-  const filePath = "design/sample.graph.mmd"
+  const filePath = "design/sample.diagram.json"
 
   const eventSourceMock = installMockEventSource()
   const broadcastChannelMock = installMockBroadcastChannel()

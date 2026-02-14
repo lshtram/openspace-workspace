@@ -6,7 +6,7 @@ describe('handoff contract', () => {
     const payload = assertHandoffPayload({
       sourceModality: 'diff',
       target: {
-        path: 'design/review.graph.mmd',
+        path: 'design/review.diagram.json',
       },
       location: {
         startLine: 10,
@@ -15,7 +15,7 @@ describe('handoff contract', () => {
     });
 
     expect(payload.sourceModality).toBe('diff');
-    expect(payload.target.path).toBe('design/review.graph.mmd');
+    expect(payload.target.path).toBe('design/review.diagram.json');
     expect(payload.location?.startLine).toBe(10);
   });
 

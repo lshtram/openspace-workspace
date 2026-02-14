@@ -68,8 +68,7 @@ function normalizeAgentConversationState(state?: Partial<AgentConversationState>
 
 function inferContent(path: string): ContentSpec {
   let type: ContentSpec["type"] = "editor"
-  if (path.endsWith(".graph.mmd") || path.endsWith(".excalidraw")) type = "whiteboard"
-  else if (path.endsWith(".diagram.json")) type = "drawing"
+  if (path.endsWith(".diagram.json") || path.endsWith(".excalidraw")) type = "whiteboard"
   else if (path.endsWith(".deck.md")) type = "presentation"
 
   return {

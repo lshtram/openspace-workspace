@@ -252,7 +252,7 @@ export class PatchEngine {
   }
 
   private inferModality(filePath: string): string {
-    if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw') || filePath.endsWith('.diagram.json')) {
+    if (filePath.endsWith('.diagram.json') || filePath.endsWith('.excalidraw')) {
       return 'whiteboard';
     }
     if (filePath.endsWith('.deck.md')) {

@@ -199,7 +199,7 @@ export const handlers = [
 
   // POST /context/active-whiteboard - set active whiteboard
   http.post(`${hubUrl}/context/active-whiteboard`, async () => {
-    return HttpResponse.json({ success: true, activeWhiteboard: 'test.graph.mmd' })
+    return HttpResponse.json({ success: true, activeWhiteboard: 'test.diagram.json' })
   }),
 
   // POST /mcp/connect - Connect to MCP server

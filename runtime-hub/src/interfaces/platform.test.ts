@@ -15,13 +15,13 @@ describe('platform contracts', () => {
     const parsed = assertActiveContextPayload({
       modality: 'whiteboard',
       data: {
-        path: 'design/example.graph.mmd',
+        path: 'design/example.diagram.json',
         location: { startLine: 1, endLine: 2 },
       },
     });
 
     expect(parsed.modality).toBe('whiteboard');
-    expect(parsed.data.path).toBe('design/example.graph.mmd');
+    expect(parsed.data.path).toBe('design/example.diagram.json');
     expect(parsed.data.location?.startLine).toBe(1);
   });
 
@@ -73,14 +73,14 @@ describe('platform contracts', () => {
   it('creates canonical platform events', () => {
     const event = createPlatformEvent('PATCH_APPLIED', {
       modality: 'whiteboard',
-      artifact: 'design/example.graph.mmd',
+      artifact: 'design/example.diagram.json',
       actor: 'agent',
       version: 3,
     });
 
     expect(event.type).toBe('PATCH_APPLIED');
     expect(event.modality).toBe('whiteboard');
-    expect(event.artifact).toBe('design/example.graph.mmd');
+    expect(event.artifact).toBe('design/example.diagram.json');
     expect(event.version).toBe(3);
     expect(typeof event.timestamp).toBe('string');
   });

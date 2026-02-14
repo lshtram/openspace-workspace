@@ -101,8 +101,7 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath, onOpenF
                               onClick={(e) => {
                                 e.preventDefault();
                                 let contentType: 'whiteboard' | 'drawing' | 'presentation' | 'editor' = 'editor';
-                                if (href.endsWith('.graph.mmd') || href.endsWith('.excalidraw')) contentType = 'whiteboard';
-                                else if (href.endsWith('.diagram.json')) contentType = 'drawing';
+                                if (href.endsWith('.diagram.json') || href.endsWith('.excalidraw')) contentType = 'whiteboard';
                                 else if (href.endsWith('.deck.md')) contentType = 'presentation';
                                 onOpenFile?.(href, contentType);
                               }}

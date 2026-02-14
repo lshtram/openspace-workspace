@@ -1,29 +1,32 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { LayoutProvider, useLayout } from './LayoutContext';
+import { render, screen, fireEvent } from "@testing-library/react"
+import { describe, it, expect } from "vitest"
+import { LayoutProvider, useLayout } from "./LayoutContext"
 
-// Test component that uses the context
 function TestComponent() {
-  const { activeArtifactPane, setActiveArtifactPane } = useLayout();
+  const { agentConversation, setAgentConversation } = useLayout()
   return (
     <div>
-      <div data-testid="active-pane">
-        {activeArtifactPane ? `${activeArtifactPane.path}-${activeArtifactPane.modality}` : 'none'}
-      </div>
-      <button type="button" onClick={() => setActiveArtifactPane({ path: 'test.md', modality: 'presentation' })}>
-        Set Presentation
+      <div data-testid="agent-size">{agentConversation.size}</div>
+      <button
+        type="button"
+        onClick={() => setAgentConversation((prev) => ({ ...prev, size: "expanded" }))}
+      >
+        Expand
       </button>
     </div>
-  );
+  )
 }
 
-describe('LayoutContext', () => {
-  it('provides activeArtifactPane state', () => {
+describe("LayoutContext", () => {
+  it("provides agent conversation state", () => {
     render(
       <LayoutProvider>
         <TestComponent />
-      </LayoutProvider>
-    );
-    expect(screen.getByTestId('active-pane')).toHaveTextContent('none');
-  });
-});
+      </LayoutProvider>,
+    )
+
+    expect(screen.getByTestId("agent-size")).toHaveTextContent("minimal")
+    fireEvent.click(screen.getByText("Expand"))
+    expect(screen.getByTestId("agent-size")).toHaveTextContent("expanded")
+  })
+})

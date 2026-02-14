@@ -7,6 +7,7 @@ import { DialogProvider } from "./context/DialogContext"
 import { LayoutProvider } from "./context/LayoutContext"
 import { ServerProvider } from "./context/ServerContext"
 import { CommandPaletteProvider } from "./context/CommandPaletteContext"
+import { PaneProvider } from "./context/PaneContext"
 import { applyStoredSettingsToDocument } from "./utils/shortcuts"
 
 const queryClient = new QueryClient({
@@ -27,7 +28,9 @@ createRoot(document.getElementById("root")!).render(
         <CommandPaletteProvider>
           <DialogProvider>
             <LayoutProvider>
-              <App />
+              <PaneProvider>
+                <App />
+              </PaneProvider>
             </LayoutProvider>
           </DialogProvider>
         </CommandPaletteProvider>

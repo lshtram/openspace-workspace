@@ -1,5 +1,6 @@
 import * as Popover from "@radix-ui/react-popover"
 import { ChevronDown, Check } from "lucide-react"
+import { LAYER_POPOVER } from "../constants/layers"
 
 type AgentSelectorProps = {
   agents: string[]
@@ -15,7 +16,7 @@ export function AgentSelector({ agents, value, onChange }: AgentSelectorProps) {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-[#1d1a17] transition hover:bg-black/5"
+          className="group flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold text-[#1d1a17] transition hover:bg-black/5"
         >
           <span className="capitalize">{selected}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-40 transition-transform group-data-[state=open]:rotate-180" />
@@ -25,8 +26,9 @@ export function AgentSelector({ agents, value, onChange }: AgentSelectorProps) {
         <Popover.Content
           side="top"
           align="start"
-          sideOffset={8}
-          className="z-50 min-w-[120px] overflow-hidden rounded-2xl border border-black/5 bg-white p-1.5 shadow-2xl animate-in fade-in zoom-in-95"
+          sideOffset={6}
+          className="min-w-[120px] overflow-hidden rounded-xl border border-black/5 bg-white p-1 shadow-2xl animate-in fade-in zoom-in-95"
+          style={{ zIndex: LAYER_POPOVER }}
         >
           <div className="space-y-0.5">
             {agents.map((agent) => (

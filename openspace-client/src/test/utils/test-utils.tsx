@@ -11,6 +11,7 @@ import { DialogProvider } from '../../context/DialogContext'
 import { ServerContext, ServerProvider, type ServerContextType } from '../../context/ServerContext'
 import { CommandPaletteProvider } from '../../context/CommandPaletteContext'
 import { LayoutProvider } from '../../context/LayoutContext'
+import { PaneProvider } from '../../context/PaneContext'
 
 /**
  * Create a new QueryClient for testing
@@ -49,7 +50,9 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
         <ServerContext.Provider value={serverContextValue}>
           <CommandPaletteProvider>
             <DialogProvider>
-              <LayoutProvider>{children}</LayoutProvider>
+              <LayoutProvider>
+                <PaneProvider>{children}</PaneProvider>
+              </LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>
         </ServerContext.Provider>
@@ -57,7 +60,9 @@ function TestProviders({ children, queryClient, serverContextValue }: TestProvid
         <ServerProvider>
           <CommandPaletteProvider>
             <DialogProvider>
-              <LayoutProvider>{children}</LayoutProvider>
+              <LayoutProvider>
+                <PaneProvider>{children}</PaneProvider>
+              </LayoutProvider>
             </DialogProvider>
           </CommandPaletteProvider>
         </ServerProvider>

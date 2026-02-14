@@ -14,8 +14,8 @@ import { MessageList } from "./MessageList"
 import { ModelSelector } from "./ModelSelector"
 import { RichPromptInput } from "./RichPromptInput"
 import { SETTINGS_UPDATED_EVENT, loadPreferredAgent } from "../utils/shortcuts"
-import { useLayout } from "../context/LayoutContext"
 import type { Prompt } from "./RichEditor"
+import { filterTopLevelAgents } from "../utils/selector-governance"
 
 const readAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -29,12 +29,17 @@ type AgentConsoleProps = {
   sessionId?: string
   onSessionCreated?: (id: string) => void
   directory?: string
+  onOpenContent?: (path: string, type?: "whiteboard" | "drawing" | "presentation" | "editor") => void
 }
 
-export function AgentConsole({ sessionId, onSessionCreated, directory: directoryProp }: AgentConsoleProps) {
+export function AgentConsole({
+  sessionId,
+  onSessionCreated,
+  directory: directoryProp,
+  onOpenContent,
+}: AgentConsoleProps) {
   const queryClient = useQueryClient()
   const server = useServer()
-  const { setActiveArtifactPane } = useLayout()
   const directory = directoryProp ?? openCodeService.directory
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>(undefined)
@@ -54,7 +59,10 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
   const selectedModel = models.find((model) => model.id === activeModelId)
 
   const agentNames = useMemo(
-    () => (Array.isArray(agentsQuery.data) ? agentsQuery.data.map((agent) => agent.name) : []),
+    () =>
+      Array.isArray(agentsQuery.data)
+        ? filterTopLevelAgents(agentsQuery.data).map((agent) => agent.name)
+        : [],
     [agentsQuery.data],
   )
   const preferredDefaultAgent = preferredAgent && agentNames.includes(preferredAgent) ? preferredAgent : undefined
@@ -295,7 +303,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
     if (firstPart?.type === 'text' && firstPart.content.startsWith('/whiteboard')) {
       const name = firstPart.content.replace('/whiteboard', '').trim() || 'unnamed'
       const path = `design/${name}.graph.mmd`
-      setActiveArtifactPane({ path, modality: 'whiteboard' })
+      onOpenContent?.(path, 'whiteboard')
       setPrompt("")
       return
     }
@@ -450,7 +458,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
         disabled={isPendingForSession || createSession.isPending}
         isPending={isPendingForSession}
         leftSection={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <AgentSelector
               agents={agentNames}
               value={activeAgent ?? ""}
@@ -461,7 +469,7 @@ export function AgentConsole({ sessionId, onSessionCreated, directory: directory
               value={activeModelId}
               onChange={setSelectedModelId}
             />
-            <span className="ml-1 text-[13px] font-medium text-[#a0a0a0]">Default</span>
+            <span className="ml-0.5 text-[11px] font-medium text-[#a0a0a0]">Default</span>
           </div>
         }
         rightSection={

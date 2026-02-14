@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { AgentConsole } from "./components/AgentConsole"
-import { WhiteboardFrame } from "./components/whiteboard/WhiteboardFrame"
-import { TldrawWhiteboard } from "./components/whiteboard/TldrawWhiteboard"
 import { FileTree } from "./components/FileTree"
-import { Terminal } from "./components/Terminal"
 import { CommandPalette } from "./components/CommandPalette"
 import { ProjectRail, type Project } from "./components/sidebar/ProjectRail"
 import { SessionSidebar } from "./components/sidebar/SessionSidebar"
@@ -17,7 +13,8 @@ import { useUpdateSession, useDeleteSession } from "./hooks/useSessionActions"
 import { DialogOpenFile } from "./components/DialogOpenFile"
 import { storage } from "./utils/storage"
 import PresentationFrame from "./components/PresentationFrame"
-import { useLayout, type ArtifactPaneModality } from "./context/LayoutContext"
+import { useLayout } from "./context/LayoutContext"
+import type { AgentConversationState } from "./context/LayoutContext"
 import { useDialog } from "./context/DialogContext"
 import { useCommandPalette } from "./context/CommandPaletteContext"
 import { DialogSelectDirectory } from "./components/DialogSelectDirectory"
@@ -27,46 +24,96 @@ import {
   SETTINGS_UPDATED_EVENT,
   emitOpenSettings,
   isEditableTarget,
+  loadSettings,
   loadShortcuts,
   matchesShortcut,
   type ShortcutMap,
 } from "./utils/shortcuts"
 import { selectAdjacentSession, type SessionNavigationDirection } from "./utils/session-navigation"
+import { usePane } from "./context/PaneContext"
+import { PaneContainer } from "./components/pane/PaneContainer"
+import { FloatingAgentConversation } from "./components/agent/FloatingAgentConversation"
+import type { ContentSpec, PaneLayout } from "./components/pane/types"
+import { createDefaultPaneLayout, findFirstLeafId } from "./components/pane/utils/treeOps"
 import "./App.css"
 
-const sessionSeenEvent = "openspace:session-seen"
+const LAYOUT_STORAGE_PREFIX = "openspace:layout:"
+const DEFAULT_AGENT_CONVERSATION_STATE = {
+  mode: "floating",
+  size: "minimal",
+  position: { x: 95, y: 92 },
+  dimensions: { width: 620, height: 420 },
+  visible: true,
+} as const
+
+function normalizeAgentConversationState(state?: Partial<AgentConversationState>): AgentConversationState {
+  if (!state) {
+    return {
+      ...DEFAULT_AGENT_CONVERSATION_STATE,
+      position: { ...DEFAULT_AGENT_CONVERSATION_STATE.position },
+      dimensions: { ...DEFAULT_AGENT_CONVERSATION_STATE.dimensions },
+    }
+  }
+
+  return {
+    mode: state.mode ?? DEFAULT_AGENT_CONVERSATION_STATE.mode,
+    size: state.size ?? DEFAULT_AGENT_CONVERSATION_STATE.size,
+    position: state.position ?? DEFAULT_AGENT_CONVERSATION_STATE.position,
+    dimensions: state.dimensions ?? DEFAULT_AGENT_CONVERSATION_STATE.dimensions,
+    visible: state.visible ?? DEFAULT_AGENT_CONVERSATION_STATE.visible,
+    dockedPaneId: state.dockedPaneId,
+    lastFloatingRect: state.lastFloatingRect,
+  }
+}
+
+function inferContent(path: string): ContentSpec {
+  let type: ContentSpec["type"] = "editor"
+  if (path.endsWith(".graph.mmd") || path.endsWith(".excalidraw")) type = "whiteboard"
+  else if (path.endsWith(".diagram.json")) type = "drawing"
+  else if (path.endsWith(".deck.md")) type = "presentation"
+
+  return {
+    type,
+    title: path.split("/").filter(Boolean).at(-1) ?? path,
+    contentId: path,
+  }
+}
 
 function App() {
   const queryClient = useQueryClient()
   const { show } = useDialog()
   const server = useServer()
+  const pane = usePane()
   const {
     leftSidebarExpanded,
     rightSidebarExpanded,
-    terminalExpanded,
-    terminalHeight,
+    layoutOrganization,
+    agentConversation,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
-    setTerminalExpanded,
-    setTerminalHeight,
-    activeArtifactPane,
-    setActiveArtifactPane,
+    setLayoutOrganization,
+    setAgentConversation,
   } = useLayout()
-  const { openPalette, registerCommand } = useCommandPalette()
+  const { openPalette } = useCommandPalette()
 
   const [activeProjectId, setActiveProjectId] = useState<string>("")
   const [activeDirectory, setActiveDirectory] = useState<string>(openCodeService.directory)
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>()
   const [projects, setProjects] = useState<Project[]>([])
-  const [isResizingTerminal, setIsResizingTerminal] = useState(false)
-  const [seenVersion, setSeenVersion] = useState(0)
+  const [isTemporarySidebarOpen, setIsTemporarySidebarOpen] = useState(false)
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => ({ ...DEFAULT_SHORTCUTS, ...loadShortcuts() }))
-  
+  const fileParamHandled = useRef<string | null>(null)
+  const paneApiRef = useRef(pane)
+  const isRestoringSessionRef = useRef(false)
+
+  useEffect(() => {
+    paneApiRef.current = pane
+  }, [pane])
+
   const setActiveSession = useCallback((id?: string) => {
     setActiveSessionId(id)
     if (id) {
       storage.markSessionSeen(id)
-      setSeenVersion((prev) => prev + 1)
     }
   }, [])
 
@@ -75,7 +122,6 @@ function App() {
     setActiveDirectory(directory)
   }, [])
 
-  // Initialize projects from storage or current directory
   useEffect(() => {
     const stored = storage.getProjects()
     if (stored.length > 0) {
@@ -84,58 +130,68 @@ function App() {
         name: p.name,
         path: p.path,
         initial: p.name.charAt(0).toUpperCase(),
-        color: p.color || (i % 2 === 0 ? "bg-[#fce7f3]" : "bg-[#e1faf8]")
+        color: p.color || (i % 2 === 0 ? "bg-[#fce7f3]" : "bg-[#e1faf8]"),
       }))
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProjects(mapped)
-      
+
       const lastPath = storage.getLastProjectPath()
-      if (lastPath && mapped.find(p => p.path === lastPath)) {
+      if (lastPath && mapped.find((p) => p.path === lastPath)) {
         setActiveProjectId(lastPath)
         applyActiveDirectory(lastPath)
       } else {
         setActiveProjectId(mapped[0].path)
         applyActiveDirectory(mapped[0].path)
       }
-    } else {
-      const initializeFromServer = async () => {
-        try {
-          const response = await openCodeService.client.project.current()
-          const project = response.data
-          if (!project?.worktree) return
-
-          const name = project.name ?? project.worktree.split("/").filter(Boolean).pop() ?? "project"
-          const defaultProject: Project = {
-            id: project.worktree,
-            name,
-            path: project.worktree,
-            initial: name.charAt(0).toUpperCase(),
-            color: "bg-[#fce7f3]",
-          }
-
-          setProjects([defaultProject])
-          setActiveProjectId(defaultProject.id)
-          applyActiveDirectory(defaultProject.path)
-          storage.saveProjects([{ path: defaultProject.path, name: defaultProject.name, color: defaultProject.color }])
-        } catch (error) {
-          console.error("Failed to load default project from server", error)
-        }
-      }
-
-      void initializeFromServer()
+      return
     }
+
+    const initializeFromServer = async () => {
+      try {
+        const response = await openCodeService.client.project.current()
+        const project = response.data
+        if (!project?.worktree) return
+
+        const name = project.name ?? project.worktree.split("/").filter(Boolean).pop() ?? "project"
+        const defaultProject: Project = {
+          id: project.worktree,
+          name,
+          path: project.worktree,
+          initial: name.charAt(0).toUpperCase(),
+          color: "bg-[#fce7f3]",
+        }
+
+        setProjects([defaultProject])
+        setActiveProjectId(defaultProject.id)
+        applyActiveDirectory(defaultProject.path)
+        storage.saveProjects([{ path: defaultProject.path, name: defaultProject.name, color: defaultProject.color }])
+      } catch (error) {
+        console.error("Failed to load default project from server", error)
+      }
+    }
+
+    void initializeFromServer()
   }, [applyActiveDirectory])
 
   const handleSelectProject = (id: string) => {
     setActiveProjectId(id)
     setActiveSession(undefined)
-    const project = projects.find(p => p.id === id)
-    if (project) {
-      applyActiveDirectory(project.path)
-      storage.saveLastProjectPath(project.path)
-      queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, project.path) })
-    }
+    const project = projects.find((p) => p.id === id)
+    if (!project) return
+    applyActiveDirectory(project.path)
+    storage.saveLastProjectPath(project.path)
+    queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, project.path) })
   }
+
+  const handleSelectSession = useCallback(
+    (id: string) => {
+      setActiveSession(id)
+      if (!isTemporarySidebarOpen) return
+      setLeftSidebarExpanded(false)
+      setIsTemporarySidebarOpen(false)
+    },
+    [isTemporarySidebarOpen, setActiveSession, setLeftSidebarExpanded],
+  )
 
   const handleSwitchWorkspace = useCallback(
     (workspaceDirectory: string) => {
@@ -155,11 +211,11 @@ function App() {
       name,
       path,
       initial: name.charAt(0).toUpperCase(),
-      color: "bg-[#f1f8e9]"
+      color: "bg-[#f1f8e9]",
     }
     const updated = [...projects, newProject]
     setProjects(updated)
-    storage.saveProjects(updated.map(p => ({ path: p.path, name: p.name, color: p.color })))
+    storage.saveProjects(updated.map((p) => ({ path: p.path, name: p.name, color: p.color })))
     setActiveProjectId(path)
     setActiveSession(undefined)
     applyActiveDirectory(path)
@@ -167,8 +223,10 @@ function App() {
     queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, path) })
   }
 
-  const activeProject = projects.find(p => p.id === activeProjectId)
-  const isPrinting = new URLSearchParams(window.location.search).has('print-pdf');
+  const activeProject = projects.find((p) => p.id === activeProjectId)
+  const printParams = useMemo(() => new URLSearchParams(window.location.search), [])
+  const printFilePath = printParams.get("file")
+  const isPrinting = printParams.has("print-pdf") && Boolean(printFilePath)
 
   const connectionQuery = useQuery({
     queryKey: ["connection", server.activeUrl],
@@ -183,18 +241,13 @@ function App() {
 
   const createSession = useMutation({
     mutationFn: async () => {
-      const response = await openCodeService.client.session.create({
-        directory: activeDirectory,
-      })
+      const response = await openCodeService.client.session.create({ directory: activeDirectory })
       return response.data
     },
     onSuccess: (data) => {
-      if (data?.id) {
-        setActiveSession(data.id)
-        queryClient.invalidateQueries({
-          queryKey: sessionsQueryKey(server.activeUrl, activeDirectory),
-        })
-      }
+      if (!data?.id) return
+      setActiveSession(data.id)
+      queryClient.invalidateQueries({ queryKey: sessionsQueryKey(server.activeUrl, activeDirectory) })
     },
   })
 
@@ -203,19 +256,80 @@ function App() {
     createSessionRef.current = createSession
   }, [createSession])
 
-  // Handle ?file= URL parameter for direct whiteboard/file opening
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const filePath = params.get('file')
-    if (filePath && !activeArtifactPane) {
-      let modality: ArtifactPaneModality = 'editor'
-      if (filePath.endsWith('.graph.mmd') || filePath.endsWith('.excalidraw')) modality = 'whiteboard'
-      else if (filePath.endsWith('.diagram.json')) modality = 'drawing'
-      else if (filePath.endsWith('.deck.md')) modality = 'presentation'
-      
-      setActiveArtifactPane({ path: filePath, modality })
+    const filePath = printParams.get("file")
+    if (!filePath) return
+    if (fileParamHandled.current === filePath) return
+    pane.openContent(inferContent(filePath))
+    fileParamHandled.current = filePath
+  }, [pane, printParams])
+
+  const layoutStorageKey = useMemo(() => {
+    if (layoutOrganization === "per-project") {
+      return `${LAYOUT_STORAGE_PREFIX}project:${activeDirectory || "_global"}`
     }
-  }, [activeArtifactPane, setActiveArtifactPane])
+    return `${LAYOUT_STORAGE_PREFIX}session:${activeSessionId ?? "_global"}`
+  }, [activeDirectory, activeSessionId, layoutOrganization])
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(layoutStorageKey)
+    isRestoringSessionRef.current = true
+
+    const finishRestore = () => {
+      queueMicrotask(() => {
+        isRestoringSessionRef.current = false
+      })
+    }
+
+    const applyDefaults = () => {
+      paneApiRef.current.resetLayout()
+      setAgentConversation(normalizeAgentConversationState())
+    }
+
+    if (!raw) {
+      window.localStorage.setItem(
+        layoutStorageKey,
+        JSON.stringify({
+          paneLayout: createDefaultPaneLayout(),
+          agentConversation: DEFAULT_AGENT_CONVERSATION_STATE,
+        }),
+      )
+      applyDefaults()
+      finishRestore()
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        paneLayout?: PaneLayout
+        agentConversation?: AgentConversationState
+      }
+
+      if (parsed.paneLayout) {
+        paneApiRef.current.setLayout(parsed.paneLayout)
+      } else {
+        paneApiRef.current.resetLayout()
+      }
+      if (parsed.agentConversation) {
+        setAgentConversation(normalizeAgentConversationState(parsed.agentConversation))
+      } else {
+        setAgentConversation(normalizeAgentConversationState())
+      }
+    } catch (error) {
+      console.error("Failed to restore layout", error)
+      applyDefaults()
+    }
+    finishRestore()
+  }, [layoutStorageKey, setAgentConversation])
+
+  useEffect(() => {
+    if (isRestoringSessionRef.current) return
+    const payload = JSON.stringify({
+      paneLayout: pane.layout,
+      agentConversation,
+    })
+    window.localStorage.setItem(layoutStorageKey, payload)
+  }, [agentConversation, layoutStorageKey, pane.layout])
 
   const handleNewSession = useCallback(() => {
     createSessionRef.current.mutate()
@@ -228,9 +342,7 @@ function App() {
         activeSessionId,
         direction,
       })
-      if (nextSessionId) {
-        setActiveSession(nextSessionId)
-      }
+      if (nextSessionId) setActiveSession(nextSessionId)
     },
     [activeSessionId, sessions, setActiveSession],
   )
@@ -238,11 +350,6 @@ function App() {
   const handleOpenFile = useCallback(() => {
     show(<DialogOpenFile directory={activeDirectory} />)
   }, [activeDirectory, show])
-
-  const handleOpenFileRef = useRef(handleOpenFile)
-  useEffect(() => {
-    handleOpenFileRef.current = handleOpenFile
-  }, [handleOpenFile])
 
   const handleDeleteSession = useCallback(
     (id: string) => {
@@ -258,83 +365,14 @@ function App() {
     [activeSessionId, deleteSession, sessions, setActiveSession],
   )
 
-  const handleSelectAdjacentSessionRef = useRef(handleSelectAdjacentSession)
-  useEffect(() => {
-    handleSelectAdjacentSessionRef.current = handleSelectAdjacentSession
-  }, [handleSelectAdjacentSession])
-
-  const openSettingsCommandAction = useCallback(() => {
-    emitOpenSettings()
-  }, [])
-
-  const newSessionCommandAction = useCallback(() => {
-    createSessionRef.current.mutate()
-  }, [])
-
-  const previousSessionCommandAction = useCallback(() => {
-    handleSelectAdjacentSessionRef.current("previous")
-  }, [])
-
-  const nextSessionCommandAction = useCallback(() => {
-    handleSelectAdjacentSessionRef.current("next")
-  }, [])
-
-  const openFileCommandAction = useCallback(() => {
-    handleOpenFileRef.current()
-  }, [])
-
-  const toggleSidebarCommandAction = useCallback(() => {
-    setLeftSidebarExpanded((prev) => !prev)
-  }, [setLeftSidebarExpanded])
-
-  const toggleTerminalCommandAction = useCallback(() => {
-    setTerminalExpanded((prev) => !prev)
-  }, [setTerminalExpanded])
-
-  const toggleFileTreeCommandAction = useCallback(() => {
-    setRightSidebarExpanded((prev) => !prev)
-  }, [setRightSidebarExpanded])
-
-  const startResizing = useCallback(() => {
-    setIsResizingTerminal(true)
-  }, [])
-
-  const stopResizing = useCallback(() => {
-    setIsResizingTerminal(false)
-  }, [])
-
-  const resize = useCallback(
-    (e: MouseEvent) => {
-      if (isResizingTerminal) {
-        const height = window.innerHeight - e.clientY - 24
-        if (height > 100 && height < window.innerHeight * 0.8) {
-          setTerminalHeight(height)
-        }
-      }
-    },
-    [isResizingTerminal, setTerminalHeight]
-  )
-
-  useEffect(() => {
-    if (isResizingTerminal) {
-      window.addEventListener("mousemove", resize)
-      window.addEventListener("mouseup", stopResizing)
-    }
-    return () => {
-      window.removeEventListener("mousemove", resize)
-      window.removeEventListener("mouseup", stopResizing)
-    }
-  }, [isResizingTerminal, resize, stopResizing])
-
-  const connected = Boolean(connectionQuery.data)
-
   useEffect(() => {
     const refreshShortcuts = () => {
       setShortcuts(loadShortcuts())
+      setLayoutOrganization(loadSettings().layoutOrganization)
     }
     window.addEventListener(SETTINGS_UPDATED_EVENT, refreshShortcuts)
     return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, refreshShortcuts)
-  }, [])
+  }, [setLayoutOrganization])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -365,13 +403,11 @@ function App() {
         handleSelectAdjacentSession("previous")
         return
       }
-
       if (matchesShortcut(event, shortcuts.nextSession)) {
         event.preventDefault()
         handleSelectAdjacentSession("next")
         return
       }
-
       if (matchesShortcut(event, shortcuts.newSession)) {
         event.preventDefault()
         handleNewSession()
@@ -380,138 +416,104 @@ function App() {
       if (matchesShortcut(event, shortcuts.toggleSidebar)) {
         event.preventDefault()
         setLeftSidebarExpanded((prev) => !prev)
+        setIsTemporarySidebarOpen(false)
         return
       }
       if (matchesShortcut(event, shortcuts.toggleTerminal)) {
         event.preventDefault()
-        setTerminalExpanded((prev) => !prev)
+        pane.openContent({
+          type: "terminal",
+          title: "Terminal",
+          contentId: `terminal:${activeDirectory}`,
+        })
         return
       }
       if (matchesShortcut(event, shortcuts.toggleFileTree)) {
         event.preventDefault()
         setRightSidebarExpanded((prev) => !prev)
+        return
+      }
+
+      if (event.key === "Escape") {
+        setAgentConversation((prev) => ({ ...prev, size: "minimal" }))
+        return
+      }
+
+      const hasMod = event.metaKey || event.ctrlKey
+
+      if (hasMod && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "w") {
+        event.preventDefault()
+        const activePane = pane.getActivePane()
+        if (!activePane) return
+
+        if (activePane.tabs.length === 0) {
+          if (pane.getPaneCount() > 1) {
+            pane.closePane(activePane.id)
+          }
+          return
+        }
+
+        if (activePane.tabs.length === 1 && pane.getPaneCount() > 1) {
+          pane.closePane(activePane.id)
+          return
+        }
+
+        const activeTab = activePane.tabs[activePane.activeTabIndex]
+        if (activeTab) {
+          pane.closeTab(activePane.id, activeTab.id)
+        }
+        return
+      }
+
+      if (hasMod && !event.altKey && !event.shiftKey && /^[1-9]$/.test(event.key)) {
+        event.preventDefault()
+        const activePane = pane.getActivePane()
+        if (!activePane) return
+        pane.setActiveTab(activePane.id, Number(event.key) - 1)
+        return
+      }
+
+      if (matchesShortcut(event, shortcuts.splitPaneDown)) {
+        event.preventDefault()
+        pane.splitPane(pane.layout.activePaneId, "vertical")
+        return
+      }
+
+      if (matchesShortcut(event, shortcuts.splitPaneRight)) {
+        event.preventDefault()
+        pane.splitPane(pane.layout.activePaneId, "horizontal")
       }
     }
 
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [
-    handleOpenFile,
+    activeDirectory,
     handleNewSession,
+    handleOpenFile,
     handleSelectAdjacentSession,
     openPalette,
+    pane,
+    setAgentConversation,
     setLeftSidebarExpanded,
     setRightSidebarExpanded,
-    setTerminalExpanded,
     shortcuts,
   ])
 
-  useEffect(() => {
-    const unregister = [
-      registerCommand({
-        id: "open-settings",
-        title: "Open Settings",
-        shortcut: shortcuts.openSettings,
-        action: openSettingsCommandAction,
-      }),
-      registerCommand({
-        id: "new-session",
-        title: "New Session",
-        shortcut: shortcuts.newSession,
-        action: newSessionCommandAction,
-      }),
-      registerCommand({
-        id: "previous-session",
-        title: "Previous Session",
-        shortcut: shortcuts.previousSession,
-        action: previousSessionCommandAction,
-      }),
-      registerCommand({
-        id: "next-session",
-        title: "Next Session",
-        shortcut: shortcuts.nextSession,
-        action: nextSessionCommandAction,
-      }),
-      registerCommand({
-        id: "open-file",
-        title: "Open File",
-        shortcut: shortcuts.openFile,
-        action: openFileCommandAction,
-      }),
-      registerCommand({
-        id: "toggle-sidebar",
-        title: "Toggle Sidebar",
-        shortcut: shortcuts.toggleSidebar,
-        action: toggleSidebarCommandAction,
-      }),
-      registerCommand({
-        id: "toggle-terminal",
-        title: "Toggle Terminal",
-        shortcut: shortcuts.toggleTerminal,
-        action: toggleTerminalCommandAction,
-      }),
-      registerCommand({
-        id: "toggle-file-tree",
-        title: "Toggle File Tree",
-        shortcut: shortcuts.toggleFileTree,
-        action: toggleFileTreeCommandAction,
-      }),
-    ]
-    return () => {
-      unregister.forEach((cleanup) => {
-        cleanup()
-      })
-    }
-  }, [
-    registerCommand,
-    newSessionCommandAction,
-    nextSessionCommandAction,
-    openFileCommandAction,
-    openSettingsCommandAction,
-    previousSessionCommandAction,
-    shortcuts.openFile,
-    shortcuts.openSettings,
-    shortcuts.newSession,
-    shortcuts.nextSession,
-    shortcuts.previousSession,
-    shortcuts.toggleFileTree,
-    shortcuts.toggleSidebar,
-    shortcuts.toggleTerminal,
-    toggleFileTreeCommandAction,
-    toggleSidebarCommandAction,
-    toggleTerminalCommandAction,
-  ])
-
-  useEffect(() => {
-    const handleSeen = () => {
-      setSeenVersion((prev) => prev + 1)
-    }
-    window.addEventListener(sessionSeenEvent, handleSeen)
-    return () => window.removeEventListener(sessionSeenEvent, handleSeen)
-  }, [])
-
   const unseenSessionIds = useMemo(() => {
-    const seenTick = seenVersion
     const seenMap = storage.getSessionSeenMap()
     const unseen = new Set<string>()
-    if (seenTick < 0) return unseen
     for (const session of sessions) {
       const seenAt = seenMap[session.id] ?? 0
-      if (session.time?.updated > seenAt) {
-        unseen.add(session.id)
-      }
+      if (session.time?.updated > seenAt) unseen.add(session.id)
     }
     return unseen
-  }, [sessions, seenVersion])
+  }, [sessions])
 
   const nextUnseenSessionId = useMemo(() => {
     if (sessions.length === 0) return undefined
-    const startIndex = activeSessionId
-      ? sessions.findIndex((s) => s.id === activeSessionId)
-      : -1
-    const ordered = startIndex >= 0
-      ? [...sessions.slice(startIndex + 1), ...sessions.slice(0, startIndex + 1)]
-      : sessions
+    const startIndex = activeSessionId ? sessions.findIndex((s) => s.id === activeSessionId) : -1
+    const ordered = startIndex >= 0 ? [...sessions.slice(startIndex + 1), ...sessions.slice(0, startIndex + 1)] : sessions
     return ordered.find((s) => unseenSessionIds.has(s.id))?.id
   }, [sessions, activeSessionId, unseenSessionIds])
 
@@ -520,136 +522,133 @@ function App() {
     const index = sessions.findIndex((s) => s.id === activeSessionId)
     const neighbors = [sessions[index - 1], sessions[index + 1]].filter(Boolean)
     neighbors.forEach((session) => {
-        queryClient.prefetchQuery({
+      queryClient.prefetchQuery({
         queryKey: messagesQueryKey(server.activeUrl, activeDirectory, session.id, DEFAULT_MESSAGE_LIMIT),
-        queryFn: () =>
-          fetchMessages({
-            sessionId: session.id,
-            directory: activeDirectory,
-            limit: DEFAULT_MESSAGE_LIMIT,
-          }),
+        queryFn: () => fetchMessages({ sessionId: session.id, directory: activeDirectory, limit: DEFAULT_MESSAGE_LIMIT }),
       })
     })
   }, [activeDirectory, activeSessionId, sessions, server.activeUrl, queryClient])
 
+  const connected = Boolean(connectionQuery.data)
+  const fallbackDockPaneId = pane.getActivePane()?.id ?? findFirstLeafId(pane.layout.root) ?? pane.layout.activePaneId
+  const effectiveDockedPaneId =
+    agentConversation.mode === "docked-pane"
+      ? (agentConversation.dockedPaneId ?? fallbackDockPaneId)
+      : undefined
+
+  if (isPrinting && printFilePath) {
+    return <PresentationFrame filePath={printFilePath} />
+  }
+
   return (
     <div className="flex h-full flex-col os-shell">
-      {isPrinting && activeArtifactPane?.modality === 'presentation' ? (
-        <PresentationFrame filePath={activeArtifactPane.path} />
+      <ToastHost />
+      {connected && <TopBar connected={connected} />}
+
+      {!connected ? (
+        <div className="app-shell flex h-full items-center justify-center">
+          <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-xl border border-[var(--os-line)] p-8 text-center shadow-2xl">
+            <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
+            <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
+            <div className="text-sm text-muted">
+              Make sure the OpenCode backend is running at <span className="code-inline">{server.activeUrl}</span>
+            </div>
+          </div>
+        </div>
       ) : (
-        <>
-          <ToastHost />
-          {connected && <TopBar connected={connected} />}
-          
-          {!connected ? (
-            <div className="app-shell flex h-full items-center justify-center">
-              <div className="panel-surface flex w-[420px] flex-col gap-4 rounded-xl p-8 text-center border border-[var(--os-line)] shadow-2xl">
-                <div className="text-xs uppercase tracking-[0.3em] text-muted">Connection guard</div>
-                <div className="text-2xl font-semibold">Waiting for OpenCode server</div>
-                  <div className="text-sm text-muted">
-                  Make sure the OpenCode backend is running at <span className="code-inline">{server.activeUrl}</span>
-                  </div>
-                </div>
-            </div>
-          ) : (
-            <div className="flex h-full min-h-0">
-              <ProjectRail
-                projects={projects}
-                activeProjectId={activeProjectId}
-                onSelectProject={handleSelectProject}
-                onAddProject={() => show(<DialogSelectDirectory onSelect={handleAddProject} />)}
+        <div className="flex h-full min-h-0">
+          <ProjectRail
+            projects={projects}
+            activeProjectId={activeProjectId}
+            onSelectProject={handleSelectProject}
+            onProjectIconPress={() => {
+              if (leftSidebarExpanded) return
+              setLeftSidebarExpanded(true)
+              setIsTemporarySidebarOpen(true)
+            }}
+            onAddProject={() => show(<DialogSelectDirectory onSelect={handleAddProject} />)}
+          />
+
+          <div
+            data-testid="left-sidebar-shell"
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${leftSidebarExpanded && activeProject ? "w-[224px]" : "w-0"}`}
+          >
+            {activeProject && (
+              <SessionSidebar
+                projectName={activeProject.name}
+                projectPath={activeProject.path}
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={handleSelectSession}
+                onNewSession={handleNewSession}
+                onLoadMore={sessionsQuery.loadMore}
+                hasMore={sessionsQuery.hasMore}
+                onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
+                onDeleteSession={handleDeleteSession}
+                onArchiveSession={(id, archived) => updateSession.mutate({ sessionID: id, archived })}
+                unseenSessionIds={unseenSessionIds}
+                unseenCount={unseenSessionIds.size}
+                onSelectNextUnseen={() => {
+                  if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
+                }}
+                currentDirectory={activeDirectory}
+                onSwitchWorkspace={handleSwitchWorkspace}
               />
-              
-              {leftSidebarExpanded && activeProject && (
-                <SessionSidebar
-                  projectName={activeProject.name}
-                  projectPath={activeProject.path}
-                  sessions={sessions}
-                  activeSessionId={activeSessionId}
-                  onSelectSession={setActiveSession}
-                  onNewSession={handleNewSession}
-                  onLoadMore={sessionsQuery.loadMore}
-                  hasMore={sessionsQuery.hasMore}
-                  onUpdateSession={(id, title) => updateSession.mutate({ sessionID: id, title })}
-                  onDeleteSession={handleDeleteSession}
-                  onArchiveSession={(id, archived) => updateSession.mutate({ sessionID: id, archived })}
-                  unseenSessionIds={unseenSessionIds}
-                  unseenCount={unseenSessionIds.size}
-                  onSelectNextUnseen={() => {
-                    if (nextUnseenSessionId) setActiveSession(nextUnseenSessionId)
-                  }}
-                  currentDirectory={activeDirectory}
-                  onSwitchWorkspace={handleSwitchWorkspace}
-                />
-              )}
+            )}
+          </div>
 
-              <main className="flex h-full min-w-0 flex-1 flex-col bg-[var(--os-bg-0)]">
-                <div className="flex h-full overflow-hidden border-r border-[var(--os-line)] bg-[var(--os-bg-0)]">
-                  <div className="flex flex-1 flex-col min-w-0 relative">
-                    <div className="flex min-h-0 flex-1">
-                      <div className={activeArtifactPane ? "w-1/2 border-r border-[var(--os-line)]" : "w-full"}>
-                        <AgentConsole 
-                          directory={activeDirectory}
-                          sessionId={activeSessionId} 
-                          onSessionCreated={setActiveSession} 
-                        />
-                      </div>
-                      {activeArtifactPane && (
-                        <div className="w-1/2 relative bg-[var(--os-bg-1)]">
-                          {activeArtifactPane.modality === 'drawing' ? (
-                            <TldrawWhiteboard
-                              filePath={activeArtifactPane.path}
-                              sessionId={activeSessionId}
-                            />
-                          ) : activeArtifactPane.modality === 'presentation' ? (
-                            <PresentationFrame
-                              filePath={activeArtifactPane.path}
-                            />
-                          ) : (
-                            <WhiteboardFrame
-                              filePath={activeArtifactPane.path}
-                              sessionId={activeSessionId}
-                            />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setActiveArtifactPane(null)}
-                            className="absolute top-2 right-2 p-1 bg-[var(--os-bg-1)] border border-[var(--os-line)] rounded shadow hover:bg-[var(--os-bg-2)] z-10 text-[var(--os-text-0)]"
-                            title="Close Pane"
-                          >
-                            <span className="text-xs font-bold px-1">×</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {terminalExpanded && (
-                      <>
-                        <div
-                          role="presentation"
-                          onMouseDown={startResizing}
-                          className="absolute z-10 h-1.5 w-full cursor-ns-resize hover:bg-white/10 transition-colors"
-                          style={{ bottom: terminalHeight - 3 }}
-                        />
-                        <div className="border-t border-[var(--os-line)]" style={{ height: terminalHeight }}>
-                          <Terminal resizeTrigger={terminalHeight} directory={activeDirectory} />
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {rightSidebarExpanded && (
-                    <aside className="hidden w-[250px] flex-shrink-0 flex-col border-l border-[var(--os-line)] md:flex os-right-panel animate-in slide-in-from-right duration-300">
-                      <FileTree directory={activeDirectory} />
-                    </aside>
-                  )}
+          <main className="flex h-full min-w-0 flex-1 flex-col bg-[var(--os-bg-0)]">
+            <div className="flex h-full overflow-hidden border-r border-[var(--os-line)] bg-[var(--os-bg-0)]">
+              <div className="relative flex min-w-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1">
+                  <PaneContainer
+                    sessionId={activeSessionId}
+                    directory={activeDirectory}
+                    dockedAgentPaneId={effectiveDockedPaneId}
+                    onUndockAgent={() => {
+                      setAgentConversation((prev) => ({
+                        ...prev,
+                        mode: "floating",
+                        dockedPaneId: undefined,
+                        size: prev.lastFloatingRect?.size ?? "expanded",
+                        position: prev.lastFloatingRect?.position ?? prev.position,
+                        dimensions: prev.lastFloatingRect?.dimensions ?? prev.dimensions,
+                      }))
+                    }}
+                  />
                 </div>
-              </main>
+              </div>
+
+              <aside
+                data-testid="right-sidebar-shell"
+                className={`os-right-panel hidden flex-shrink-0 flex-col border-l border-[var(--os-line)] transition-all duration-300 ease-in-out md:flex ${rightSidebarExpanded ? "w-[212px] opacity-100" : "w-0 opacity-0"}`}
+              >
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <FileTree directory={activeDirectory} />
+                </div>
+              </aside>
             </div>
-          )}
-          <CommandPalette />
-        </>
+          </main>
+
+          <FloatingAgentConversation
+            sessionId={activeSessionId}
+            directory={activeDirectory}
+            state={agentConversation}
+            setState={setAgentConversation}
+            activePaneId={pane.layout.activePaneId}
+            resolveDockPaneId={() => pane.getActivePane()?.id ?? findFirstLeafId(pane.layout.root) ?? pane.layout.activePaneId}
+            onOpenContent={(path, type: "whiteboard" | "drawing" | "presentation" | "editor" = "editor") => {
+              pane.openContent({
+                type,
+                contentId: path,
+                title: path.split("/").filter(Boolean).at(-1) ?? path,
+              })
+            }}
+          />
+        </div>
       )}
+
+      <CommandPalette />
     </div>
   )
 }

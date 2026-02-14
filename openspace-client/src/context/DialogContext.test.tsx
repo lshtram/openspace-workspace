@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DialogProvider, useDialog } from './DialogContext'
+import { FloatingAgentConversation } from '../components/agent/FloatingAgentConversation'
+import { LAYER_DIALOG_CONTENT, LAYER_DIALOG_OVERLAY, LAYER_FLOATING_AGENT } from '../constants/layers'
 
 describe('DialogContext', () => {
   function TestComponent() {
@@ -9,8 +11,8 @@ describe('DialogContext', () => {
 
     return (
       <div>
-        <button onClick={() => show(<div>Test Dialog Content</div>)}>Show Dialog</button>
-        <button onClick={close}>Close Dialog</button>
+        <button type="button" onClick={() => show(<div>Test Dialog Content</div>)}>Show Dialog</button>
+        <button type="button" onClick={close}>Close Dialog</button>
       </div>
     )
   }
@@ -64,8 +66,8 @@ describe('DialogContext', () => {
 
       return (
         <div>
-          <button onClick={() => show(<div>Test Dialog Content</div>)}>Show Dialog</button>
-          <button onClick={close}>Close Dialog</button>
+          <button type="button" onClick={() => show(<div>Test Dialog Content</div>)}>Show Dialog</button>
+          <button type="button" onClick={close}>Close Dialog</button>
         </div>
       )
     }
@@ -117,6 +119,7 @@ describe('DialogContext', () => {
 
       return (
         <button
+          type="button"
           onClick={() =>
             show(
               <div>
@@ -159,6 +162,36 @@ describe('DialogContext', () => {
     expect(overlay).toBeInTheDocument()
   })
 
+  it('renders dialog layers above floating agent layer', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DialogProvider>
+        <TestComponent />
+        <FloatingAgentConversation
+          directory="/repo"
+          state={{
+            mode: 'floating',
+            size: 'minimal',
+            position: { x: 95, y: 92 },
+            dimensions: { width: 620, height: 420 },
+            visible: true,
+          }}
+          setState={() => {}}
+          activePaneId="pane-root"
+        />
+      </DialogProvider>,
+    )
+
+    await user.click(screen.getByText('Show Dialog'))
+
+    expect(screen.getByTestId('floating-agent-layer')).toHaveStyle({ zIndex: `${LAYER_FLOATING_AGENT}` })
+    expect(screen.getByTestId('dialog-overlay')).toHaveStyle({ zIndex: `${LAYER_DIALOG_OVERLAY}` })
+    expect(screen.getByTestId('dialog-content')).toHaveStyle({ zIndex: `${LAYER_DIALOG_CONTENT}` })
+    expect(LAYER_DIALOG_OVERLAY).toBeGreaterThan(LAYER_FLOATING_AGENT)
+    expect(LAYER_DIALOG_CONTENT).toBeGreaterThan(LAYER_DIALOG_OVERLAY)
+  })
+
   it('should support replacing dialog content with new show call', async () => {
     const user = userEvent.setup()
 
@@ -167,13 +200,14 @@ describe('DialogContext', () => {
 
       return (
         <div>
-          <button onClick={() => show(<div>First Content</div>)}>Show First</button>
+          <button type="button" onClick={() => show(<div>First Content</div>)}>Show First</button>
           <button
+            type="button"
             onClick={() =>
               show(
                 <div>
                   <div>Second Content</div>
-                  <button onClick={() => show(<div>Third Content</div>)}>Show Third</button>
+                  <button type="button" onClick={() => show(<div>Third Content</div>)}>Show Third</button>
                 </div>
               )
             }

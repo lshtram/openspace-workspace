@@ -19,6 +19,7 @@ const mockModels: ModelOption[] = [
     providerID: 'openai',
     providerName: 'OpenAI',
     contextLimit: 4096,
+    enabled: false,
   },
   {
     id: 'anthropic/claude-3-opus',
@@ -161,9 +162,25 @@ describe('ModelSelector', () => {
     // All models should be visible
     await waitFor(() => {
       expect(screen.getByText('GPT-4')).toBeInTheDocument()
-      expect(screen.getByText('GPT-3.5 Turbo')).toBeInTheDocument()
+      expect(screen.queryByText('GPT-3.5 Turbo')).not.toBeInTheDocument()
       expect(screen.getByText('Claude 3 Opus')).toBeInTheDocument()
     })
+  })
+
+  it('shows connect provider and manage models actions', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(
+      <ModelSelector
+        models={mockModels}
+        value="openai/gpt-4"
+        onChange={vi.fn()}
+      />
+    )
+
+    await user.click(screen.getByRole('button'))
+
+    expect(await screen.findByRole('button', { name: 'Connect provider' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage models' })).toBeInTheDocument()
   })
 
   it('should auto-focus search input when popover opens', async () => {

@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { Plus, ArrowUp, ArrowDown, RefreshCw, Trash2, Edit3 } from "lucide-react"
 import { cn } from "../../lib/utils"
 import { useWorkspaces } from "../../hooks/useWorkspaces"
+import { LAYER_DIALOG_CONTENT, LAYER_DIALOG_OVERLAY } from "../../constants/layers"
 
 type WorkspaceManagerProps = {
   projectPath: string
@@ -65,9 +66,10 @@ export function WorkspaceManager({ projectPath, currentDirectory, onSwitchWorksp
             </button>
           </Dialog.Trigger>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/40" />
+            <Dialog.Overlay className="fixed inset-0 bg-black/40" style={{ zIndex: LAYER_DIALOG_OVERLAY }} />
             <Dialog.Content
               className="fixed left-1/2 top-1/2 w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-black/10 bg-white p-6 shadow-2xl"
+              style={{ zIndex: LAYER_DIALOG_CONTENT }}
             >
               <Dialog.Title className="text-lg font-semibold text-[#1d1a17]">Create workspace</Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-black/50">

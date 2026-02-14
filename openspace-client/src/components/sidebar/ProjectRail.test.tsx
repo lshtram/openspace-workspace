@@ -112,4 +112,19 @@ describe('ProjectRail', () => {
     expect(within(dialog).getByRole('heading', { name: 'General' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Shortcuts' })).toBeInTheDocument()
   })
+
+  it('uses compact rail width with smooth transition', () => {
+    const { container } = renderWithProviders(
+      <ProjectRail
+        projects={mockProjects}
+        activeProjectId="1"
+        onSelectProject={vi.fn()}
+        onAddProject={vi.fn()}
+      />
+    )
+
+    const rail = container.querySelector('aside')
+    expect(rail).toHaveClass('w-[44px]')
+    expect(rail).toHaveClass('transition-[width]')
+  })
 })

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import type { FileNode } from "../lib/opencode/v2/gen/types.gen"
 import { openCodeService } from "../services/OpenCodeClient"
 import { fileStatusQueryKey, useFileStatus } from "../hooks/useFileStatus"
-import { useLayout, type ArtifactPaneModality } from "../context/LayoutContext"
+import { usePane } from "../context/PaneContext"
 import { useServer } from "../context/ServerContext"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
@@ -65,7 +65,7 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
   assertNonEmptyString(directory, "directory")
   const queryClient = useQueryClient()
   const server = useServer()
-  const { setActiveArtifactPane } = useLayout()
+  const pane = usePane()
   const [state, setState] = useState<NodeState>({
     nodes: {},
     expanded: new Set(["."]),
@@ -221,18 +221,17 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
           onClick={() => {
             if (isDir) {
               void toggle(node.path)
-            } else if (
-              node.path.endsWith('.graph.mmd') ||
-              node.path.endsWith('.excalidraw') ||
-              node.path.endsWith('.diagram.json') ||
-              node.path.endsWith('.deck.md')
-            ) {
-              let modality: ArtifactPaneModality = 'editor'
-              if (node.path.endsWith('.graph.mmd') || node.path.endsWith('.excalidraw')) modality = 'whiteboard'
-              else if (node.path.endsWith('.diagram.json')) modality = 'drawing'
-              else if (node.path.endsWith('.deck.md')) modality = 'presentation'
-              
-              setActiveArtifactPane({ path: node.path, modality })
+            } else {
+              let type: "editor" | "whiteboard" | "drawing" | "presentation" = "editor"
+              if (node.path.endsWith('.graph.mmd') || node.path.endsWith('.excalidraw')) type = 'whiteboard'
+              else if (node.path.endsWith('.diagram.json')) type = 'drawing'
+              else if (node.path.endsWith('.deck.md')) type = 'presentation'
+
+              pane.openContent({
+                type,
+                title: node.name,
+                contentId: node.path,
+              })
             }
           }}
           draggable={!isDir}

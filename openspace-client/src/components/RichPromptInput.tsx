@@ -94,12 +94,12 @@ export function RichPromptInput({
   };
 
   return (
-    <div className="flex w-full flex-col gap-2 px-4 pb-4">
+    <div className="w-full border-t border-black/10 bg-[#f3f0ea] px-2 pb-1 pt-1" data-testid="rich-prompt-shell">
       <div className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-[26px] border border-black/10 bg-white shadow-sm transition-shadow focus-within:shadow-md",
-        mode === 'shell' && "border-primary/30 ring-1 ring-primary/20"
+        "relative flex w-full flex-col overflow-hidden bg-transparent",
+        mode === 'shell' && "ring-1 ring-primary/20"
       )}>
-        <div className="flex flex-col px-2 pt-2">
+        <div className="flex flex-col px-2 pt-1.5">
           {mode === 'shell' && (
             <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-primary animate-pulse">
               <Terminal size={12} />
@@ -125,11 +125,11 @@ export function RichPromptInput({
           />
 
           {attachments.length > 0 && (
-            <div className="mb-2 mt-1 px-3 flex flex-wrap gap-2">
+            <div className="mb-1 mt-1 flex flex-wrap gap-2 px-3">
               {attachments.map((item) => (
                 <div
                   key={item.id}
-                  className="group relative flex h-16 w-16 overflow-hidden rounded-xl border border-black/5"
+                  className="group relative flex h-14 w-14 overflow-hidden rounded-lg border border-black/5"
                 >
                   {item.mime.startsWith("image/") ? (
                     <img src={item.dataUrl} alt={item.name} className="h-full w-full object-cover" />
@@ -151,7 +151,7 @@ export function RichPromptInput({
           )}
         </div>
 
-        <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center justify-between px-2.5 py-1.5">
           <div className="flex items-center gap-1">
             {leftSection}
           </div>

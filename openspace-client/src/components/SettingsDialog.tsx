@@ -10,6 +10,8 @@ import { modelsQueryKey } from "../hooks/useModels"
 import { providersQueryKey, useProviders } from "../hooks/useProviders"
 import { openCodeService } from "../services/OpenCodeClient"
 import { DialogConnectProvider } from "./DialogConnectProvider"
+import { DialogSelectProvider } from "./DialogSelectProvider"
+import { DialogManageModels } from "./DialogManageModels"
 import {
   applySettingsToDocument,
   DEFAULT_SHORTCUTS,
@@ -25,10 +27,13 @@ import {
   type AppTheme,
   type ColorScheme,
   type FontFamily,
+  type LayoutOrganization,
   type Language,
   type ShortcutAction,
   type ShortcutMap,
 } from "../utils/shortcuts"
+import { filterTopLevelAgents } from "../utils/selector-governance"
+import { LAYER_DIALOG_CONTENT, LAYER_DIALOG_OVERLAY } from "../constants/layers"
 
 type SettingsTab = {
   id: string
@@ -177,8 +182,8 @@ export function SettingsDialog() {
 
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" />
-      <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[min(85vh,760px)] w-[800px] max-w-[90vw] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+      <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" style={{ zIndex: LAYER_DIALOG_OVERLAY }} />
+      <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[min(85vh,760px)] w-[800px] max-w-[90vw] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200" style={{ zIndex: LAYER_DIALOG_CONTENT }}>
         <div className="flex h-full min-h-0">
           {/* Sidebar */}
           <div className="flex w-[200px] min-h-0 flex-col border-r border-black/[0.03] bg-[#fafafa] p-4">
@@ -240,6 +245,7 @@ export function SettingsDialog() {
                   soundOnAgentCompletion={settings.soundOnAgentCompletion}
                   checkForUpdatesOnStartup={settings.checkForUpdatesOnStartup}
                   showReleaseNotes={settings.showReleaseNotes}
+                  layoutOrganization={settings.layoutOrganization}
                   onColorSchemeChange={(colorScheme) => setSettings((prev) => ({ ...prev, colorScheme }))}
                   onThemeChange={(theme) => setSettings((prev) => ({ ...prev, theme }))}
                   onFontFamilyChange={(fontFamily) => setSettings((prev) => ({ ...prev, fontFamily }))}
@@ -260,6 +266,9 @@ export function SettingsDialog() {
                   }
                   onShowReleaseNotesChange={(enabled) =>
                     setSettings((prev) => ({ ...prev, showReleaseNotes: enabled }))
+                  }
+                  onLayoutOrganizationChange={(layoutOrganization) =>
+                    setSettings((prev) => ({ ...prev, layoutOrganization }))
                   }
                 />
               )}
@@ -308,6 +317,7 @@ type GeneralSettingsProps = {
   soundOnAgentCompletion: AgentCompletionSound
   checkForUpdatesOnStartup: boolean
   showReleaseNotes: boolean
+  layoutOrganization: LayoutOrganization
   onColorSchemeChange: (colorScheme: ColorScheme) => void
   onThemeChange: (theme: AppTheme) => void
   onFontFamilyChange: (fontFamily: FontFamily) => void
@@ -317,6 +327,7 @@ type GeneralSettingsProps = {
   onSoundOnAgentCompletionChange: (sound: AgentCompletionSound) => void
   onCheckForUpdatesOnStartupChange: (enabled: boolean) => void
   onShowReleaseNotesChange: (enabled: boolean) => void
+  onLayoutOrganizationChange: (layoutOrganization: LayoutOrganization) => void
 }
 
 function GeneralSettings({
@@ -330,6 +341,7 @@ function GeneralSettings({
   soundOnAgentCompletion,
   checkForUpdatesOnStartup,
   showReleaseNotes,
+  layoutOrganization,
   onColorSchemeChange,
   onThemeChange,
   onFontFamilyChange,
@@ -339,6 +351,7 @@ function GeneralSettings({
   onSoundOnAgentCompletionChange,
   onCheckForUpdatesOnStartupChange,
   onShowReleaseNotesChange,
+  onLayoutOrganizationChange,
 }: GeneralSettingsProps) {
   return (
     <div className="space-y-6">
@@ -382,6 +395,18 @@ function GeneralSettings({
               <option>Space Grotesk</option>
               <option>Inter</option>
               <option>IBM Plex Sans</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-[13px] text-black/70">Layout organization</span>
+            <select
+              data-testid="settings-layout-organization"
+              value={layoutOrganization}
+              onChange={(event) => onLayoutOrganizationChange(event.target.value as LayoutOrganization)}
+              className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-black/5"
+            >
+              <option value="per-session">Per session</option>
+              <option value="per-project">Per project</option>
             </select>
           </label>
         </div>
@@ -667,6 +692,22 @@ function ProvidersSettings() {
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-black/50">Manage AI provider connections and default models.</p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => dialog.show(<DialogSelectProvider />)}
+          className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[12px] font-medium text-black/70 hover:border-black/25"
+        >
+          Connect provider
+        </button>
+        <button
+          type="button"
+          onClick={() => dialog.show(<DialogManageModels />)}
+          className="rounded-lg border border-black/10 bg-white px-3 py-1.5 text-[12px] font-medium text-black/70 hover:border-black/25"
+        >
+          Manage models
+        </button>
+      </div>
       <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
         {providers.map((provider) => {
           const isConnected = connectedProviders.has(provider.id)
@@ -734,7 +775,7 @@ type AgentsSettingsProps = {
 
 function AgentsSettings({ defaultAgent, onDefaultAgentChange }: AgentsSettingsProps) {
   const agentsQuery = useAgents()
-  const agents = agentsQuery.data ?? []
+  const agents = filterTopLevelAgents(agentsQuery.data ?? [])
 
   return (
     <div className="space-y-5">

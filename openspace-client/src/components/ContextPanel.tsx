@@ -1,6 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog"
 import { useEffect } from "react"
 import { X, Layers } from "lucide-react"
+import { LAYER_DIALOG_CONTENT, LAYER_DIALOG_OVERLAY } from "../constants/layers"
 
 type ContextPanelProps = {
   items: string[]
@@ -24,15 +25,15 @@ export function ContextPanel({ items, open, onOpenChange, onInsert }: ContextPan
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
-        <Dialog.Content className="fixed right-8 bottom-[108px] w-[280px] max-h-[320px] rounded-2xl border border-black/10 bg-white p-4 shadow-2xl">
+        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm" style={{ zIndex: LAYER_DIALOG_OVERLAY }} />
+        <Dialog.Content className="fixed right-8 bottom-[108px] w-[280px] max-h-[320px] rounded-2xl border border-black/10 bg-white p-4 shadow-2xl" style={{ zIndex: LAYER_DIALOG_CONTENT }}>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted">
               <Layers className="h-4 w-4 text-muted" />
               Context
             </div>
-            <Dialog.Close asChild>
-              <button className="rounded-full p-1 text-black/40 hover:bg-black/5 hover:text-black">
+              <Dialog.Close asChild>
+                <button type="button" className="rounded-full p-1 text-black/40 hover:bg-black/5 hover:text-black">
                 <X className="h-4 w-4" />
               </button>
             </Dialog.Close>

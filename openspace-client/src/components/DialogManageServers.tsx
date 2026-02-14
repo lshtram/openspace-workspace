@@ -7,6 +7,7 @@ import { useServer } from "../context/ServerContext"
 import { normalizeServerUrl } from "../utils/server"
 import { checkServerHealth, type ServerHealth } from "../utils/serverHealth"
 import { ServerRow } from "./ServerRow"
+import { LAYER_POPOVER } from "../constants/layers"
 
 type EditState = {
   id?: string
@@ -253,7 +254,8 @@ export function DialogManageServers() {
                               side="bottom"
                               align="end"
                               sideOffset={6}
-                              className="z-50 w-40 rounded-xl border border-black/5 bg-white p-1 shadow-xl"
+                              className="w-40 rounded-xl border border-black/5 bg-white p-1 shadow-xl"
+                              style={{ zIndex: LAYER_POPOVER }}
                             >
                               <button
                                 className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5"

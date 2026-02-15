@@ -47,6 +47,48 @@ const logIo = (status: 'start' | 'success' | 'failure', operation: string, meta:
 
 const patchesStore = new Map<string, { ops: IOperation[], intent: string }>();
 
+// ---------------------------------------------------------------------------
+// Agent-Modality Control: helper to POST commands to the Hub
+// ---------------------------------------------------------------------------
+async function postHubCommand(
+  commandType: string,
+  payload: Record<string, unknown>,
+): Promise<{ content: { type: string; text: string }[]; isError?: boolean }> {
+  const opName = `COMMAND_${commandType.replace('.', '_').toUpperCase()}`;
+  logIo('start', opName, { commandType, payload });
+
+  try {
+    const res = await fetch(`${HUB_URL}/commands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: commandType, payload }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json() as { error?: string };
+      const reason = errorBody?.error || `HTTP ${res.status}`;
+      logIo('failure', opName, { commandType, status: res.status, error: reason });
+      return {
+        content: [{ type: 'text', text: `Command ${commandType} failed: ${reason}` }],
+        isError: true,
+      };
+    }
+
+    const body = await res.json() as { commandId?: string };
+    logIo('success', opName, { commandType, commandId: body.commandId });
+    return {
+      content: [{ type: 'text', text: `Command sent: ${commandType} (commandId: ${body.commandId})` }],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logIo('failure', opName, { commandType, error: message });
+    return {
+      content: [{ type: 'text', text: `Command ${commandType} failed: ${message}` }],
+      isError: true,
+    };
+  }
+}
+
 // Helper to validate drawing operations
 function validateDrawingOps(ops: any): ops is IOperation[] {
   if (!Array.isArray(ops)) return false;
@@ -385,6 +427,134 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["index"],
         },
       },
+
+      // ── Agent-Modality Control Tools ──────────────────────────────────
+      {
+        name: "pane.open",
+        description: "Open a new pane in the client UI. Posts a command to the Hub which is broadcast to connected clients via SSE.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              description: "The SpaceType for the pane (e.g. 'editor', 'whiteboard', 'presentation', 'drawing').",
+            },
+            title: { type: "string", description: "Title for the pane tab." },
+            contentId: { type: "string", description: "Optional content identifier." },
+            targetPaneId: { type: "string", description: "Optional target pane to open content in." },
+            newPane: { type: "boolean", description: "Whether to open in a new split pane." },
+            splitDirection: {
+              type: "string",
+              enum: ["horizontal", "vertical"],
+              description: "Direction to split when newPane is true.",
+            },
+          },
+          required: ["type"],
+        },
+      },
+      {
+        name: "pane.close",
+        description: "Close a pane or tab in the client UI.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            paneId: { type: "string", description: "The ID of the pane to close." },
+            contentId: { type: "string", description: "The content ID to find and close." },
+          },
+        },
+      },
+      {
+        name: "pane.list",
+        description: "List the current pane layout and open tabs in the client UI.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "pane.focus",
+        description: "Focus a specific pane or tab in the client UI.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            paneId: { type: "string", description: "The ID of the pane to focus." },
+            contentId: { type: "string", description: "The content ID to find and focus." },
+          },
+        },
+      },
+      {
+        name: "editor.open",
+        description: "Open a file in the editor pane. Posts a command to the Hub which is broadcast to connected clients via SSE.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "File path to open in the editor." },
+            line: { type: "integer", description: "Line number to scroll to." },
+            endLine: { type: "integer", description: "End line for range highlight." },
+            highlight: { type: "boolean", description: "Whether to highlight the line range." },
+            mode: {
+              type: "string",
+              enum: ["edit", "view"],
+              description: "Editor mode (default: edit).",
+            },
+            newPane: { type: "boolean", description: "Whether to open in a new split pane." },
+            splitDirection: {
+              type: "string",
+              enum: ["horizontal", "vertical"],
+              description: "Direction to split when newPane is true.",
+            },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "editor.read_file",
+        description: "Read the contents of a file from the project. Optionally slice by line range.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "File path to read." },
+            startLine: { type: "integer", description: "First line to include (1-based)." },
+            endLine: { type: "integer", description: "Last line to include (1-based, inclusive)." },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "editor.close",
+        description: "Close a file tab in the editor.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "File path to close." },
+          },
+          required: ["path"],
+        },
+      },
+      {
+        name: "presentation.open",
+        description: "Open a presentation deck in the client UI pane. Posts a command to the Hub which is broadcast to connected clients via SSE.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "The deck name (e.g. 'Overview')." },
+            path: { type: "string", description: "The deck file path." },
+            newPane: { type: "boolean", description: "Whether to open in a new split pane." },
+          },
+        },
+      },
+      {
+        name: "presentation.navigate",
+        description: "Navigate to a specific slide in an open presentation.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "The deck name. Optional." },
+            slideIndex: { type: "integer", description: "The slide index to navigate to (0-based)." },
+          },
+          required: ["slideIndex"],
+        },
+      },
     ],
   };
 });
@@ -405,6 +575,88 @@ export const callToolHandler = async (request: { params: { name: string, argumen
         isError: true,
       };
     }
+  }
+
+  // --- Agent-Modality Control: pane.* tools ---
+  if (name === "pane.open") {
+    return postHubCommand("pane.open", (args ?? {}) as Record<string, unknown>);
+  }
+
+  if (name === "pane.close") {
+    return postHubCommand("pane.close", (args ?? {}) as Record<string, unknown>);
+  }
+
+  if (name === "pane.list") {
+    try {
+      logIo('start', 'PANE_LIST', { url: `${HUB_URL}/panes/state` });
+      const res = await fetch(`${HUB_URL}/panes/state`);
+      const data = await res.json();
+      logIo('success', 'PANE_LIST', { url: `${HUB_URL}/panes/state` });
+
+      if (!data) {
+        return {
+          content: [{ type: "text", text: "No pane state available. The client has not reported its layout yet." }],
+        };
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logIo('failure', 'PANE_LIST', { error: message });
+      return {
+        content: [{ type: "text", text: `Error reading pane state: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "pane.focus") {
+    return postHubCommand("pane.focus", (args ?? {}) as Record<string, unknown>);
+  }
+
+  // --- Agent-Modality Control: editor.* tools ---
+  if (name === "editor.open") {
+    return postHubCommand("editor.open", (args ?? {}) as Record<string, unknown>);
+  }
+
+  if (name === "editor.read_file") {
+    const filePath = (args as any)?.path;
+    if (!filePath || typeof filePath !== 'string') {
+      return {
+        content: [{ type: "text", text: "path is required for editor.read_file" }],
+        isError: true,
+      };
+    }
+
+    try {
+      const content = await readFile(filePath);
+      const startLine = (args as any)?.startLine;
+      const endLine = (args as any)?.endLine;
+
+      if (typeof startLine === 'number' || typeof endLine === 'number') {
+        const lines = content.split('\n');
+        const start = typeof startLine === 'number' ? Math.max(0, startLine - 1) : 0;
+        const end = typeof endLine === 'number' ? Math.min(lines.length, endLine) : lines.length;
+        const sliced = lines.slice(start, end).join('\n');
+        return {
+          content: [{ type: "text", text: sliced }],
+        };
+      }
+
+      return {
+        content: [{ type: "text", text: content }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error reading file: ${error instanceof Error ? error.message : String(error)}` }],
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "editor.close") {
+    return postHubCommand("editor.close", (args ?? {}) as Record<string, unknown>);
   }
 
   // --- Whiteboard Tools ---
@@ -614,6 +866,36 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       } catch (error: any) {
         return { content: [{ type: "text", text: `Error listing decks: ${error.message}` }], isError: true };
       }
+    }
+
+    // Agent-Modality Control: open a presentation pane in the client UI
+    if (subName === "open") {
+      const payload: Record<string, unknown> = {};
+      if ((args as any)?.name) payload.name = (args as any).name;
+      if ((args as any)?.path) payload.path = (args as any).path;
+      if ((args as any)?.newPane !== undefined) payload.newPane = (args as any).newPane;
+      // Ensure at least name or path is provided
+      if (!payload.name && !payload.path) {
+        return {
+          content: [{ type: "text", text: "name or path is required for presentation.open" }],
+          isError: true,
+        };
+      }
+      return postHubCommand("presentation.open", payload);
+    }
+
+    // Agent-Modality Control: navigate to a slide in the client UI
+    if (subName === "navigate") {
+      const slideIndex = (args as any)?.slideIndex;
+      if (typeof slideIndex !== 'number') {
+        return {
+          content: [{ type: "text", text: "slideIndex (number) is required for presentation.navigate" }],
+          isError: true,
+        };
+      }
+      const payload: Record<string, unknown> = { slideIndex };
+      if ((args as any)?.name) payload.name = (args as any).name;
+      return postHubCommand("presentation.navigate", payload);
     }
 
     // Common logic for read/update/read_slide/update_slide

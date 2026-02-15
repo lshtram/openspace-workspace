@@ -34,6 +34,9 @@ This document consolidates requirements previously spread across legacy modality
 - `US-PLT-004` As a user, unchanged content/layout/style stays stable after incremental updates.
 - `US-PLT-005` As a user, cross-modality handoffs are predictable and deterministic.
 - `US-PLT-006` As a user, active context and key view state can be restored across sessions.
+- `US-PLT-007` As a user, the agent can open, close, and navigate modalities on my behalf — showing me files, drawings, presentations, and highlighting relevant content without me needing to manually navigate.
+- `US-PLT-008` As a user, I can see what panes are open and the agent can describe the current layout to me.
+- `US-PLT-009` As a user, the agent can open a file in a new pane (side-by-side) or in the current pane, matching my workflow preference.
 
 ## 4. Platform Functional Requirements
 
@@ -49,6 +52,13 @@ This document consolidates requirements previously spread across legacy modality
 | REQ-PLT-008 | All file paths are normalized and constrained to workspace root. | Must |
 | REQ-PLT-009 | External I/O paths emit start/success/failure logs with ISO timestamps. | Must |
 | REQ-PLT-010 | Poll/retry loops apply a shared `MIN_INTERVAL` in success and failure paths. | Must |
+| REQ-PLT-011 | Agent can command the client UI to open/close/focus panes and modalities via a server-sent command channel. | Must |
+| REQ-PLT-012 | Agent pane/modality commands are relayed through the Hub as SSE events with type `PANE_COMMAND`. | Must |
+| REQ-PLT-013 | The client listens for `PANE_COMMAND` SSE events and executes them against the PaneContext. | Must |
+| REQ-PLT-014 | MCP tools exist for pane management: `pane.open`, `pane.close`, `pane.list`, `pane.focus`. | Must |
+| REQ-PLT-015 | MCP tools exist for editor control: `editor.open` (with path, line, highlight), `editor.read_file`, `editor.close`. | Must |
+| REQ-PLT-016 | MCP tools exist for presentation navigation: `presentation.open`, `presentation.navigate` (go to slide). | Must |
+| REQ-PLT-017 | The `ACTIVE_MODALITIES` allowlist in the Hub includes all implemented modalities (drawing, editor, whiteboard, presentation). | Must |
 
 ## 5. Modality Requirements
 
@@ -206,6 +216,34 @@ The drawing modality requirements are defined in:
 
 This requirements set inherits drawing V2 constraints as mandatory for platform coherence.
 
+### 5.9 Agent-Modality Control (Tier 1)
+
+#### User Stories
+- `US-AMC-001` Agent opens a file in the editor pane at a specific line and optionally highlights a range.
+- `US-AMC-002` Agent opens a whiteboard/drawing in a pane (existing or new).
+- `US-AMC-003` Agent opens a presentation and navigates to a specific slide.
+- `US-AMC-004` Agent closes a pane or tab it previously opened.
+- `US-AMC-005` Agent lists currently open panes and their content to understand the user's workspace.
+- `US-AMC-006` Agent opens content in a new split pane (side-by-side) when requested.
+- `US-AMC-007` Agent focuses (brings to front) an already-open pane/tab.
+- `US-AMC-008` Agent reads file content through the Hub for any workspace file (read-only).
+
+#### Functional Requirements
+- `REQ-AMC-001` `pane.open` MCP tool accepts `{ type: SpaceType, title: string, contentId?: string, targetPaneId?: string, newPane?: boolean, splitDirection?: 'horizontal' | 'vertical' }` and opens content in the client UI.
+- `REQ-AMC-002` `pane.close` MCP tool accepts `{ paneId?: string, contentId?: string }` and closes the specified pane or tab.
+- `REQ-AMC-003` `pane.list` MCP tool returns the current pane layout tree with pane IDs, active tabs, and content descriptions.
+- `REQ-AMC-004` `pane.focus` MCP tool accepts `{ paneId?: string, contentId?: string }` and activates the target pane/tab.
+- `REQ-AMC-005` `editor.open` MCP tool accepts `{ path: string, line?: number, endLine?: number, highlight?: boolean, mode?: 'edit' | 'view', newPane?: boolean }` and opens the file in the editor.
+- `REQ-AMC-006` `editor.read_file` MCP tool accepts `{ path: string, startLine?: number, endLine?: number }` and returns file content (full or range).
+- `REQ-AMC-007` `editor.close` MCP tool accepts `{ path: string }` and closes the editor tab for that file.
+- `REQ-AMC-008` `presentation.open` MCP tool accepts `{ name?: string, path?: string, newPane?: boolean }` and opens a presentation deck in a pane.
+- `REQ-AMC-009` `presentation.navigate` MCP tool accepts `{ name?: string, slideIndex: number }` and navigates the active presentation to the specified slide.
+- `REQ-AMC-010` Hub exposes `POST /commands` endpoint that accepts `{ type: string, payload: object }` and broadcasts via SSE as `PANE_COMMAND` events.
+- `REQ-AMC-011` Client subscribes to Hub SSE `PANE_COMMAND` events and dispatches them to PaneContext actions.
+- `REQ-AMC-012` The Hub `ACTIVE_MODALITIES` array is updated to include `'presentation'`.
+- `REQ-AMC-013` All agent-modality MCP tools return structured success/error responses with actionable messages.
+- `REQ-AMC-014` Pane commands that reference non-existent pane IDs return clear error messages rather than silent no-ops.
+
 ## 6. Non-Functional Requirements
 
 | ID | Requirement | Target |
@@ -278,6 +316,7 @@ Status values:
 | BLK-008 | Browser Snapshot MVP | REQ-BRP-001..005 | not_started | Clipboard intake + persistence + review launch, tests green |
 | BLK-009 | Drawing V2 implementation | Drawing V2 reference + REQ-PLT-001..010 | in_progress | Canonical scene graph + patch pipeline + adapters + tests green |
 | BLK-010 | Terminal-as-Pane content package | REQ-002 (REQ-2.2.2 terminal tab content, REQ-2.8.6 terminal surface model) + REQ-PLT-001..006 | not_started | Terminal opens only as pane content, no bottom-panel mode, session/project layout compatibility verified, tests green |
+| BLK-011 | Agent-Modality Control (Tier 1) | REQ-PLT-011..017, REQ-AMC-001..014 | in_progress | Agent→Client command channel, pane.* tools, editor.* tools, presentation.open/navigate, hub ACTIVE_MODALITIES fix, unit+e2e tests green |
 
 Completion rule:
 - A backlog item can be marked `done` only if all mapped requirements are implemented and the relevant unit/integration/e2e tests from Section 8 pass.
@@ -291,6 +330,7 @@ Current status note:
 - `BLK-007` is complete: voice interface layer implementation merged with QA/CodeReview approval.
 - `BLK-009` is in progress because drawing modality implementation has already started.
 - `BLK-010` is queued next for terminal-surface consolidation into pane-only modality behavior.
+- `BLK-011` is in progress: Agent-Modality Control Tier 1 — command channel, pane/editor/presentation MCP tools.
 
 BLK-001 completion checklist (required before switching primary execution to BLK-002):
 - Unified context contract implemented and consumed by runtime + MCP (`REQ-PLT-006`).

@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from 'express';
+import { EventEmitter } from 'events';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -24,7 +25,7 @@ const __dirname = path.dirname(__filename);
 
 const now = () => new Date().toISOString();
 
-const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard'] as const;
+const ACTIVE_MODALITIES = ['drawing', 'editor', 'whiteboard', 'presentation'] as const;
 type ActiveModality = (typeof ACTIVE_MODALITIES)[number];
 
 type VoiceUtteranceKind = 'audio-chunk' | 'transcript-text';
@@ -491,6 +492,52 @@ export function createHubApp(options: HubAppOptions = {}): {
     ttsProvider: voiceProviderSelection.tts,
   });
 
+  // ========================================================================
+  // Agent → Client command channel (D2 + D3)
+  // ========================================================================
+  const VALID_COMMAND_TYPES = [
+    'pane.open',
+    'pane.close',
+    'pane.focus',
+    'editor.open',
+    'editor.close',
+    'presentation.open',
+    'presentation.navigate',
+  ] as const;
+  type CommandType = (typeof VALID_COMMAND_TYPES)[number];
+
+  const commandBus = new EventEmitter();
+  let paneState: object | null = null;
+
+  const validateCommandPayload = (type: string, payload: Record<string, unknown>): string | null => {
+    switch (type) {
+      case 'pane.open':
+        if (!payload.type || typeof payload.type !== 'string') return 'payload.type (SpaceType) is required for pane.open';
+        break;
+      case 'pane.close':
+        if (!payload.paneId && !payload.contentId) return 'payload.paneId or payload.contentId is required for pane.close';
+        break;
+      case 'pane.focus':
+        if (!payload.paneId && !payload.contentId) return 'payload.paneId or payload.contentId is required for pane.focus';
+        break;
+      case 'editor.open':
+        if (!payload.path || typeof payload.path !== 'string') return 'payload.path is required for editor.open';
+        break;
+      case 'editor.close':
+        if (!payload.path || typeof payload.path !== 'string') return 'payload.path is required for editor.close';
+        break;
+      case 'presentation.open':
+        if (!payload.name && !payload.path) return 'payload.name or payload.path is required for presentation.open';
+        break;
+      case 'presentation.navigate':
+        if (typeof payload.slideIndex !== 'number') return 'payload.slideIndex (number) is required for presentation.navigate';
+        break;
+      default:
+        return `Unknown command type: ${type}`;
+    }
+    return null;
+  };
+
   const ensureDesignDirectory = async () => {
     logDesignDir('start', { designRoot });
     try {
@@ -698,6 +745,56 @@ export function createHubApp(options: HubAppOptions = {}): {
     }
   });
 
+  // POST /commands — Agent sends UI commands through the Hub
+  app.post('/commands', (req, res) => {
+    const body = req.body as Record<string, unknown> | undefined;
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'Request body is required' });
+    }
+
+    const { type, payload } = body as { type?: unknown; payload?: unknown };
+    if (typeof type !== 'string' || !type.trim()) {
+      return res.status(400).json({ error: 'type (string) is required' });
+    }
+
+    if (!VALID_COMMAND_TYPES.includes(type as CommandType)) {
+      return res.status(400).json({ error: `Unknown command type: ${type}. Valid types: ${VALID_COMMAND_TYPES.join(', ')}` });
+    }
+
+    const commandPayload = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>;
+    const validationError = validateCommandPayload(type, commandPayload);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const commandId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const event = {
+      type: 'PANE_COMMAND' as const,
+      command: type,
+      payload: commandPayload,
+      commandId,
+      actor: 'agent' as const,
+      ts: now(),
+    };
+
+    console.log('[HubServer] Command received', { commandId, command: type, ts: now() });
+    commandBus.emit('PANE_COMMAND', event);
+
+    return res.json({ success: true, commandId });
+  });
+
+  // POST /panes/state — Client pushes its current layout
+  app.post('/panes/state', (req, res) => {
+    paneState = req.body;
+    console.log('[HubServer] Pane state updated', { ts: now() });
+    res.json({ success: true });
+  });
+
+  // GET /panes/state — MCP reads the current layout
+  app.get('/panes/state', (req, res) => {
+    res.json(paneState);
+  });
+
   app.get('/events', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -710,7 +807,12 @@ export function createHubApp(options: HubAppOptions = {}): {
       res.write(`data: ${JSON.stringify({ type: 'FILE_CHANGED', ...event })}\n\n`);
     };
 
+    const onPaneCommand = (event: object) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
     store.on('FILE_CHANGED', onFileChanged);
+    commandBus.on('PANE_COMMAND', onPaneCommand);
 
     const heartbeat = setInterval(() => {
       res.write(': heartbeat\n\n');
@@ -719,6 +821,7 @@ export function createHubApp(options: HubAppOptions = {}): {
     req.on('close', () => {
       console.log('[HubServer] SSE client disconnected');
       store.off('FILE_CHANGED', onFileChanged);
+      commandBus.off('PANE_COMMAND', onPaneCommand);
       clearInterval(heartbeat);
     });
   });

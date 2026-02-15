@@ -31,6 +31,8 @@ import {
 } from "./utils/shortcuts"
 import { selectAdjacentSession, type SessionNavigationDirection } from "./utils/session-navigation"
 import { usePane } from "./context/PaneContext"
+import { useAgentCommands } from "./hooks/useAgentCommands"
+import { usePaneStateReporter } from "./hooks/usePaneStateReporter"
 import { PaneContainer } from "./components/pane/PaneContainer"
 import { FloatingAgentConversation } from "./components/agent/FloatingAgentConversation"
 import type { ContentSpec, PaneLayout } from "./components/pane/types"
@@ -83,6 +85,8 @@ function App() {
   const { show } = useDialog()
   const server = useServer()
   const pane = usePane()
+  useAgentCommands()
+  usePaneStateReporter()
   const {
     leftSidebarExpanded,
     rightSidebarExpanded,

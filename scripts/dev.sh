@@ -35,19 +35,24 @@ fi
 echo "[dev] Hub server ready on http://localhost:3001 ✅"
 
 echo "[dev] Starting runtime-hub (modality MCP)..."
-( cd "$HUB_DIR" && HUB_URL="$HUB_URL" PROJECT_ROOT="$PROJECT_ROOT" npm run start:modality ) &
+# Capture MCP server output to check if it starts successfully
+MCP_LOG=$(mktemp)
+( cd "$HUB_DIR" && HUB_URL="$HUB_URL" PROJECT_ROOT="$PROJECT_ROOT" npm run start:modality 2>&1 ) > "$MCP_LOG" &
 MCP_PID=$!
 
 echo "[dev] Waiting for MCP server to be ready..."
-sleep 2
+sleep 3
 
-# Basic check - MCP server should be running (we can't easily test stdio from here)
-if ! kill -0 "$MCP_PID" 2>/dev/null; then
-  echo "[dev] ERROR: MCP server failed to start" >&2
+# Check if MCP server logged success message
+if grep -q "Modality MCP server running on stdio" "$MCP_LOG" 2>/dev/null; then
+  echo "[dev] MCP server started ✅"
+  rm -f "$MCP_LOG"
+else
+  echo "[dev] ERROR: MCP server failed to start. Check logs:" >&2
+  cat "$MCP_LOG" >&2
+  rm -f "$MCP_LOG"
   exit 1
 fi
-
-echo "[dev] MCP server started ✅"
 
 echo "[dev] Starting openspace-client..."
 ( cd "$CLIENT_DIR" && npm run dev ) &

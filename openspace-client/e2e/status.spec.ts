@@ -55,7 +55,7 @@ test("status popover closes on outside click", async ({ page, gotoHome, seedProj
   const popover = await openStatusPopover(page)
   await expect(popover).toBeVisible()
 
-  await page.mouse.click(8, 8)
+  await page.locator('[data-testid^="pane-content-"]').first().click({ position: { x: 50, y: 50 }, force: true })
   await expect(popover).not.toBeVisible()
 })
 

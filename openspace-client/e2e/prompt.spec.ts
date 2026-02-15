@@ -38,14 +38,15 @@ test("slash command shows suggestions and inserts selection", async ({ page, got
   const input = page.locator(promptSelector).first()
   await expect(input).toBeVisible({ timeout: 10000 })
   await input.click()
-  await input.type("/res")
+  // Use "whiteboard" — a local command that always exists
+  await input.type("/white")
 
   const suggestionList = page.locator('[data-testid="prompt-suggestion-list"]').first()
   await expect(suggestionList).toBeVisible()
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Enter")
-  await expect(input).toHaveText(/\/reset\s?/)
+  await expect(input).toHaveText(/\/whiteboard\s?/)
 })
 
 test("slash command fuzzy query matches command", async ({ page, gotoHome, seedProject }) => {
@@ -56,14 +57,15 @@ test("slash command fuzzy query matches command", async ({ page, gotoHome, seedP
   const input = page.locator(promptSelector).first()
   await expect(input).toBeVisible({ timeout: 10000 })
   await input.click()
-  await input.type("/clr")
+  // Use "edit" — a local command that always exists; "edt" fuzzy matches "editor"
+  await input.type("/edt")
 
   const suggestionList = page.locator('[data-testid="prompt-suggestion-list"]').first()
   await expect(suggestionList).toBeVisible()
   await expect(suggestionList.locator('[data-testid="prompt-suggestion-item"]').first()).toBeVisible()
 
   await input.press("Enter")
-  await expect(input).toHaveText(/\/clear\s?/)
+  await expect(input).toHaveText(/\/editor\s?/)
 })
 
 test("at mention shows file suggestions and inserts selection", async ({ page, gotoHome, seedProject }) => {

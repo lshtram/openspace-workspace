@@ -1,35 +1,30 @@
 import { test, expect, testProjectPath } from "./fixtures"
-import { newSessionButtonSelector } from "./selectors"
+import { createNewSession } from "./actions"
 
 test("file tree can load and show files", async ({ page, gotoHome, seedProject }) => {
+  test.setTimeout(90_000)
+  
   // Seed a test project
   await seedProject(testProjectPath, "openspace-e2e")
   await gotoHome()
 
-  // Handle both startup states: landing page (new session visible) or existing session
-  const newSessionBtn = page.locator(newSessionButtonSelector).first()
-  const canStartNewSession = await newSessionBtn.isVisible().catch(() => false)
+  // Create a session to access the main UI
+  await createNewSession(page)
 
-  if (canStartNewSession) {
-    await newSessionBtn.click()
-  }
+  // Toggle the right sidebar to show the file tree
+  const toggleButton = page.locator('button[aria-label="Toggle file tree sidebar"]')
+  await expect(toggleButton).toBeVisible({ timeout: 5000 })
+  await toggleButton.click({ force: true })
 
-  // Look for file tree - it might be in a sidebar or panel
-  const fileTree = page.locator('[class*="FileTree"], [data-testid="file-tree"], aside div[class*="tree"]').first()
-  
-  // Check if file tree exists (might need to toggle sidebar)
-  const fileTreeExists = await fileTree.count() > 0
-  
-  if (fileTreeExists) {
-    await expect(fileTree).toBeVisible()
-    
-    // Try to find and click a folder
-    const folder = page.locator('[class*="folder"], button:has([class*="folder"])').first()
-    const hasFolder = await folder.isVisible().catch(() => false)
-    
-    if (hasFolder) {
-      await folder.click()
-      // Should expand and show children
-    }
-  }
+  // Wait for sidebar to expand
+  await page.waitForTimeout(500)
+
+  // The file tree is inside the right sidebar
+  const sidebar = page.locator('[data-testid="right-sidebar-shell"]')
+  await expect(sidebar).toBeVisible({ timeout: 5000 })
+
+  // Wait for file tree entries to load — look for any file/folder entry
+  // The seeded project has README.md at the root
+  const fileEntry = page.locator('text=README.md').first()
+  await expect(fileEntry).toBeVisible({ timeout: 20000 })
 })

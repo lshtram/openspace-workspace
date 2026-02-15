@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures"
-import { newSessionButtonSelector, chatInterfaceSelector } from "./selectors"
+import { newSessionButtonSelector, chatInterfaceSelector, floatingAgentSelector } from "./selectors"
 
 // These tests use the REAL servers (Vite + OpenCode) that are already running
 // No mocking needed since we're testing the real integration
@@ -11,15 +11,18 @@ test.describe("Basic App Functionality", () => {
     // Wait for app to load
     await page.waitForTimeout(1000)
     
-    // Some builds start directly in chat without a visible "New session" action.
+    // The agent conversation defaults to expanded mode, so the floating agent
+    // or chat interface should be visible. Fall back to checking for new session button.
+    const floatingAgent = page.locator(floatingAgentSelector).first()
+    const chatInterface = page.locator(chatInterfaceSelector).first()
     const newSessionBtn = page.locator(newSessionButtonSelector).first()
+
+    const hasFloatingAgent = await floatingAgent.isVisible({ timeout: 3000 }).catch(() => false)
+    const hasChatInterface = await chatInterface.isVisible({ timeout: 2000 }).catch(() => false)
     const hasNewSessionButton = await newSessionBtn.isVisible({ timeout: 2000 }).catch(() => false)
 
-    if (!hasNewSessionButton) {
-      await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
-    } else {
-      await expect(newSessionBtn).toBeVisible({ timeout: 10000 })
-    }
+    // At least one of these should be visible
+    expect(hasFloatingAgent || hasChatInterface || hasNewSessionButton).toBe(true)
     
     // Should see connection status
     const statusBtn = page.locator('button:has-text("Connected"), button:has-text("Offline")').first()
@@ -37,10 +40,10 @@ test.describe("Basic App Functionality", () => {
     const hasNewSessionButton = await newSessionBtn.isVisible({ timeout: 2000 }).catch(() => false)
 
     if (hasNewSessionButton) {
-      await newSessionBtn.click()
+      await newSessionBtn.click({ force: true })
     }
     
-    // Should see the chat interface (textarea for input)
+    // Should see the chat interface (floating agent layer, rich prompt, or contentEditable textbox)
     await expect(page.locator(chatInterfaceSelector).first()).toBeVisible({ timeout: 10000 })
   })
 })

@@ -1,13 +1,14 @@
-export const promptSelector = '[data-testid="prompt-input"], [contenteditable="true"][role="textbox"], textarea, input[placeholder*="Message"]'
-export const terminalSelector = '[data-testid="terminal"], .xterm, [class*="terminal"]'
-// Status button - more specific to avoid matching file tree items
+export const promptSelector = '[data-testid="rich-prompt-shell"] [role="textbox"], [contenteditable="true"][role="textbox"]'
+export const terminalSelector = '[data-component="terminal"], [data-testid="terminal"], .xterm'
 export const statusButtonSelector = 'button:has-text("Connected"), button:has-text("Offline"), [data-testid="status-button"]'
-// Model selector shows "Select" or model name, not "model"
-export const modelPickerSelector = 'button:has-text("Select"), button:has([class*="Sparkles"]), button[class*="bg-black/5"]:has(svg), [class*="ModelSelector"] > button'
+export const modelPickerSelector = 'button:has-text("Select"), button:has([class*="Sparkles"]), [class*="ModelSelector"] button'
 export const agentPickerSelector = 'button:has-text("build"), button:has-text("plan"), [data-testid="agent-selector"]'
 export const sendButtonSelector = 'button:has-text("SEND"), button[type="submit"], button:has([aria-label*="send"])'
-export const fileTreeSelector = 'div:has-text("Workspace"), [data-testid="file-tree"], [class*="FileTree"]'
+export const fileTreeSelector = '[data-testid="file-tree"], [class*="FileTree"], [data-testid="left-sidebar-shell"]'
 export const newSessionButtonSelector = 'button:has-text("New session"), button:has-text("+"), [data-testid="new-session"]'
-export const projectRailSelector = '[class*="ProjectRail"], aside[class*="w-\\[68px\\]"]'
-// The chat interface appears after clicking "New session"
-export const chatInterfaceSelector = `${promptSelector}, [role="textbox"][aria-label*="Ask anything"], [class*="MessageList"], [data-testid="message-list"]`
+export const projectRailSelector = '[data-testid="project-rail"], aside[class*="w-\\[44px\\]"], .os-shell > div > div:first-child'
+export const chatInterfaceSelector = '[data-testid="floating-agent-layer"], [data-testid="rich-prompt-shell"], [role="textbox"][contenteditable="true"]'
+export const floatingAgentSelector = '[data-testid="floating-agent-layer"]'
+export const paneContainerSelector = '[data-testid="pane-container"]'
+export const sessionSidebarSelector = '[data-testid="left-sidebar-shell"]'
+export const sidebarToggleSelector = '[aria-label="Toggle sessions sidebar"]'

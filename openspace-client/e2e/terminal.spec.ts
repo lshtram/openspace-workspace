@@ -1,7 +1,9 @@
 import { test, expect, testProjectPath } from "./fixtures"
 import type { Page } from "@playwright/test"
-import { terminalSelector } from "./selectors"
 import { createNewSession } from "./actions"
+
+// Terminal uses data-component="terminal" not data-testid
+const terminalComponentSelector = '[data-component="terminal"]'
 
 async function openSession(
   page: Page,
@@ -13,18 +15,21 @@ async function openSession(
   await createNewSession(page)
 }
 
+async function toggleTerminal(page: Page) {
+  // Terminal toggle is via keyboard shortcut Cmd+J (Mac) / Ctrl+J (Linux)
+  await page.keyboard.press("Meta+J")
+  await page.waitForTimeout(500)
+}
+
 test("terminal is visible when expanded", async ({ page, gotoHome, seedProject }) => {
   await openSession(page, gotoHome, seedProject)
 
-  const terminal = page.locator(terminalSelector).first()
+  const terminal = page.locator(terminalComponentSelector).first()
   const isVisible = await terminal.isVisible().catch(() => false)
-  const terminalToggle = page
-    .locator('header div[class*="border-l"] button, button:has(svg[data-lucide="panel-bottom"])')
-    .first()
-  await expect(terminalToggle).toBeVisible()
 
   if (!isVisible) {
-    await terminalToggle.click()
+    // Open terminal via keyboard shortcut
+    await toggleTerminal(page)
     await expect(terminal).toBeVisible({ timeout: 10000 })
     return
   }
@@ -35,21 +40,25 @@ test("terminal is visible when expanded", async ({ page, gotoHome, seedProject }
 test("terminal can be toggled open and closed", async ({ page, gotoHome, seedProject }) => {
   await openSession(page, gotoHome, seedProject)
 
-  const terminal = page.locator(terminalSelector).first()
-  const terminalToggle = page
-    .locator('header div[class*="border-l"] button, button:has(svg[data-lucide="panel-bottom"])')
-    .first()
-  await expect(terminalToggle).toBeVisible()
+  const terminal = page.locator(terminalComponentSelector).first()
 
+  // Ensure terminal is open first
   const initiallyVisible = await terminal.isVisible().catch(() => false)
   if (!initiallyVisible) {
-    await terminalToggle.click()
-    await expect(terminal).toBeVisible()
+    await toggleTerminal(page)
+    await expect(terminal).toBeVisible({ timeout: 10000 })
   }
 
-  await terminalToggle.click()
-  await expect(terminal).not.toBeVisible()
+  // Close terminal via the tab close button (Cmd+J only opens/focuses, it doesn't close)
+  const closeTabButton = page.locator('button[aria-label="Close tab Terminal"]').first()
+  await expect(closeTabButton).toBeVisible({ timeout: 5000 })
+  await closeTabButton.click()
+  await page.waitForTimeout(500)
 
-  await terminalToggle.click()
-  await expect(terminal).toBeVisible()
+  // After closing the tab, the terminal component should no longer be visible
+  await expect(terminal).not.toBeVisible({ timeout: 5000 })
+
+  // Re-open terminal via keyboard shortcut
+  await toggleTerminal(page)
+  await expect(terminal).toBeVisible({ timeout: 10000 })
 })

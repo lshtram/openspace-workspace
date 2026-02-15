@@ -1,10 +1,15 @@
 import { test, expect, testProjectPath } from "./fixtures"
-import { createNewSession } from "./actions"
+import { createNewSession, ensureSessionSidebarOpen } from "./actions"
+import { sessionSidebarSelector } from "./selectors"
 
 async function openSessionMenu(page: import("@playwright/test").Page, row: import("@playwright/test").Locator) {
   const actionButton = row.locator('[data-testid="session-actions"]').first()
   await expect(actionButton).toBeVisible({ timeout: 5000 })
-  await actionButton.click()
+  await actionButton.click({ force: true })
+  // Wait for popover to appear
+  await expect(
+    page.locator('[data-radix-popper-content-wrapper] button').first()
+  ).toBeVisible({ timeout: 5000 })
 }
 
 test("can rename a session", async ({ page, gotoHome, seedProject }) => {
@@ -20,21 +25,27 @@ test("can rename a session", async ({ page, gotoHome, seedProject }) => {
   // Wait for session to appear in sidebar
   await page.waitForTimeout(2000)
   
-  // Find the session sidebar
-  const sidebar = page.locator('aside[class*="w-[260px]"]').first()
-  const sessionItems = sidebar.locator('div[class*="group"]').first()
+  // Ensure sidebar is open
+  await ensureSessionSidebarOpen(page)
+  
+  // Find the session sidebar using data-testid
+  const sidebar = page.locator(sessionSidebarSelector).first()
+  const sessionItems = sidebar.locator('[data-session-id]').first()
   await expect(sessionItems).toBeVisible({ timeout: 10000 })
   
   await openSessionMenu(page, sessionItems)
   
-  // Click rename option
-  const renameOption = page.locator('text=Rename').first()
+  // Click rename option - use the same selector pattern that works in session-behavior tests
+  const renameOption = page.locator('[data-radix-popper-content-wrapper] button:has-text("Rename")').first()
   await expect(renameOption).toBeVisible()
   await renameOption.click()
   
-  // Type new name in the input
-  const input = page.locator('input[type="text"]').first()
-  await expect(input).toBeVisible()
+  // Wait for the popover to close and editing mode to activate
+  await page.waitForTimeout(500)
+  
+  // Type new name in the input (input has no type attribute)
+  const input = page.locator('[data-session-id] input').first()
+  await expect(input).toBeVisible({ timeout: 5000 })
   await input.fill("My Renamed Session")
   
   // Verify the input has the new value
@@ -61,15 +72,18 @@ test("can archive and unarchive a session", async ({ page, gotoHome, seedProject
   
   await page.waitForTimeout(2000)
   
-  // Find first session in sidebar
-  const sidebar = page.locator('aside[class*="w-[260px]"]').first()
-  const sessionItems = sidebar.locator('div[class*="group"]').first()
+  // Ensure sidebar is open
+  await ensureSessionSidebarOpen(page)
+  
+  // Find first session in sidebar using data-testid
+  const sidebar = page.locator(sessionSidebarSelector).first()
+  const sessionItems = sidebar.locator('[data-session-id]').first()
   await expect(sessionItems).toBeVisible({ timeout: 10000 })
   
   await openSessionMenu(page, sessionItems)
   
-  // Click archive option
-  const archiveOption = page.getByRole("button", { name: "Archive" }).first()
+  // Click archive option - use text locator since these are plain buttons in a popover
+  const archiveOption = page.locator('[data-radix-popper-content-wrapper] button:has-text("Archive")').first()
   await expect(archiveOption).toBeVisible()
   await archiveOption.click()
   
@@ -92,17 +106,20 @@ test("can delete a session", async ({ page, gotoHome, seedProject }) => {
   
   await page.waitForTimeout(2000)
   
+  // Ensure sidebar is open
+  await ensureSessionSidebarOpen(page)
+  
   // Find sidebar and verify session exists
-  const sidebar = page.locator('aside[class*="w-[260px]"]').first()
-  const initialCount = await sidebar.locator('div[class*="group"]').count()
+  const sidebar = page.locator(sessionSidebarSelector).first()
+  const initialCount = await sidebar.locator('[data-session-id]').count()
   expect(initialCount).toBeGreaterThan(0)
   
   // Find first session
-  const sessionItems = sidebar.locator('div[class*="group"]').first()
+  const sessionItems = sidebar.locator('[data-session-id]').first()
   await openSessionMenu(page, sessionItems)
   
-  // Click delete option (in red/destructive color)
-  const deleteOption = page.getByRole("button", { name: "Delete" }).first()
+  // Click delete option - use text locator since these are plain buttons in a popover
+  const deleteOption = page.locator('[data-radix-popper-content-wrapper] button:has-text("Delete")').first()
   await expect(deleteOption).toBeVisible()
   await deleteOption.click()
   

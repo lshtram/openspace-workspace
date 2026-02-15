@@ -2,6 +2,25 @@ import { test, expect, testProjectPath } from "./fixtures"
 import path from "path"
 import fs from "fs/promises"
 
+// Presentation tests require the runtime-hub to be configured with PROJECT_ROOT
+// pointing to the test project directory. When running with
+// PLAYWRIGHT_USE_EXISTING_SERVER=1, the hub may not point to the E2E test project.
+// We probe the hub at test time and skip when it cannot serve test files.
+async function isHubServingTestProject(): Promise<boolean> {
+  const hubUrl = process.env.VITE_HUB_URL || "http://localhost:3001"
+  try {
+    // Check for a file unique to the E2E test project.
+    // If the hub serves the wrong PROJECT_ROOT, this 404s.
+    const srcRes = await fetch(`${hubUrl}/files/src/index.ts`, { signal: AbortSignal.timeout(2000) })
+    if (!srcRes.ok) return false
+    const body = await srcRes.text()
+    // ensureTestProject writes "export const hello = 'world'" — if we see it, it's our project
+    return body.includes("hello")
+  } catch {
+    return false
+  }
+}
+
 test.describe("Presentation MVP", () => {
   const deckPath = "design/deck/test.deck.md"
   const fullDeckPath = path.join(testProjectPath, deckPath)
@@ -31,6 +50,9 @@ Final slide
   })
 
   test("should load and navigate a presentation", async ({ page, seedProject, gotoHome }) => {
+    const hubReady = await isHubServingTestProject()
+    test.skip(!hubReady, "Runtime-hub is not reachable or not serving test project files (set PROJECT_ROOT to the E2E test project dir)")
+
     // 1. Seed the project and go to home
     await seedProject(testProjectPath, "Test Project")
     await gotoHome()

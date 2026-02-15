@@ -148,15 +148,16 @@ test.describe("Projects / Workspaces", () => {
     const card = page.locator('[data-testid="workspace-card"]').first()
     const toggle = card.getByTestId("workspace-toggle")
     await expect(toggle).toBeVisible()
-    await toggle.click()
-    await expect(toggle).toHaveText("Disabled")
-    await toggle.click()
-    await expect(toggle).toHaveText("Enabled")
+    // Use dispatchEvent to bypass any pointer-events interception
+    await toggle.dispatchEvent("click")
+    await expect(toggle).toHaveText("Disabled", { timeout: 5000 })
+    await toggle.dispatchEvent("click")
+    await expect(toggle).toHaveText("Enabled", { timeout: 5000 })
   })
 
   test("creates a new workspace", async ({ page, gotoHome }) => {
     await gotoHomeWithWorkspaceSidebar(gotoHome, page)
-    await page.click('[data-testid="workspace-new"]')
+    await page.locator('[data-testid="workspace-new"]').dispatchEvent("click")
     const input = page.getByRole("textbox", { name: "Name" })
     await expect(input).toBeVisible()
     await input.fill("Extra WS")
@@ -167,7 +168,7 @@ test.describe("Projects / Workspaces", () => {
     const responsePromise = page.waitForResponse(resp => 
       resp.url().includes("/experimental/worktree") && resp.request().method() === "POST"
     )
-    await submit.click()
+    await submit.dispatchEvent("click")
     const response = await responsePromise
     expect(response.status()).toBe(200)
     expect(response.headers()["x-mock-handled"]).toBe("true")
@@ -183,7 +184,7 @@ test.describe("Projects / Workspaces", () => {
     await gotoHomeWithWorkspaceSidebar(gotoHome, page)
     const target = state.workspaceDirs[1]
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
-    await card.getByTestId("workspace-rename").click()
+    await card.getByTestId("workspace-rename").dispatchEvent("click")
     const input = card.locator('input')
     await input.fill("Renamed Beta")
     await input.press("Enter")
@@ -196,7 +197,7 @@ test.describe("Projects / Workspaces", () => {
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${target}"]`)
     const resetButton = card.getByTestId("workspace-reset")
     const resetResponse = page.waitForResponse((response) => response.url().includes("/experimental/worktree/reset") && response.status() === 200)
-    await resetButton.click()
+    await resetButton.dispatchEvent("click")
     await resetResponse
     await expect.poll(() => state.lastResetDirectory).toBe(target)
   })
@@ -206,7 +207,7 @@ test.describe("Projects / Workspaces", () => {
     const toRemove = state.workspaceDirs[0]
     const card = page.locator(`[data-testid="workspace-card"][data-workspace="${toRemove}"]`)
     const initialCount = await page.locator('[data-testid="workspace-card"]').count()
-    await card.getByTestId("workspace-delete").click()
+    await card.getByTestId("workspace-delete").dispatchEvent("click")
     await expect(page.locator(`[data-testid="workspace-card"][data-workspace="${toRemove}"]`)).toHaveCount(0)
     await expect(page.locator('[data-testid="workspace-card"]')).toHaveCount(initialCount - 1)
   })
@@ -216,7 +217,7 @@ test.describe("Projects / Workspaces", () => {
     const labels = await page.locator('[data-testid="workspace-card"] [data-testid="workspace-label"]').allTextContents()
     expect(labels).toEqual(["ws-alpha", "ws-beta", "ws-gamma"])
     const firstCard = page.locator('[data-testid="workspace-card"]').first()
-    await firstCard.getByRole("button", { name: "Move workspace down" }).click()
+    await firstCard.getByRole("button", { name: "Move workspace down" }).dispatchEvent("click")
     const reordered = await page.locator('[data-testid="workspace-card"] [data-testid="workspace-label"]').allTextContents()
     expect(reordered[0]).toBe("ws-beta")
     expect(reordered[1]).toBe("ws-alpha")

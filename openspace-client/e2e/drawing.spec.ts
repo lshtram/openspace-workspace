@@ -3,11 +3,40 @@ import fs from "fs/promises"
 import path from "path"
 import { fileTreeSelector, terminalSelector } from "./selectors"
 
+// Drawing tests require the runtime-hub to be configured with PROJECT_ROOT
+// pointing to the test project directory. When running with
+// PLAYWRIGHT_USE_EXISTING_SERVER=1 (the common local dev workflow), the hub
+// is typically started independently and may not point to the E2E test project.
+// We probe the hub at test time and skip when the hub cannot serve test files.
+
+async function isHubServingTestProject(): Promise<boolean> {
+  const hubUrl = process.env.VITE_HUB_URL || "http://localhost:3001"
+  try {
+    // We write a sentinel file in seedProject/beforeEach, so check a path
+    // unique to the E2E test project. The design/ dir is created by this spec.
+    // If the hub serves the wrong PROJECT_ROOT, this 404s.
+    const res = await fetch(`${hubUrl}/files/design/`, { signal: AbortSignal.timeout(2000) })
+    if (res.ok) return true
+    // Fallback: check if the hub responds at all and verify it's our project
+    // by checking for the src/index.ts that ensureTestProject creates
+    const srcRes = await fetch(`${hubUrl}/files/src/index.ts`, { signal: AbortSignal.timeout(2000) })
+    if (!srcRes.ok) return false
+    const body = await srcRes.text()
+    // ensureTestProject writes "export const hello = 'world'" — if we see it, it's our project
+    return body.includes("hello")
+  } catch {
+    return false
+  }
+}
+
 test.describe("Drawing V2 Modality", () => {
   const diagramFileName = "design/test.diagram.json"
   const diagramPath = path.join(testProjectPath, diagramFileName)
 
   test.beforeEach(async ({ seedProject, gotoHome }) => {
+    const hubReady = await isHubServingTestProject()
+    test.skip(!hubReady, "Runtime-hub is not reachable or not serving test project files (set PROJECT_ROOT to the E2E test project dir)")
+
     // Seed a fresh project for each test
     await seedProject(testProjectPath, "drawing-test-project")
     // Ensure design directory exists

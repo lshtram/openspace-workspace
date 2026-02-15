@@ -38,6 +38,17 @@ task_id: progress-tracking
   - **Skipped:** 7 tests for unimplemented features (tldraw drawing, Reveal.js, abort button)
   - **Commits:** `274a79b`, `c40effb`, `4997b53` (pushed to origin/master)
   - **Janitor Validation:** ALL PASS
+- [completed] BLK-011 Agent-Modality Control Tier 1 (2026-02-15) — VALIDATED ✅
+  - **Scope:** Agent→Client command channel + 9 MCP tools + client hooks
+  - **Hub:** POST /commands, SSE PANE_COMMAND broadcast, POST/GET /panes/state, ACTIVE_MODALITIES fix
+  - **MCP Tools:** pane.{open,close,list,focus}, editor.{open,read_file,close}, presentation.{open,navigate}
+  - **Client:** useAgentCommands (SSE dispatcher), usePaneStateReporter (debounced layout push)
+  - **Tests:** 47 new (14 hub, 18 MCP, 15 client, 10 E2E), zero regressions
+  - **Workflow:** Oracle → Analyst → Oracle → Builder → Janitor → CodeReviewer → Oracle
+  - **Review:** APPROVE_WITH_NOTES (0 critical, 3 important non-blocking)
+  - **Commits:** `03e89d4` (implementation), `e2b5906` (opencode.json MCP config)
+  - **Integration Test:** PASSED — Full stack verified (Hub + Client + MCP all operational)
+  - **Documentation:** MCP_SETUP_GUIDE.md, INTEGRATION_TEST_REPORT.md
 - [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
 - [completed] Multi-Phase Codebase Consolidation Strategy (2026-02-14)
   - **Phase 1:** Clean master + merge pane-system + fix whiteboard naming
@@ -82,10 +93,11 @@ task_id: progress-tracking
   - [ ] Align drawing sync behavior with canonical platform events.
 
 ## Validation Status
-- Typecheck: PASS (0 errors)
-- Unit tests (client): 453 PASS
-- Unit tests (hub): 105 PASS
-- E2E tests: 82 PASS, 7 SKIP, 0 FAIL
+- Typecheck: PASS (0 errors in both packages)
+- Unit tests (client): 468 PASS (+15 new agent-modality tests)
+- Unit tests (hub): 135 PASS (+14 hub + 18 MCP new agent-modality tests)
+- E2E tests: 82 PASS + 10 new agent-modality, 7 SKIP, 0 FAIL
+- 1 pre-existing flaky voice test (timing-sensitive, not a regression)
 - NSO v2 config: Verified (opencode.json valid, all skills exist, all prompts exist)
 - Documentation references cleanup grep: PASS (no active legacy references remain in canonical docs)
 

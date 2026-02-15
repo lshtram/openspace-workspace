@@ -1,1 +1,2 @@
 | 2026-02-12 | janitor_a1b2 | Mismatch between HubServer and modality-mcp on ActiveContext structure | Unified ActiveContext structure in platform.ts and updated both Hub and MCP to adhere to it. |
+| 2026-02-15 | oracle_{{agent_id}} | Oracle failed to read Oracle.md at session start despite 'Read FIRST before action' directive | NSO initialization should auto-read role-specific prompt immediately after universal instructions.md, before any user interaction occurs. Add explicit startup checklist to Oracle prompt requiring verification of prompt file consumption. |

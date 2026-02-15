@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "diagramType": "generic",
+  "metadata": {
+    "title": "design/Test2.diagram.json",
+    "createdAt": "2026-02-15T12:20:54.609Z",
+    "updatedAt": "2026-02-15T12:21:02.120Z"
+  },
+  "style": {
+    "theme": "light",
+    "tokens": {}
+  },
+  "nodes": [
+    {
+      "id": "IAp2sh9Jf-B8lb7GMVQBY",
+      "kind": "block",
+      "label": "this is a test",
+      "layout": {
+        "x": 465.4340515136719,
+        "y": 349.04517364501953,
+        "w": 365.39495849609375,
+        "h": 235.42965698242188,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "rectangle"
+      },
+      "styleToken": ""
+    }
+  ],
+  "edges": [],
+  "groups": [],
+  "constraints": [],
+  "sourceRefs": {}
+}

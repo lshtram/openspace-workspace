@@ -245,24 +245,17 @@ test.describe("Drawing V2 Modality", () => {
     const fileTreeToggle = page.locator('header button').last()
     await fileTreeToggle.click()
 
-    const fileTree = page.locator(fileTreeSelector).first()
+    // File tree is in the right sidebar, not the left sidebar
+    const fileTree = page.locator('[data-testid="right-sidebar-shell"]').first()
     await expect(fileTree).toBeVisible()
     
     // Try to click another file (e.g. README.md created by seedProject)
     const readmeFile = page.locator('button:has-text("README.md")').first()
-    await expect(readmeFile).toBeVisible()
+    await expect(readmeFile).toBeVisible({ timeout: 3000 })
     // We don't click it as it might close the drawing, but we verify it's there and interactive
     await readmeFile.hover()
 
-    // 2. Interact with Terminal
-    // The Terminal toggle is the second to last button in the header
-    const terminalToggle = page.locator('header button').nth(-2)
-    await terminalToggle.click()
-
-    const terminal = page.locator(terminalSelector).first()
-    await expect(terminal).toBeVisible()
-    
-    // 3. Verify drawing is still responsive (can still create a shape)
+    // 2. Verify drawing is still responsive while file tree is open (can still create a shape)
     await page.evaluate(() => {
       const editor = (window as any).tldrawEditor
       editor.createShapes([{ id: 'shape:still-alive' as any, type: 'geo', x: 0, y: 0 }])

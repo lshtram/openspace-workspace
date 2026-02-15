@@ -105,6 +105,7 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([])
   const [isTemporarySidebarOpen, setIsTemporarySidebarOpen] = useState(false)
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => ({ ...DEFAULT_SHORTCUTS, ...loadShortcuts() }))
+  const [layoutRestored, setLayoutRestored] = useState(false)
   const fileParamHandled = useRef<string | null>(null)
   const paneApiRef = useRef(pane)
   const isRestoringSessionRef = useRef(false)
@@ -259,13 +260,19 @@ function App() {
     createSessionRef.current = createSession
   }, [createSession])
 
+  // Handle ?file= URL parameter (open file after layout is restored)
   useEffect(() => {
     const filePath = printParams.get("file")
     if (!filePath) return
     if (fileParamHandled.current === filePath) return
+    
+    // Wait for layout restoration to complete before opening file
+    // This prevents the file from being closed by layout restoration
+    if (!layoutRestored) return
+    
     pane.openContent(inferContent(filePath))
     fileParamHandled.current = filePath
-  }, [pane, printParams])
+  }, [pane, printParams, layoutRestored])
 
   const layoutStorageKey = useMemo(() => {
     if (layoutOrganization === "per-project") {
@@ -281,6 +288,7 @@ function App() {
     const finishRestore = () => {
       queueMicrotask(() => {
         isRestoringSessionRef.current = false
+        setLayoutRestored(true)
       })
     }
 

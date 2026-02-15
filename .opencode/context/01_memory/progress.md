@@ -30,6 +30,14 @@ task_id: progress-tracking
   - Unified `ActiveContext` across Hub and MCP.
   - Implemented functional `drawing.*` MCP tools.
   - Verified with comprehensive unit tests.
+- [completed] Full Test Suite Restoration & E2E Overhaul (2026-02-15)
+  - **Phase 1:** Fixed all 453 unit tests (client, 58 files) + 105 unit tests (hub, 18 files)
+  - **Phase 2:** Resolved all TypeScript errors to 0
+  - **Phase 3:** Rewrote `e2e/selectors.ts` and `e2e/actions.ts` for current UI architecture
+  - **Phase 4:** Fixed all 89 E2E tests across 20 spec files — 82 passed, 7 skipped, 0 failed
+  - **Skipped:** 7 tests for unimplemented features (tldraw drawing, Reveal.js, abort button)
+  - **Commits:** `274a79b`, `c40effb`, `4997b53` (pushed to origin/master)
+  - **Janitor Validation:** ALL PASS
 - [pending] BLK-002 Presentation MVP (unblocks after BLK-001 fast-track gates)
 - [completed] Multi-Phase Codebase Consolidation Strategy (2026-02-14)
   - **Phase 1:** Clean master + merge pane-system + fix whiteboard naming
@@ -74,10 +82,10 @@ task_id: progress-tracking
   - [ ] Align drawing sync behavior with canonical platform events.
 
 ## Validation Status
-- Targeted Whiteboard regression tests: PASS
-- Targeted `useArtifact` tests: PASS
-- Typecheck: PASS
-- Team A parity targeted tests (202/203/204): PASS
+- Typecheck: PASS (0 errors)
+- Unit tests (client): 453 PASS
+- Unit tests (hub): 105 PASS
+- E2E tests: 82 PASS, 7 SKIP, 0 FAIL
 - NSO v2 config: Verified (opencode.json valid, all skills exist, all prompts exist)
 - Documentation references cleanup grep: PASS (no active legacy references remain in canonical docs)
 

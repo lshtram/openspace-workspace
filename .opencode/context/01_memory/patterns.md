@@ -93,6 +93,30 @@ task_id: memory-patterns
 - **E2E Test Projects**: Use real project directories (e.g., `/Users/Shared/dev/dream-news`) instead of temporary workspaces
 - **Validation Workflow**: Use `npm run check` (fast) for development, `npm run pre-pr` (comprehensive) before pushing
 
+- **Radix Popover Outside-Click Pattern**: When dismissing Radix UI popovers in E2E tests:
+  - Do NOT click arbitrary coordinates (e.g., `page.mouse.click(0, 0)`)
+  - Radix only registers dismissal when clicking on a real DOM element
+  - Solution: Click `document.body` or another visible, real element on the page
+  - Example: `await page.locator('body').click()` instead of `await page.mouse.click(0, 0)`
+
+- **Floating UI E2E Interaction Pattern**: When testing floating/overlay UI elements (modals, floating windows, dropdowns):
+  - Always assert visibility (`.toBeVisible()`) before interacting
+  - Use `{ force: true }` for clicks on elements that may be obscured by floating layers
+  - Floating agent windows may cover underlying UI — account for z-index stacking order in test assertions
+  - Prefer `data-testid` selectors over positional/CSS selectors for elements inside floating containers
+
+- **ContentEditable vs Textarea Prompt Input**: The agent prompt uses `contentEditable` div, not `<textarea>`:
+  - `fill()` works but may not trigger all event handlers
+  - Use `pressSequentially()` for typing that must trigger key handlers
+  - `contentEditable` elements use `textContent` not `value` for reading content
+  - Selector pattern: `div[contenteditable="true"]` or role-based `textbox`
+
+- **E2E Selector Resilience Pattern**: When UI architecture changes, selectors break first:
+  - Centralize all selectors in a single `selectors.ts` file
+  - Prefer `data-testid` > `aria-label` > `role` > CSS class selectors (in order of stability)
+  - Keep action helpers (e.g., `actions.ts`) as thin wrappers around selectors
+  - When overhauling selectors, verify each one against actual rendered DOM before writing tests
+
 ## Conventions
 - Use CamelCase for interfaces.
 - Use kebab-case for file names.
@@ -115,6 +139,11 @@ task_id: memory-patterns
 
 - **Data Schema Migration Pattern**: When upgrading data-dependent libraries (like Tldraw), always implement a schema migration layer to handle version mismatches (e.g., `tldrawMapper` fixing V1 props to V2 props).
 - **Strict Validation Gotcha**: Validation logic for external data should be lenient or version-aware to avoid crashing on valid but slightly different data (e.g., optional props in Tldraw shapes).
+
+- **Agent Conversation Default = Expanded**: The agent conversation UI defaults to 'expanded' (floating window), NOT collapsed sidebar. E2E tests must account for this by looking for the floating agent panel first. Selectors: look for floating overlay container with agent messages.
+- **Pane System Binary Tree**: The pane layout uses a binary tree of `LeafPaneNode` / `SplitPaneNode`. Tests that manipulate panes must understand this tree structure — splitting creates a new `SplitPaneNode` parent with two `LeafPaneNode` children.
+- **Slash Command Availability**: Local commands (`/whiteboard`, `/editor`) are always available in the prompt. Server-side commands (tool-based) depend on MCP server configuration and may not be present. E2E tests should only assert commands that are guaranteed available.
+- **E2E Mass Fix Strategy**: When overhauling many E2E tests at once (20+ spec files), fix selectors/actions files first, then work through spec files group-by-group. Run tests per-group to catch issues incrementally rather than running all 89 tests each time.
 
 ## Approved Practices
 - Follow NSO instructions.md for all operations.

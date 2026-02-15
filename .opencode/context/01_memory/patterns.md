@@ -93,6 +93,13 @@ task_id: memory-patterns
 - **E2E Test Projects**: Use real project directories (e.g., `/Users/Shared/dev/dream-news`) instead of temporary workspaces
 - **Validation Workflow**: Use `npm run check` (fast) for development, `npm run pre-pr` (comprehensive) before pushing
 
+- **Verify Code Before Testing Pattern**: ALWAYS verify that documented changes actually exist in code before running tests:
+  - Use `git diff` to confirm changes match documentation
+  - Check specific line numbers and code patterns mentioned in session notes
+  - Flag "phantom fixes" where documentation claims changes but code is unchanged
+  - This prevents wasting time debugging tests when the underlying fix was never implemented
+  - Example: Session notes said "App.tsx modified with layoutRestored flag" but `git diff` showed no changes
+
 - **Radix Popover Outside-Click Pattern**: When dismissing Radix UI popovers in E2E tests:
   - Do NOT click arbitrary coordinates (e.g., `page.mouse.click(0, 0)`)
   - Radix only registers dismissal when clicking on a real DOM element

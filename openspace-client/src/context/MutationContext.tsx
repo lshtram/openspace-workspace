@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { useFileTabs } from './FileTabsContext';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('MutationContext');
 
 export interface FileMutation {
   id: string;
@@ -39,7 +42,7 @@ export function MutationProvider({ children }: { children: ReactNode }) {
     if (action === 'apply-buffer' || action === 'apply-disk') {
       updateFileContent(mutation.path, mutation.content);
       if (action === 'apply-disk') {
-        console.log(`[MutationContext] Writing to disk: ${mutation.path}`);
+        log.debug(`Writing to disk: ${mutation.path}`);
         // await openCodeService.writeFile(mutation.path, mutation.content);
       }
     }

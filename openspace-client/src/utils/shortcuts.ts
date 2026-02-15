@@ -1,3 +1,7 @@
+import { createLogger } from "../lib/logger"
+
+const log = createLogger("shortcuts")
+
 export const SETTINGS_STORAGE_KEY = "openspace.settings"
 export const SETTINGS_SCHEMA_VERSION = 1
 export const SETTINGS_UPDATED_EVENT = "openspace:settings-updated"
@@ -150,10 +154,10 @@ function logShortcutIO(
     ...(details ?? {}),
   }
   if (state === "failure") {
-    console.error("[shortcuts-io]", payload)
+    log.error("[shortcuts-io]", payload)
     return
   }
-  console.info("[shortcuts-io]", payload)
+  log.debug("[shortcuts-io]", payload)
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

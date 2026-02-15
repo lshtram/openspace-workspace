@@ -16,6 +16,9 @@ import {
   type FileWatcherUpdatedProperties,
   type FileTreeRefreshDetail,
 } from "../types/fileWatcher"
+import { createLogger } from "../lib/logger"
+
+const log = createLogger("useSessionEvents")
 
 const MIN_INTERVAL_MS = 1000
 
@@ -30,12 +33,12 @@ function nowIso() {
 }
 
 function logExternalIo(stage: "start" | "success" | "failure", message: string, error?: unknown) {
-  const prefix = `[${nowIso()}] [useSessionEvents] ${stage}: ${message}`
+  const prefix = `${stage}: ${message}`
   if (stage === "failure") {
-    console.error(prefix, error)
+    log.error(prefix, error)
     return
   }
-  console.info(prefix)
+  log.debug(prefix)
 }
 
 const updateMessageEntries = (

@@ -26,12 +26,31 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // B3 FIX: Enforce logging standards - prohibit console.log in production code
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
   },
   {
-    // Test files don't need react-refresh
-    files: ['src/test/**/*.{ts,tsx}'],
+    // Logger implementation needs console methods
+    files: ['src/lib/logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
+    // Config files can use console for build-time logging
+    files: ['vite.config.ts', '*.config.{js,ts}'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
+    // Test files don't need react-refresh and can use console.log for debugging
+    files: ['src/test/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
+      'no-console': 'off',
     },
   },
 ])

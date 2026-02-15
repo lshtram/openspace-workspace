@@ -19,6 +19,9 @@ import {
   selectVoiceProviders,
   type VoiceProviderSelection,
 } from './services/voice-provider-selector.js';
+import { createLogger } from './lib/logger.js';
+
+const log = createLogger('HubServer');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,10 +64,10 @@ interface VoiceNarrationRequestInput {
 const logDesignDir = (status: 'start' | 'success' | 'failure', meta: Record<string, unknown>) => {
   const payload = { ...meta, ts: now() };
   if (status === 'failure') {
-    console.error('[HubServer] design dir failure', payload);
+    log.error('design dir failure', payload);
     return;
   }
-  console.log(`[HubServer] design dir ${status}`, payload);
+  log.debug(`design dir ${status}`, payload);
 };
 
 const validateArtifactPath = (rawPath: string): { ok: true; normalizedPath: string } | { ok: false; reason: string } => {
@@ -565,7 +568,7 @@ export function createHubApp(options: HubAppOptions = {}): {
   app.post('/context/active', (req, res) => {
     try {
       activeContext = parseActiveContextBody(req.body);
-      console.log('[HubServer] Active context set', { ...activeContext, ts: now() });
+      log.debug('Active context set', { ...activeContext, ts: now() });
       res.json({ success: true, activeContext });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
@@ -591,7 +594,7 @@ export function createHubApp(options: HubAppOptions = {}): {
             path: validation.normalizedPath,
           },
         };
-        console.log('[HubServer] Active whiteboard set', { filePath: activeContext.data.path, ts: now() });
+        log.debug('Active whiteboard set', { filePath: activeContext.data.path, ts: now() });
       } catch (error) {
         return res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
       }
@@ -777,7 +780,7 @@ export function createHubApp(options: HubAppOptions = {}): {
       ts: now(),
     };
 
-    console.log('[HubServer] Command received', { commandId, command: type, ts: now() });
+    log.debug('Command received', { commandId, command: type, ts: now() });
     commandBus.emit('PANE_COMMAND', event);
 
     return res.json({ success: true, commandId });
@@ -786,7 +789,7 @@ export function createHubApp(options: HubAppOptions = {}): {
   // POST /panes/state — Client pushes its current layout
   app.post('/panes/state', (req, res) => {
     paneState = req.body;
-    console.log('[HubServer] Pane state updated', { ts: now() });
+    log.debug('Pane state updated', { ts: now() });
     res.json({ success: true });
   });
 
@@ -801,7 +804,7 @@ export function createHubApp(options: HubAppOptions = {}): {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    console.log(`[HubServer] SSE client connected from ${req.ip}`);
+    log.debug('SSE client connected', { ip: req.ip });
 
     const onFileChanged = (event: { path: string; actor: string }) => {
       res.write(`data: ${JSON.stringify({ type: 'FILE_CHANGED', ...event })}\n\n`);
@@ -819,7 +822,7 @@ export function createHubApp(options: HubAppOptions = {}): {
     }, 30000);
 
     req.on('close', () => {
-      console.log('[HubServer] SSE client disconnected');
+      log.debug('SSE client disconnected');
       store.off('FILE_CHANGED', onFileChanged);
       commandBus.off('PANE_COMMAND', onPaneCommand);
       clearInterval(heartbeat);
@@ -912,11 +915,74 @@ export function createHubApp(options: HubAppOptions = {}): {
   return { app, store, patchEngine };
 }
 
-export async function startHubServer(port = Number(process.env.HUB_PORT || 3001)): Promise<void> {
+/**
+ * Parse bind address from CLI args or environment
+ * Priority: CLI --bind flag > HUB_BIND_ADDRESS env > default 127.0.0.1
+ */
+function parseBindAddress(): string {
+  // Priority 1: CLI flag
+  const cliArgIndex = process.argv.indexOf('--bind');
+  if (cliArgIndex !== -1 && process.argv[cliArgIndex + 1]) {
+    const address = process.argv[cliArgIndex + 1];
+    log.info('Bind address from CLI:', address);
+    return address;
+  }
+  
+  // Priority 2: Environment variable
+  if (process.env.HUB_BIND_ADDRESS) {
+    const address = process.env.HUB_BIND_ADDRESS;
+    log.info('Bind address from env:', address);
+    return address;
+  }
+  
+  // Priority 3: Default (localhost only)
+  log.info('Bind address defaulting to 127.0.0.1 (localhost only)');
+  return '127.0.0.1';
+}
+
+/**
+ * Validate and warn about bind address security implications
+ */
+function validateBindAddress(address: string): void {
+  // Basic IPv4 validation (allows hostnames too)
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  
+  if (address === '0.0.0.0') {
+    console.warn('');
+    console.warn('⚠️  WARNING: Hub is binding to 0.0.0.0 (all network interfaces)');
+    console.warn('⚠️  This exposes the Hub to your local network.');
+    console.warn('⚠️  Anyone on your network can:');
+    console.warn('⚠️    - Read/write files under design/');
+    console.warn('⚠️    - Send commands to your browser');
+    console.warn('⚠️    - Monitor your activity via SSE stream');
+    console.warn('⚠️  For remote access, use SSH tunnel or VPN instead.');
+    console.warn('');
+  }
+  
+  // Check for obviously invalid addresses
+  if (ipv4Regex.test(address)) {
+    const octets = address.split('.').map(Number);
+    if (octets.some(o => o > 255)) {
+      throw new Error(`Invalid bind address: ${address} (octets must be 0-255)`);
+    }
+  }
+}
+
+export async function startHubServer(
+  port = Number(process.env.HUB_PORT || 3001),
+  bindAddress?: string
+): Promise<void> {
+  const bind = bindAddress ?? parseBindAddress();
+  
+  // Validate and warn
+  validateBindAddress(bind);
+  
   const { app } = createHubApp();
+  
   await new Promise<void>((resolve) => {
-    app.listen(port, () => {
-      console.log(`[HubServer] Internal API listening on port ${port}`);
+    app.listen(port, bind, () => {
+      log.info('Internal API listening', { bind, port });
+      log.info('Security: Serving artifacts from design/ directory');
       resolve();
     });
   });
@@ -924,7 +990,7 @@ export async function startHubServer(port = Number(process.env.HUB_PORT || 3001)
 
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   startHubServer().catch((error) => {
-    console.error('[HubServer] Failed to start server', {
+    log.error('Failed to start server', {
       error: error instanceof Error ? error.message : String(error),
       ts: now(),
     });

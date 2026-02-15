@@ -9,6 +9,9 @@ import { diagramToTldrawShapes, tldrawShapesToDiagram } from '../../lib/whiteboa
 import { Send, AlertCircle, Loader2 } from 'lucide-react';
 import { pushToast } from '../../utils/toastStore';
 import { openCodeService } from '../../services/OpenCodeClient';
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger('TldrawWhiteboard');
 
 interface TldrawWhiteboardProps {
   filePath: string;
@@ -18,6 +21,7 @@ interface TldrawWhiteboardProps {
 export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, sessionId }) => {
   const [editor, setEditor] = useState<Editor | null>(null);
   const isRemoteUpdateRef = useRef(false);
+  const localChangeDuringRemoteRef = useRef(false); // B1 FIX: Track if local change occurred during remote update
   const isInitialLoadRef = useRef(true);
   const unlistenRef = useRef<(() => void) | null>(null);
 
@@ -33,18 +37,24 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
     debounceMs: 1000,
     onRemoteChange: (newData) => {
       if (!editor) {
-        console.log('[TldrawWhiteboard] onRemoteChange: No editor available yet');
+        log.debug('onRemoteChange: No editor available yet');
         return;
       }
 
-      console.log(`[${new Date().toISOString()}] ARTIFACT_REMOTE_CHANGE: ${filePath}`);
-      console.log('[TldrawWhiteboard] Remote data nodes:', newData.nodes.length);
-      console.log('[TldrawWhiteboard] Current editor shapes:', editor.getCurrentPageShapes().length);
+      log.debug(`ARTIFACT_REMOTE_CHANGE: ${filePath}`, {
+        remoteNodes: newData.nodes.length,
+        currentShapes: editor.getCurrentPageShapes().length,
+      });
       
+      // B1 FIX: Mark that remote update is in progress
       isRemoteUpdateRef.current = true;
+      localChangeDuringRemoteRef.current = false;
 
       const { shapes, bindings } = diagramToTldrawShapes(newData);
-      console.log('[TldrawWhiteboard] Converted to tldraw shapes:', shapes.length, 'bindings:', bindings.length);
+      log.debug('Converted to tldraw shapes', {
+        shapes: shapes.length,
+        bindings: bindings.length,
+      });
 
       editor.run(() => {
         const currentShapeIds = new Set(editor.getCurrentPageShapes().map((s) => s.id));
@@ -56,7 +66,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
 
         // Create new shapes
         if (newShapes.length > 0) {
-          console.log('[TldrawWhiteboard] Creating new shapes:', newShapes.map(s => s.id));
+          log.debug('Creating new shapes:', newShapes.map(s => s.id));
           editor.createShapes(newShapes);
         }
 
@@ -72,7 +82,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
         const newBindings = bindings.filter((b) => !currentBindingIds.has(b.id));
         
         if (newBindings.length > 0) {
-            console.log('[TldrawWhiteboard] Creating bindings:', newBindings.length);
+            log.debug('Creating bindings:', newBindings.length);
             editor.createBindings(newBindings);
         }
 
@@ -83,41 +93,55 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
           .map((shape) => shape.id);
 
         if (shapesToRemove.length > 0) {
-          console.log('[TldrawWhiteboard] Removing shapes:', shapesToRemove);
+          log.debug('Removing shapes:', shapesToRemove);
           editor.deleteShapes(shapesToRemove);
         }
       });
 
-      console.log('[TldrawWhiteboard] After update, editor has shapes:', editor.getCurrentPageShapes().length);
+      log.debug('After update, editor has shapes:', editor.getCurrentPageShapes().length);
 
-      // Keep the flag true for a bit longer to ensure all tldraw change events are ignored
-      setTimeout(() => {
-        isRemoteUpdateRef.current = false;
-      }, 100);
+      // B1 FIX: Check if local changes occurred during remote update
+      if (localChangeDuringRemoteRef.current) {
+        log.debug('Local change occurred during remote update, re-triggering handleChange');
+        // Re-trigger to capture the deferred local change
+        handleChange(editor);
+      }
+      
+      // B1 FIX: Clear flag after processing (no setTimeout needed)
+      isRemoteUpdateRef.current = false;
     },
   });
 
   const handleChange = useCallback((editorInstance: Editor) => {
-    console.log('[TldrawWhiteboard] handleChange triggered');
-    if (isRemoteUpdateRef.current || isInitialLoadRef.current) {
-      console.log('[TldrawWhiteboard] handleChange SKIPPED (isRemoteUpdate or isInitialLoad)');
+    log.debug('handleChange triggered');
+    
+    // Skip if this is during initial load
+    if (isInitialLoadRef.current) {
+      log.debug('handleChange SKIPPED (isInitialLoad)');
+      return;
+    }
+
+    // B1 FIX: If remote update is in progress, defer this local change
+    if (isRemoteUpdateRef.current) {
+      localChangeDuringRemoteRef.current = true;
+      log.debug('handleChange DEFERRED (remote update in progress)');
       return;
     }
 
     const shapes = editorInstance.getCurrentPageShapes() as TLShape[];
-    console.log('[TldrawWhiteboard] handleChange processing shapes:', shapes.length);
-    console.log('[TldrawWhiteboard] Shape types:', shapes.map(s => s.type).join(', '));
+    log.debug('handleChange processing shapes:', shapes.length);
+    log.debug('Shape types:', shapes.map(s => s.type).join(', '));
     
     // Get bindings separately (tldraw v2 stores them as separate records)
     const bindings = editorInstance.store.query.records('binding').get();
-    console.log('[TldrawWhiteboard] Bindings found:', bindings.length);
+    log.debug('Bindings found:', bindings.length);
     
     // Log arrow shapes specifically
     const arrows = shapes.filter(s => s.type === 'arrow');
     if (arrows.length > 0) {
-      console.log('[TldrawWhiteboard] ARROWS FOUND:', arrows.length);
+      log.debug('ARROWS FOUND:', arrows.length);
       arrows.forEach((arrow, i) => {
-        console.log(`[TldrawWhiteboard] Arrow ${i}:`, {
+        log.debug(`Arrow ${i}:`, {
           id: arrow.id,
           start: (arrow.props as any).start,
           end: (arrow.props as any).end
@@ -126,7 +150,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
     }
     
     const partialDiagram = tldrawShapesToDiagram(shapes, bindings);
-    console.log('[TldrawWhiteboard] Converted diagram - nodes:', partialDiagram.nodes.length, 'edges:', partialDiagram.edges.length);
+    log.debug('Converted diagram - nodes:', partialDiagram.nodes.length, 'edges:', partialDiagram.edges.length);
 
     setData((prev) => {
       if (!prev) {
@@ -147,13 +171,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
         } as IDiagram;
       }
 
-      if (
-        JSON.stringify(prev.nodes) === JSON.stringify(partialDiagram.nodes) &&
-        JSON.stringify(prev.edges) === JSON.stringify(partialDiagram.edges)
-      ) {
-        return prev;
-      }
-
+      // B2 FIX: Removed JSON.stringify comparison - rely on React reconciliation + debounced save
       return {
         ...prev,
         nodes: partialDiagram.nodes || [],
@@ -167,12 +185,12 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
   }, [setData, filePath]);
 
   const handleMount = useCallback((editorInstance: Editor) => {
-    console.log('[TldrawWhiteboard] handleMount - setting up editor listener');
+    log.debug('handleMount - setting up editor listener');
     setEditor(editorInstance);
     
     // Expose editor globally for debugging
     (window as any).tldrawEditor = editorInstance;
-    console.log('[TldrawWhiteboard] Editor exposed as window.tldrawEditor');
+    log.debug('Editor exposed as window.tldrawEditor');
 
     // FIX: Remove source/scope filter - it was blocking arrow creation events
     // Listen for ALL changes (shapes AND bindings)
@@ -188,7 +206,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
       const updatedShapes = updatedRecords.filter((r: any) => r.typeName === 'shape').length;
       const updatedBindings = updatedRecords.filter((r: any) => r.typeName === 'binding').length;
       
-      console.log('[TldrawWhiteboard] Store listener fired:', {
+      log.debug('Store listener fired:', {
         added: { shapes: addedShapes, bindings: addedBindings },
         updated: { shapes: updatedShapes, bindings: updatedBindings },
         removed: removedRecords.length
@@ -200,7 +218,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
       }
     });
     
-    console.log('[TldrawWhiteboard] Editor listener configured successfully');
+    log.debug('Editor listener configured successfully');
   }, [handleChange]);
 
   useEffect(() => {
@@ -216,12 +234,12 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
 
     // If data is null (new file / 404), mark initial load as done so handleChange can fire
     if (!data) {
-      console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath} (new file, no data to load)`);
+      log.debug(`TLDRAW_INITIAL_LOAD: ${filePath} (new file, no data to load)`);
       isInitialLoadRef.current = false;
       return;
     }
 
-    console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD: ${filePath}`);
+    log.debug(`TLDRAW_INITIAL_LOAD: ${filePath}`);
     isRemoteUpdateRef.current = true;
 
     try {
@@ -240,7 +258,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
             editor.createShapes(shapes);
           }
         } catch (shapeError: any) {
-          console.error(`[TldrawWhiteboard] Error creating shapes batch: ${shapeError.message}`);
+          log.error('Error creating shapes batch:', shapeError.message);
           
           // Fallback: Try creating shapes one by one to isolate the error
           // This prevents the whole board from crashing if one shape is bad
@@ -252,7 +270,12 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
               editor.createShapes([shape]);
               successCount++;
             } catch (singleError: any) {
-              console.error(`[TldrawWhiteboard] Failed to create shape ${shape.id} (${shape.type}):`, singleError.message, shape);
+              log.error('Failed to create shape:', { 
+                id: shape.id, 
+                type: shape.type, 
+                error: singleError.message, 
+                shape 
+              });
               failCount++;
             }
           });
@@ -270,14 +293,14 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
             editor.createBindings(bindings);
           }
         } catch (bindingError: any) {
-          console.error(`[TldrawWhiteboard] Error creating bindings: ${bindingError.message}`);
+          log.error('Error creating bindings:', bindingError.message);
           // Fallback bindings if needed... usually bindings fail if shapes are missing
         }
       });
 
-      console.log(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD_SUCCESS: ${filePath} (${shapes.length} shapes, ${bindings.length} bindings)`);
+      log.debug(`TLDRAW_INITIAL_LOAD_SUCCESS: ${filePath} (${shapes.length} shapes, ${bindings.length} bindings)`);
     } catch (err: any) {
-      console.error(`[${new Date().toISOString()}] TLDRAW_INITIAL_LOAD_FAIL: ${filePath}`, err);
+      log.error('TLDRAW_INITIAL_LOAD_FAIL:', { filePath, error: err.message, stack: err.stack });
       pushToast({ title: 'Load Error', description: `Critical error loading diagram: ${err.message}`, tone: 'error' });
     } finally {
       isInitialLoadRef.current = false;
@@ -289,7 +312,7 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
     if (!data) return;
 
     try {
-      console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_START: ${filePath}`);
+      log.debug(`SEND_TO_AGENT_START: ${filePath}`);
       if (sessionId) {
         await openCodeService.client.session.prompt({
           sessionID: sessionId,
@@ -299,10 +322,10 @@ export const TldrawWhiteboard: React.FC<TldrawWhiteboardProps> = ({ filePath, se
           ],
         });
         pushToast({ title: 'Diagram sent to Agent', tone: 'success' });
-        console.log(`[${new Date().toISOString()}] SEND_TO_AGENT_SUCCESS: ${filePath}`);
+        log.debug(`SEND_TO_AGENT_SUCCESS: ${filePath}`);
       }
     } catch (err: any) {
-      console.error(`[${new Date().toISOString()}] SEND_TO_AGENT_FAIL: ${filePath}`, err);
+      log.error('SEND_TO_AGENT_FAIL:', { filePath, error: err.message });
       pushToast({ title: 'Failed to send to Agent', description: err.message, tone: 'error' });
     }
   };

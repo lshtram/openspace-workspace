@@ -4,6 +4,9 @@ import { useHighlight } from '../context/HighlightContext';
 import { useLayout } from '../context/LayoutContext';
 import { useMutationStore, type FileMutation } from '../context/MutationContext';
 import type { EditorLocation, NavigationHistoryEntry, OpenFileAtOptions } from '../interfaces/INavigation';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('useNavigation');
 
 /**
  * @implements REQ-EDT-005
@@ -125,7 +128,7 @@ export function useNavigation() {
     // In a real implementation, this would go through a validated mutation pipeline.
     // For MVP, we'll use the OpenCodeClient's write capability (if it exists) 
     // or simulate the save event.
-    console.log(`[useNavigation] Saving file ${activeFilePath} with content length ${content.length}`);
+    log.debug('Saving file:', { path: activeFilePath, contentLength: content.length });
     
     // For now, let's assume we can use openCodeService or a similar hook to perform the write.
     // In the future, this would emit an event that the Hub handles.

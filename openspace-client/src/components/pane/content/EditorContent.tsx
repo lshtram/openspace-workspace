@@ -2,6 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type { PaneTab } from '../types';
 import { storage, type EditorAppearance } from '../../../utils/storage';
+import { createLogger } from '../../../lib/logger';
+
+const log = createLogger('EditorContent');
 
 const HUB_URL = import.meta.env.VITE_HUB_URL || 'http://localhost:3001';
 
@@ -47,7 +50,7 @@ export function EditorContent({ tab }: Props) {
         setLoading(false);
       })
       .catch((err: Error) => {
-        console.error('Failed to load file:', err);
+        log.error('Failed to load file:', err);
         setError(err.message || 'Failed to load file');
         setContent('');
         setLoading(false);
@@ -93,9 +96,9 @@ export function EditorContent({ tab }: Props) {
         throw new Error(`Failed to save: ${response.status}`);
       }
       
-      console.log('File saved:', filePath);
+      log.debug('File saved:', filePath);
     } catch (err) {
-      console.error('Failed to save file:', err);
+      log.error('Failed to save file:', err);
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);

@@ -1,13 +1,16 @@
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('voiceRuntimeClient');
 const DEFAULT_HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:3001"
 
 const now = () => new Date().toISOString()
 
 const logStart = (action: string, meta: Record<string, unknown>) => {
-  console.log("[voiceRuntimeClient] request start", { action, ...meta, ts: now() })
+  log.debug("request start", { action, ...meta, ts: now() })
 }
 
 const logSuccess = (action: string, meta: Record<string, unknown>) => {
-  console.log("[voiceRuntimeClient] request success", { action, ...meta, ts: now() })
+  log.debug("request success", { action, ...meta, ts: now() })
 }
 
 const logFailure = (action: string, meta: Record<string, unknown>) => {

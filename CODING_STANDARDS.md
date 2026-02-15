@@ -36,18 +36,68 @@
 - **Utility-first:** Prefer Tailwind utility classes over custom CSS where available.
 - **Responsive:** Mobile-first. Use container queries for component-level responsiveness.
 
-## 3. Observability (NSO Requirement)
+## 3. Logging Standards (STRICT)
+
+**FORBIDDEN:** Using `console.log()` directly in production code.
+
+**REQUIRED:** Use the logging utility for all debug output:
+
+```typescript
+// ❌ WRONG - Production console pollution
+console.log('User clicked button:', userId);
+
+// ✅ CORRECT - Tree-shakeable development logging
+import { createLogger } from './lib/logger';
+const log = createLogger('ButtonComponent');
+log.debug('User clicked button:', userId);
+```
+
+### 3.1 Required Patterns
+
+**Development Logging:**
+- Use `createLogger(namespace)` for all debug output
+- Namespace should match file/component name
+- Use semantic log levels: `debug`, `info`, `warn`, `error`
+
+**Production Logging:**
+- `console.error()` for actual errors (production-visible)
+- `console.warn()` for actual warnings (production-visible)
+- NEVER use `console.log()` for errors (not semantic)
+
+**Tree-Shaking:**
+- Logger MUST be tree-shakeable in production builds
+- Verify with: `npm run build && ls -lh dist/assets/*.js`
+- All `debug`/`info` calls MUST be eliminated at build time
+
+### 3.2 ESLint Enforcement
+
+```json
+{
+  "rules": {
+    "no-console": ["error", { "allow": ["warn", "error"] }]
+  }
+}
+```
+
+This rule is REQUIRED in all packages. Violations MUST be caught in CI.
+
+### 3.3 Observability (NSO Requirement)
+
+Any code performing external I/O (Fetch, DB, API, File) MUST include explicit start/success/failure logging:
+
+### 3.3 Observability (NSO Requirement)
 
 Any code performing external I/O (Fetch, DB, API, File) MUST include explicit start/success/failure logging:
 
 ```typescript
-console.log(`[${new Date().toISOString()}] FETCH_START: ${url}`);
+const log = createLogger('DataFetcher');
+log.debug(`FETCH_START: ${url}`);
 try {
   const result = await fetch(url);
-  console.log(`[${new Date().toISOString()}] FETCH_SUCCESS: ${url} (${result.status})`);
+  log.debug(`FETCH_SUCCESS: ${url} (${result.status})`);
   return result;
 } catch (error) {
-  console.error(`[${new Date().toISOString()}] FETCH_FAIL: ${url}`, error);
+  console.error(`FETCH_FAIL: ${url}`, error); // Use console.error for production errors
   throw error;
 }
 ```

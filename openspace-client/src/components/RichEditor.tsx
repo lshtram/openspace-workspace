@@ -17,8 +17,11 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AutocompletePopover, type SuggestionOption } from './AutocompletePopover';
 import fuzzysort from 'fuzzysort';
+import { createLogger } from '../lib/logger';
 
 export type { Prompt, PromptPart };
+
+const log = createLogger('RichEditor');
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -82,7 +85,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
   const filteredOptions = useMemo((): SuggestionOption[] => {
     if (!popover.type) return [];
 
-    console.log('[RichEditor] Filtering suggestions:', { 
+    log.debug('Filtering suggestions:', { 
       popoverType: popover.type, 
       popoverQuery: popover.query,
       fileSuggestionsCount: fileSuggestions.length,
@@ -105,12 +108,12 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       }));
       const combined = [...agents, ...files];
       
-      console.log('[RichEditor] @ combined options:', combined.length);
+      log.debug('@ combined options:', combined.length);
       
       if (!popover.query) return combined.slice(0, 10);
       
       const results = fuzzysort.go(popover.query, combined, { key: 'label', limit: 10 });
-      console.log('[RichEditor] @ filtered results:', results.length);
+      log.debug('@ filtered results:', results.length);
       return results.map(r => r.obj);
     }
 
@@ -122,12 +125,12 @@ export const RichEditor: React.FC<RichEditorProps> = ({
         description: cmd.description
       }));
       
-      console.log('[RichEditor] / commands:', commands.length);
+      log.debug('/ commands:', commands.length);
       
       if (!popover.query) return commands;
       
       const results = fuzzysort.go(popover.query, commands, { key: 'label', limit: 10 });
-      console.log('[RichEditor] / filtered results:', results.length);
+      log.debug('/ filtered results:', results.length);
       return results.map(r => r.obj);
     }
 
@@ -283,7 +286,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     const atMatch = textBeforeCursor.match(/@(\S*)$/);
     const slashMatch = textBeforeCursor.match(/\/(\S*)$/);
 
-    console.log('[RichEditor] handleInput:', { 
+    log.debug('handleInput:', { 
       rawText, 
       cursorPosition, 
       textBeforeCursor, 
@@ -295,7 +298,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
 
     // Detect Shell Mode Trigger
     if (mode === 'normal' && rawText === '!' && cursorPosition === 1) {
-      console.log('[RichEditor] Detected ! in handleInput, switching to shell mode');
+      log.debug('Detected ! in handleInput, switching to shell mode');
       onModeChange?.('shell');
       
       // Clear the editor - don't keep the ! character
@@ -311,10 +314,10 @@ export const RichEditor: React.FC<RichEditorProps> = ({
 
     if (atMatch && mode === 'normal') {
       setPopover({ type: 'at', query: atMatch[1], activeIndex: 0 });
-      console.log('[RichEditor] Opening @ popover with query:', atMatch[1]);
+      log.debug('Opening @ popover with query:', atMatch[1]);
     } else if (slashMatch && mode === 'normal') {
       setPopover({ type: 'slash', query: slashMatch[1], activeIndex: 0 });
-      console.log('[RichEditor] Opening / popover with query:', slashMatch[1]);
+      log.debug('Opening / popover with query:', slashMatch[1]);
     } else {
       setPopover(p => p.type ? { ...p, type: null } : p);
     }
@@ -421,11 +424,11 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       const rawText = rawParts.map(p => ('content' in p ? p.content : '')).join('');
       const textBeforeCursor = rawText.substring(0, cursorPosition);
        
-      console.log('[RichEditor] Shell trigger:', { cursorPosition, rawText, textBeforeCursor });
+      log.debug('Shell trigger:', { cursorPosition, rawText, textBeforeCursor });
        
       // Check if at start OR if text before cursor is just !
       if ((cursorPosition === 0 && parts.length === 0) || textBeforeCursor === '!') {
-        console.log('[RichEditor] Switching to shell mode');
+        log.debug('Switching to shell mode');
         onModeChange?.('shell');
         // Clear the editor - shell mode starts fresh
         if (editorRef.current) {
@@ -441,7 +444,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
 
     if (mode === "shell") {
       if (event.key === "Escape") {
-        console.log('[RichEditor] Exiting shell mode');
+        log.debug('Exiting shell mode');
         onModeChange?.('normal');
         // Clear the editor when exiting shell mode
         if (editorRef.current) {
@@ -456,7 +459,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       if (event.key === "Backspace") {
         const cursorPosition = getCursorPosition(editorRef.current!);
         if (cursorPosition === 0 && promptLength(parts) === 0) {
-          console.log('[RichEditor] Exiting shell mode via backspace');
+          log.debug('Exiting shell mode via backspace');
           onModeChange?.('normal');
           event.preventDefault();
           return;
@@ -476,7 +479,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       const atStart = cursorPosition === 0;
       const atEnd = cursorPosition === totalLength;
       
-      console.log('[RichEditor] History nav:', { 
+      log.debug('History nav:', { 
         event: event.key, 
         cursorPosition, 
         totalLength, 
@@ -564,7 +567,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     handleInput();
   };
 
-  console.log('[RichEditor] Popover render:', { 
+  log.debug('Popover render:', { 
     isOpen: popover.type !== null, 
     type: popover.type, 
     query: popover.query,

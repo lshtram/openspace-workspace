@@ -13,6 +13,9 @@ import {
   assertNonEmptyString,
   type FileTreeRefreshDetail,
 } from "../types/fileWatcher"
+import { createLogger } from "../lib/logger"
+
+const log = createLogger('FileTree')
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -92,7 +95,7 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       loading: new Set(prev.loading).add(path),
     }))
     const startTimestamp = toTimestamp()
-    console.info(`${FILE_TREE_LOG_SCOPE} file.list start ${startTimestamp}`, { directory, path, reason })
+    log.debug('file.list start', { directory, path, reason, timestamp: startTimestamp })
     try {
       const response = await openCodeService.client.file.list({
         path,
@@ -100,11 +103,12 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
       })
       const list = response.data ?? []
       loadedRef.current.add(path)
-      console.info(`${FILE_TREE_LOG_SCOPE} file.list success ${toTimestamp()}`, {
+      log.debug('file.list success', {
         directory,
         path,
         reason,
         count: list.length,
+        timestamp: toTimestamp(),
       })
       setState((prev) => {
         const nextLoading = new Set(prev.loading)
@@ -164,17 +168,19 @@ export function FileTree({ directory: directoryProp }: FileTreeProps) {
 
       if (detail.files.length > 0) {
         const timestamp = toTimestamp()
-        console.info(`${FILE_TREE_LOG_SCOPE} file.status refresh start ${timestamp}`, {
+        log.debug('file.status refresh start', {
           directory,
           key: detail.key,
           files: detail.files,
+          timestamp,
         })
         void queryClient
           .invalidateQueries({ queryKey: fileStatusQueryKey(server.activeUrl, directory), exact: true })
           .then(() => {
-            console.info(`${FILE_TREE_LOG_SCOPE} file.status refresh success ${toTimestamp()}`, {
+            log.debug('file.status refresh success', {
               directory,
               key: detail.key,
+              timestamp: toTimestamp(),
             })
           })
           .catch((error) => {

@@ -3,6 +3,9 @@ import { Check, HelpCircle, Loader2, MessageSquare, X } from 'lucide-react';
 import { openCodeService } from '../../../services/OpenCodeClient';
 import { BaseToolRenderer } from './BaseToolRenderer';
 import { registerToolRenderer, type ToolRendererProps } from './core';
+import { createLogger } from '../../../lib/logger';
+
+const log = createLogger('QuestionToolRenderer');
 
 interface QuestionOption {
   label: string;
@@ -64,12 +67,12 @@ export function QuestionToolRenderer({ part, isStep }: ToolRendererProps) {
       if (!part.sessionID) return;
       setRequestLoading(true);
       setRequestError(null);
-      console.log(`[question][${now()}] request:start`, { sessionID: part.sessionID, messageID: part.messageID, callID: part.callID });
+      log.debug("request:start", { sessionID: part.sessionID, messageID: part.messageID, callID: part.callID, ts: now() });
 
       try {
         if (metadataRequestId) {
           if (isMounted) setRequestId(metadataRequestId);
-          console.log(`[question][${now()}] request:success`, { requestID: metadataRequestId, source: 'metadata' });
+          log.debug("request:success", { requestID: metadataRequestId, source: 'metadata', ts: now() });
           return;
         }
 
@@ -89,11 +92,11 @@ export function QuestionToolRenderer({ part, isStep }: ToolRendererProps) {
           setRequestId(fallback?.id ?? null);
         }
 
-        console.log(`[question][${now()}] request:success`, { requestID: fallback?.id ?? null, pending: pending.length });
+        log.debug("request:success", { requestID: fallback?.id ?? null, pending: pending.length, ts: now() });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load question request';
         if (isMounted) setRequestError(message);
-        console.error(`[question][${now()}] request:failure`, error);
+        log.error("request:failure", error, { ts: now() });
       } finally {
         if (isMounted) setRequestLoading(false);
       }
@@ -165,17 +168,17 @@ export function QuestionToolRenderer({ part, isStep }: ToolRendererProps) {
         return;
       }
 
-      console.log(`[question][${now()}] reply:start`, { requestID: resolvedRequestId });
+      log.debug("reply:start", { requestID: resolvedRequestId, ts: now() });
       await openCodeService.client.question.reply({
         requestID: resolvedRequestId,
         directory: openCodeService.directory,
         answers: answersPayload,
       });
       setSubmittedAnswers(answersPayload);
-      console.log(`[question][${now()}] reply:success`, { requestID: resolvedRequestId });
+      log.debug("reply:success", { requestID: resolvedRequestId, ts: now() });
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : 'Failed to submit answers');
-      console.error(`[question][${now()}] reply:failure`, error);
+      log.error("reply:failure", error, { ts: now() });
     } finally {
       setIsSubmitting(false);
     }
@@ -207,15 +210,15 @@ export function QuestionToolRenderer({ part, isStep }: ToolRendererProps) {
         return;
       }
 
-      console.log(`[question][${now()}] reject:start`, { requestID: resolvedRequestId });
+      log.debug("reject:start", { requestID: resolvedRequestId, ts: now() });
       await openCodeService.client.question.reject({
         requestID: resolvedRequestId,
         directory: openCodeService.directory,
       });
-      console.log(`[question][${now()}] reject:success`, { requestID: resolvedRequestId });
+      log.debug("reject:success", { requestID: resolvedRequestId, ts: now() });
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : 'Failed to reject question');
-      console.error(`[question][${now()}] reject:failure`, error);
+      log.error("reject:failure", error, { ts: now() });
     } finally {
       setIsSubmitting(false);
     }

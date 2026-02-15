@@ -2,6 +2,9 @@
 import { createShapeId, createBindingId, toRichText } from '@tldraw/tldraw';
 import type { TLArrowShape, TLGeoShape, TLShape, TLRichText, TLBinding } from '@tldraw/tldraw';
 import type { IDiagram, IDiagramEdge, IDiagramNode } from '../../interfaces/IDrawing';
+import { createLogger } from '../logger';
+
+const log = createLogger('tldrawMapper');
 
 /**
  * Helper to extract plain text from TLRichText.
@@ -283,7 +286,7 @@ export function tldrawShapesToDiagram(shapes: TLShape[], bindings: any[] = []): 
   const nodes: IDiagramNode[] = [];
   const edges: IDiagramEdge[] = [];
 
-  console.log('[tldrawMapper] Processing shapes:', shapes.length, 'bindings:', bindings.length);
+  log.debug('Processing shapes:', shapes.length, 'bindings:', bindings.length);
 
   // Process nodes (geo, draw, text, note, etc.)
   for (const shape of shapes) {
@@ -432,7 +435,7 @@ export function tldrawShapesToDiagram(shapes: TLShape[], bindings: any[] = []): 
         connections.end = targetId;
       }
       
-      console.log('[tldrawMapper] Binding:', {
+      log.debug('Binding:', {
         arrowId,
         targetId,
         terminal,
@@ -446,7 +449,7 @@ export function tldrawShapesToDiagram(shapes: TLShape[], bindings: any[] = []): 
     if (shape.type === 'arrow') {
       const connections = bindingsByArrow.get(shape.id);
       
-      console.log('[tldrawMapper] Processing arrow:', shape.id, 'connections:', connections);
+      log.debug('Processing arrow:', shape.id, 'connections:', connections);
       
       if (connections?.start && connections?.end) {
         const props = shape.props as any;
@@ -458,14 +461,14 @@ export function tldrawShapesToDiagram(shapes: TLShape[], bindings: any[] = []): 
           label: richTextToPlainText(props.richText),
           styleToken: (shape.meta?.styleToken as string) || '',
         });
-        console.log('[tldrawMapper] Created edge:', edges[edges.length - 1]);
+        log.debug('Created edge:', edges[edges.length - 1]);
       } else {
-        console.log('[tldrawMapper] Skipping unbound arrow:', shape.id, 'connections:', connections);
+        log.debug('Skipping unbound arrow:', shape.id, 'connections:', connections);
       }
     }
   }
 
-  console.log('[tldrawMapper] Final result - nodes:', nodes.length, 'edges:', edges.length);
+  log.debug('Final result - nodes:', nodes.length, 'edges:', edges.length);
 
   return {
     schemaVersion: '2.0.0',

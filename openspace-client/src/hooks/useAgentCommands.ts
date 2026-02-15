@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { usePane } from "../context/PaneContext"
 import { findPaneForContent } from "../components/pane/utils/treeOps"
 import type { SpaceType, ContentSpec } from "../components/pane/types"
+import { createLogger } from "../lib/logger"
+
+const log = createLogger("useAgentCommands")
 
 const HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:3001"
 
@@ -41,7 +44,7 @@ export function useAgentCommands(): UseAgentCommandsResult {
     const { command, payload, commandId } = event
     const p = paneRef.current
 
-    console.log(`[useAgentCommands] dispatch`, { command, commandId, ts: now() })
+    log.debug("dispatch", { command, commandId, ts: now() })
 
     switch (command) {
       case "pane.open": {
@@ -135,23 +138,23 @@ export function useAgentCommands(): UseAgentCommandsResult {
       }
 
       default: {
-        console.warn(`[useAgentCommands] Unknown command: ${command}`, { commandId, ts: now() })
+        log.warn("Unknown command:", { command, commandId, ts: now() })
         break
       }
     }
   }, [])
 
   useEffect(() => {
-    console.log(`[useAgentCommands] SSE connect start`, { url: `${HUB_URL}/events`, ts: now() })
+    log.debug("SSE connect start", { url: `${HUB_URL}/events`, ts: now() })
     const eventSource = new EventSource(`${HUB_URL}/events`)
 
     eventSource.onopen = () => {
-      console.log(`[useAgentCommands] SSE connected`, { ts: now() })
+      log.debug("SSE connected", { ts: now() })
       setConnected(true)
     }
 
     eventSource.onerror = () => {
-      console.error(`[useAgentCommands] SSE error`, { ts: now() })
+      log.error("SSE error", { ts: now() })
       setConnected(false)
     }
 
@@ -164,7 +167,7 @@ export function useAgentCommands(): UseAgentCommandsResult {
 
         dispatchCommand(parsed as PaneCommandEvent)
       } catch (err) {
-        console.error(`[useAgentCommands] Failed to parse SSE event`, {
+        log.error("Failed to parse SSE event", {
           error: err instanceof Error ? err.message : String(err),
           ts: now(),
         })

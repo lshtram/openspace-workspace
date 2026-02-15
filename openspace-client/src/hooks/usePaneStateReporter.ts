@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react"
 import { usePane } from "../context/PaneContext"
+import { createLogger } from "../lib/logger"
+
+const log = createLogger("usePaneStateReporter")
 
 const HUB_URL = import.meta.env.VITE_HUB_URL || "http://localhost:3001"
 
@@ -29,7 +32,7 @@ export function usePaneStateReporter(): void {
 
     debounceRef.current = setTimeout(() => {
       lastJsonRef.current = serialized
-      console.log(`[usePaneStateReporter] Reporting pane state`, { ts: now() })
+      log.debug("Reporting pane state", { ts: now() })
 
       fetch(`${HUB_URL}/panes/state`, {
         method: "POST",
@@ -38,16 +41,16 @@ export function usePaneStateReporter(): void {
       })
         .then((res) => {
           if (!res.ok) {
-            console.error(`[usePaneStateReporter] Failed to report pane state`, {
+            log.error("Failed to report pane state", {
               status: res.status,
               ts: now(),
             })
           } else {
-            console.log(`[usePaneStateReporter] Pane state reported`, { ts: now() })
+            log.debug("Pane state reported", { ts: now() })
           }
         })
         .catch((err) => {
-          console.error(`[usePaneStateReporter] Network error`, {
+          log.error("Network error", {
             error: err instanceof Error ? err.message : String(err),
             ts: now(),
           })

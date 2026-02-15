@@ -6,6 +6,9 @@ import { useHighlight } from '../context/HighlightContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useViewerRegistry } from '../context/ViewerRegistryContext';
 import { storage } from '../utils/storage';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('EditorFrame');
 
 interface TabState {
   model: monaco.editor.ITextModel;
@@ -149,7 +152,7 @@ export const EditorFrame: React.FC = () => {
     if (!activeFilePath || !editor) return;
     const newPath = window.prompt('Save As - Enter new path:', activeFilePath);
     if (newPath && newPath !== activeFilePath) {
-      console.log(`[EditorFrame] Saving ${activeFilePath} as ${newPath}`);
+      log.debug('Saving as:', { from: activeFilePath, to: newPath });
       // In a real app, this would create a new file and maybe open it
       // openFile({ path: newPath, name: newPath.split('/').pop()!, content: editor.getValue() });
     }

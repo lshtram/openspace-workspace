@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createLogger } from '../lib/logger';
 
+const log = createLogger('useArtifact');
 const HUB_URL = import.meta.env.VITE_HUB_URL || 'http://localhost:3001';
 
 const now = () => new Date().toISOString();
@@ -12,11 +14,11 @@ function assertCondition(condition: unknown, message: string): asserts condition
 }
 
 const logStart = (action: string, meta: Record<string, unknown>) => {
-  console.log(`[useArtifact] ${action} start`, { ...meta, ts: now() });
+  log.debug(`${action} start`, { ...meta, ts: now() });
 };
 
 const logSuccess = (action: string, meta: Record<string, unknown>) => {
-  console.log(`[useArtifact] ${action} success`, { ...meta, ts: now() });
+  log.debug(`${action} success`, { ...meta, ts: now() });
 };
 
 const logFailure = (action: string, meta: Record<string, unknown>) => {
@@ -468,7 +470,7 @@ export function useArtifact<T = string>(
 
           // CRITICAL: Cancel any pending debounced saves to prevent overwriting remote changes
           if (debounceTimerRef.current) {
-            console.log('[useArtifact] Canceling pending save due to remote change');
+            log.debug('Canceling pending save due to remote change');
             clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = null;
           }

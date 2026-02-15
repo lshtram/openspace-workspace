@@ -1,3 +1,11 @@
 {
-  "$schema": "https://opencode.ai/config.json"
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "openspace-modality": {
+      "type": "local",
+      "command": ["sh", "-c", "cd runtime-hub && HUB_URL=http://localhost:3001 PROJECT_ROOT=/Users/Shared/dev/openspace npm run start:modality"],
+      "enabled": true,
+      "timeout": 15000
+    }
+  }
 }

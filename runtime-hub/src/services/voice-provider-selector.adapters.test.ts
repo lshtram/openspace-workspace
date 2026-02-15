@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import {
   KokoroTtsAdapter,
@@ -7,7 +7,24 @@ import {
   type ProviderCommandExecutor,
 } from './voice-provider-selector.js';
 
+// Mock kokoro-js module with a mock factory that can be changed per test
+const mockGenerate = vi.fn();
+vi.mock('kokoro-js', () => ({
+  KokoroTTS: {
+    from_pretrained: vi.fn().mockImplementation(() => ({
+      generate: mockGenerate,
+    })),
+  },
+}));
+
 describe('voice provider adapter runtime execution', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset the mock generate function to succeed by default
+    mockGenerate.mockResolvedValue({
+      data: new Float32Array([0.1, 0.2, 0.3]),
+    });
+  });
   it('runs whisper.cpp via configured command path and returns transcription text', async () => {
     const execute: ProviderCommandExecutor = vi.fn(async (): Promise<CommandExecutionResult> => {
       return {
@@ -37,19 +54,9 @@ describe('voice provider adapter runtime execution', () => {
     });
   });
 
-  it('runs kokoro via configured command path and returns synthesized audio bytes', async () => {
-    const execute: ProviderCommandExecutor = vi.fn(async (): Promise<CommandExecutionResult> => {
-      return {
-        stdout: Buffer.from([4, 5, 6]),
-        stderr: Buffer.from(''),
-        exitCode: 0,
-      };
-    });
-
+  it('runs kokoro via kokoro-js library and returns synthesized audio bytes', async () => {
     const adapter = new KokoroTtsAdapter({
-      commandPath: '/mock/bin/kokoro',
-      timeoutMs: 5_000,
-      execute,
+      available: true,
     });
 
     const result = await adapter.synthesize({
@@ -57,13 +64,9 @@ describe('voice provider adapter runtime execution', () => {
       language: 'en-US',
     });
 
-    expect(Array.from(result.audio)).toEqual([4, 5, 6]);
-    expect(execute).toHaveBeenCalledWith({
-      commandPath: '/mock/bin/kokoro',
-      args: ['--language', 'en-US'],
-      input: Buffer.from('hello world', 'utf8'),
-      timeoutMs: 5_000,
-    });
+    // The audio should be a Uint8Array (converted from Float32Array)
+    expect(result.audio).toBeInstanceOf(Uint8Array);
+    expect(result.audio.length).toBeGreaterThan(0);
   });
 
   it('raises structured timeout error when execution exceeds timeout', async () => {
@@ -90,18 +93,12 @@ describe('voice provider adapter runtime execution', () => {
     });
   });
 
-  it('raises structured process failure when command exits with non-zero code', async () => {
-    const execute: ProviderCommandExecutor = vi.fn(async (): Promise<CommandExecutionResult> => {
-      return {
-        stdout: Buffer.from(''),
-        stderr: Buffer.from('failed to open model file'),
-        exitCode: 2,
-      };
-    });
+  it('raises structured error when kokoro-js synthesis fails', async () => {
+    // Set the mock to reject for this test
+    mockGenerate.mockRejectedValueOnce(new Error('Synthesis failed'));
 
     const adapter = new KokoroTtsAdapter({
-      commandPath: '/mock/bin/kokoro',
-      execute,
+      available: true,
     });
 
     await expect(
@@ -113,7 +110,6 @@ describe('voice provider adapter runtime execution', () => {
       code: 'VOICE_PROVIDER_EXEC_FAILED',
       providerId: 'kokoro',
       operation: 'tts.synthesize',
-      location: 'voice.providers.kokoro.command',
     });
   });
 

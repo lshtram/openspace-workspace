@@ -19,7 +19,7 @@ export function EditorContent({ tab }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const editorRef = React.useRef<any>(null);
+  const editorRef = React.useRef<Parameters<OnMount>[0] | null>(null);
   
   // Appearance settings
   const [appearance, setAppearance] = useState<EditorAppearance>(() => storage.getEditorAppearance());

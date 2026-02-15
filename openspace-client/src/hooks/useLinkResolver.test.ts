@@ -12,7 +12,7 @@ describe('useLinkResolver', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useNavigation as any).mockReturnValue({
+    (useNavigation as ReturnType<typeof vi.fn>).mockReturnValue({
       openFileAt: mockOpenFileAt
     });
   });

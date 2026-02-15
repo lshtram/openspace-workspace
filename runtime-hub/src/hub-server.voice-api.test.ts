@@ -193,7 +193,7 @@ describe('hub-server voice API', () => {
     }
   });
 
-  it('returns actionable error when requested and runtime system-default devices are unavailable', async () => {
+  it('falls back to server mode when requested and runtime system-default devices are unavailable', async () => {
     const originalDefaultDevice = process.env.VOICE_SYSTEM_DEFAULT_DEVICE;
     delete process.env.VOICE_SYSTEM_DEFAULT_DEVICE;
     try {
@@ -204,25 +204,24 @@ describe('hub-server voice API', () => {
       });
 
       const startResponse = await postJson(server.baseUrl, '/voice/session/start', {
-        sessionId: 'voice-device-failure',
+        sessionId: 'voice-device-fallback',
         policy: {
           language: 'en-US',
         },
       });
       expect(startResponse.status).toBe(200);
 
+      // Should succeed and fall back to server mode instead of returning 409
       const narrateResponse = await postJson(server.baseUrl, '/voice/session/narrate/active-context', {
-        sessionId: 'voice-device-failure',
+        sessionId: 'voice-device-fallback',
         source: { kind: 'text', content: 'device fallback check' },
         language: 'en-US',
       });
 
-      expect(narrateResponse.status).toBe(409);
+      expect(narrateResponse.status).toBe(200);
       const narrateBody = await narrateResponse.json();
-      expect(narrateBody.error.code).toBe('VOICE_OUTPUT_DEVICE_UNAVAILABLE');
-      expect(narrateBody.error.location).toBe('voice.policy.devicePreference');
-      expect(narrateBody.error.reason).toContain('Voice output device unavailable');
-      expect(narrateBody.error.remediation).toContain('Set policy.devicePreference');
+      expect(narrateBody.segments).toHaveLength(1);
+      expect(narrateBody.segments[0].text).toBe('device fallback check');
     } finally {
       if (originalDefaultDevice === undefined) {
         delete process.env.VOICE_SYSTEM_DEFAULT_DEVICE;

@@ -1,75 +1,79 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import Reveal from 'reveal.js';
-import 'reveal.js/dist/reveal.css';
-import 'reveal.js/dist/theme/black.css';
-import { useArtifact } from '../hooks/useArtifact';
-import { usePlayback } from '../hooks/usePlayback';
-import { useLinkResolver } from '../hooks/useLinkResolver';
-import ReactMarkdown from 'react-markdown';
+import React, { useEffect, useRef, useMemo } from 'react'
+import Reveal from 'reveal.js'
+import 'reveal.js/dist/reveal.css'
+import 'reveal.js/dist/theme/black.css'
+import { useArtifact } from '../hooks/useArtifact'
+import { usePlayback } from '../hooks/usePlayback'
+import { useLinkResolver } from '../hooks/useLinkResolver'
+import ReactMarkdown from 'react-markdown'
+import { parseSlides } from '../utils/presentation'
 
-interface PresentationFrameProps {
-  filePath: string;
+// Re-export parseSlides for tests
+export { parseSlides }
+
+export interface PresentationFrameProps {
+  filePath: string
+  onOpenFile?: (path: string) => void
 }
 
-export const parseSlides = (markdown: string): string[] => {
-  if (!markdown) return [];
-  const sections = markdown.split('\n---\n');
-  const hasFrontmatter = sections[0].trim().startsWith('---');
-  const slides = hasFrontmatter ? sections.slice(1) : sections;
-  return slides.map(s => s.trim()).filter(Boolean);
-};
-
 const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
-  const deckRef = useRef<HTMLDivElement>(null);
-  const revealRef = useRef<any>(null);
-  const { resolveLink } = useLinkResolver();
+  const deckRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const revealRef = useRef<any>(null)
+  const { resolveLink } = useLinkResolver()
 
-  const { data: markdown, loading, error } = useArtifact<string>(filePath, {
-    parse: content => content,
-    serialize: content => content,
-  });
+  const {
+    data: markdown,
+    loading,
+    error,
+  } = useArtifact<string>(filePath, {
+    parse: (content) => content,
+    serialize: (content) => content,
+  })
 
-  const slides = useMemo(() => markdown ? parseSlides(markdown) : [], [markdown]);
-  const playback = usePlayback(slides.length);
+  const slides = useMemo(() => (markdown ? parseSlides(markdown) : []), [markdown])
+  const playback = usePlayback(slides.length)
 
   useEffect(() => {
     if (deckRef.current && !revealRef.current && slides.length > 0) {
-      revealRef.current = new (Reveal as any)(deckRef.current, {
+      // Cast options to any to allow controls property which reveal.js supports
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      revealRef.current = new Reveal(deckRef.current, {
         embedded: true,
         keyboardCondition: 'focused',
         controls: false,
         progress: true,
         hash: false,
         respondToHashChanges: false,
-      });
-      revealRef.current.initialize();
+      } as any)
+      revealRef.current.initialize()
     }
 
     return () => {
       // reveal.js 5.x has a destroy method
       if (revealRef.current) {
         try {
-          revealRef.current.destroy();
+          revealRef.current.destroy()
         } catch (e) {
-          console.warn('Failed to destroy reveal.js instance', e);
+          console.warn('Failed to destroy reveal.js instance', e)
         }
-        revealRef.current = null;
+        revealRef.current = null
       }
-    };
-  }, [slides.length]); // Re-init if slide count changes
+    }
+  }, [slides.length]) // Re-init if slide count changes
 
   useEffect(() => {
     if (revealRef.current && playback.currentSlide !== revealRef.current.getIndices().h) {
-      revealRef.current.slide(playback.currentSlide);
+      revealRef.current.slide(playback.currentSlide)
     }
-  }, [playback.currentSlide]);
+  }, [playback.currentSlide])
 
   if (loading) {
-    return <div className="p-4">Loading presentation...</div>;
+    return <div className="p-4">Loading presentation...</div>
   }
 
   if (error) {
-    return <div className="p-4 text-red-500">Error: {error}</div>;
+    return <div className="p-4 text-red-500">Error: {error}</div>
   }
 
   return (
@@ -84,7 +88,7 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
                     components={{
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       a: ({ node, ...props }) => {
-                        const href = props.href;
+                        const href = props.href
 
                         if (href && (href.startsWith('openspace://') || !href.startsWith('http'))) {
                           return (
@@ -92,18 +96,25 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
                               {...props}
                               className="text-blue-400 hover:underline cursor-pointer"
                               onClick={(e) => {
-                                e.preventDefault();
+                                e.preventDefault()
                                 if (href.startsWith('openspace://')) {
-                                  resolveLink(href);
+                                  resolveLink(href)
                                 } else {
                                   // Legacy/Relative path support
-                                  window.location.hash = href; 
+                                  window.location.hash = href
                                 }
                               }}
                             />
-                          );
+                          )
                         }
-                        return <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />;
+                        return (
+                          <a
+                            {...props}
+                            className="text-blue-400 hover:underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        )
                       },
                     }}
                   >
@@ -119,37 +130,44 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
         <div className="text-sm text-gray-400">
           Slide {playback.currentSlide + 1} of {playback.totalSlides}
         </div>
-        <button 
+        <button
           className="px-3 py-1 bg-gray-800 hover:bg-gray-700 rounded text-sm transition-colors"
-          type="button" 
+          type="button"
           onClick={playback.previous}
         >
           Previous
         </button>
-        <button 
+        <button
           className="px-3 py-1 bg-gray-800 hover:bg-gray-700 rounded text-sm transition-colors"
-          type="button" 
+          type="button"
           onClick={playback.next}
         >
           Next
         </button>
-        <button 
+        <button
           className={`px-3 py-1 rounded text-sm transition-colors ${playback.isPlaying ? 'bg-red-900 hover:bg-red-800' : 'bg-blue-900 hover:bg-blue-800'}`}
-          type="button" 
-          onClick={() => playback.isPlaying ? playback.stopPlayback() : playback.startPlayback(3000)}
+          type="button"
+          onClick={() =>
+            playback.isPlaying ? playback.stopPlayback() : playback.startPlayback(3000)
+          }
         >
           {playback.isPlaying ? 'Stop' : 'Play'}
         </button>
-        <button 
+        <button
           className="ml-auto px-3 py-1 bg-green-900 hover:bg-green-800 rounded text-sm transition-colors"
-          type="button" 
-          onClick={() => window.open(`${window.location.origin}${window.location.pathname}?file=${filePath}&print-pdf`, '_blank')}
+          type="button"
+          onClick={() =>
+            window.open(
+              `${window.location.origin}${window.location.pathname}?file=${filePath}&print-pdf`,
+              '_blank'
+            )
+          }
         >
           Export PDF
         </button>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PresentationFrame;
+export default PresentationFrame

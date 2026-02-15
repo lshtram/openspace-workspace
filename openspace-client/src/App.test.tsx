@@ -9,19 +9,30 @@ import { openCodeService } from './services/OpenCodeClient'
 import { useSessions } from './hooks/useSessions'
 import { SETTINGS_STORAGE_KEY } from './utils/shortcuts'
 
-vi.mock('./components/AgentConsole', () => ({
-  AgentConsole: ({
+vi.mock('./components/pane/PaneContainer', () => ({
+  PaneContainer: ({
     sessionId,
-    onSessionCreated,
     directory,
   }: {
     sessionId?: string
-    onSessionCreated?: (id: string) => void
     directory?: string
   }) => (
-    <div data-testid="agent-console" data-directory={directory}>
-      {sessionId && <span data-testid="session-id">{sessionId}</span>}
-      <button onClick={() => onSessionCreated?.('new-session-123')}>Create Session</button>
+    <div data-testid="pane-container" data-session-id={sessionId} data-directory={directory}>
+      PaneContainer
+    </div>
+  ),
+}))
+
+vi.mock('./components/agent/FloatingAgentConversation', () => ({
+  FloatingAgentConversation: ({
+    sessionId,
+    directory,
+  }: {
+    sessionId?: string
+    directory?: string
+  }) => (
+    <div data-testid="floating-agent-conversation" data-session-id={sessionId} data-directory={directory}>
+      FloatingAgentConversation
     </div>
   ),
 }))
@@ -200,7 +211,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText('Waiting for OpenCode server')).toBeInTheDocument()
     })
-    expect(screen.queryByTestId('agent-console')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pane-container')).not.toBeInTheDocument()
   })
 
   it('initializes a default project from the server when storage is empty', async () => {
@@ -213,7 +224,7 @@ describe('App', () => {
     expect(storage.saveProjects).toHaveBeenCalledWith([
       { path: '/default/path', name: 'openspace', color: 'bg-[#fce7f3]' },
     ])
-    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/default/path')
+    expect(screen.getByTestId('pane-container')).toHaveAttribute('data-directory', '/default/path')
   })
 
   it('loads stored projects and switches active directory on project click', async () => {
@@ -231,7 +242,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTestId('project-/beta'))
 
     expect(storage.saveLastProjectPath).toHaveBeenCalledWith('/beta')
-    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/beta')
+    expect(screen.getByTestId('pane-container')).toHaveAttribute('data-directory', '/beta')
   })
 
   it('adds a project from the directory dialog and activates it', async () => {
@@ -264,7 +275,7 @@ describe('App', () => {
         expect.objectContaining({ path: '/new/project/path', name: 'path' }),
       ])
     )
-    expect(screen.getByTestId('agent-console')).toHaveAttribute('data-directory', '/new/project/path')
+    expect(screen.getByTestId('pane-container')).toHaveAttribute('data-directory', '/new/project/path')
   })
 
   it('creates a new session through the configured keyboard shortcut', async () => {
@@ -280,7 +291,7 @@ describe('App', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByTestId('agent-console')).toBeInTheDocument()
+      expect(screen.getByTestId('pane-container')).toBeInTheDocument()
     })
 
     fireEvent.keyDown(window, { key: 'n', ctrlKey: true })
@@ -308,7 +319,7 @@ describe('App', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByTestId('agent-console')).toBeInTheDocument()
+      expect(screen.getByTestId('pane-container')).toBeInTheDocument()
     })
 
     expect(consoleErrorSpy).not.toHaveBeenCalledWith(

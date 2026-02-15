@@ -65,7 +65,7 @@ describe('VoiceOrchestrator', () => {
     expect(queuedEvent?.details?.devicePreference).toBe('system-default-device');
   });
 
-  it('throws actionable error when no requested or system-default device is available by default', async () => {
+  it('falls back to server mode when no requested or system-default device is available', async () => {
     const orchestrator = new VoiceOrchestrator({
       contextReader: {
         getActiveContext: async () => ({ modality: 'editor', data: { path: 'design/notes.md' } }),
@@ -73,22 +73,24 @@ describe('VoiceOrchestrator', () => {
     });
 
     orchestrator.startSession({
-      sessionId: 'session-device-failure',
+      sessionId: 'session-device-fallback',
       policy: {
         language: 'en-US',
       },
     });
 
-    await expect(
-      orchestrator.narrateFromActiveContext({
-        sessionId: 'session-device-failure',
-        source: {
-          kind: 'text',
-          content: 'device fallback check',
-        },
-        language: 'en-US',
-      }),
-    ).rejects.toThrow('Voice output device unavailable: requested device and system default are not configured');
+    // Should succeed and use 'server' as the device preference
+    const plan = await orchestrator.narrateFromActiveContext({
+      sessionId: 'session-device-fallback',
+      source: {
+        kind: 'text',
+        content: 'device fallback check',
+      },
+      language: 'en-US',
+    });
+
+    expect(plan.sessionId).toBe('session-device-fallback');
+    expect(plan.segments).toHaveLength(1);
   });
 
   it('uses active context read-only when creating narration plans', async () => {

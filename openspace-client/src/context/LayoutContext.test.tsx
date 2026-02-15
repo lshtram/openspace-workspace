@@ -9,9 +9,9 @@ function TestComponent() {
       <div data-testid="agent-size">{agentConversation.size}</div>
       <button
         type="button"
-        onClick={() => setAgentConversation((prev) => ({ ...prev, size: "expanded" }))}
+        onClick={() => setAgentConversation((prev) => ({ ...prev, size: "full" }))}
       >
-        Expand
+        Maximize
       </button>
     </div>
   )
@@ -25,8 +25,9 @@ describe("LayoutContext", () => {
       </LayoutProvider>,
     )
 
-    expect(screen.getByTestId("agent-size")).toHaveTextContent("minimal")
-    fireEvent.click(screen.getByText("Expand"))
+    // Default is now 'expanded' (changed from 'minimal')
     expect(screen.getByTestId("agent-size")).toHaveTextContent("expanded")
+    fireEvent.click(screen.getByText("Maximize"))
+    expect(screen.getByTestId("agent-size")).toHaveTextContent("full")
   })
 })

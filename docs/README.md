@@ -38,13 +38,21 @@ These documents provide valuable context but are **superseded by canonical refer
   - Use: Understanding design decisions and tradeoffs
   - Superseded by: HUB-MCP-ARCHITECTURE.md (technical details)
 
-### Specialized Documents
+### Archive
 
-#### Blocking Fixes
-- **[REQ-BLOCKING-FIXES-B1-B4](./requirements/REQ-BLOCKING-FIXES-B1-B4.md)** - Requirements analysis for blocking fixes
-- **[TECHSPEC-BLOCKING-FIXES-B1-B4](./architecture/TECHSPEC-BLOCKING-FIXES-B1-B4.md)** - Technical specification
-- **[VALIDATION-REPORT-BLOCKING-FIXES-B1-B4](./validation/VALIDATION-REPORT-BLOCKING-FIXES-B1-B4.md)** - Janitor validation
-- **[CODE-REVIEW-BLOCKING-FIXES-B1-B4](./review/CODE-REVIEW-BLOCKING-FIXES-B1-B4.md)** - CodeReviewer audit
+Historical and resolved documentation is organized in **[/docs/archive/](./archive/README.md)**:
+
+- **[blocking-fixes-b1-b4/](./archive/blocking-fixes-b1-b4/README.md)** - Resolved blocking fixes (commit 279e395)
+  - Requirements, technical specs, validation reports, code reviews
+- **[sessions/](./archive/sessions/README.md)** - Session-specific reports and summaries
+  - Bug fix sessions, test results, modality work summaries
+- **[investigations/](./archive/investigations/README.md)** - Completed technical investigations
+  - Drawing modality research, architecture explorations
+- **[backups/](./archive/backups/README.md)** - Backup comparison reports
+
+See the [Archive README](./archive/README.md) for archive policies and retrieval guidelines.
+
+### Active Specialized Documents
 
 #### Research & Investigation
 - **[opencode-solidjs-client-architecture](./research/opencode-solidjs-client-architecture.md)** - OpenCode SolidJS client research

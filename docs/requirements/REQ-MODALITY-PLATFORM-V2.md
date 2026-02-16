@@ -1,11 +1,20 @@
 ---
 id: REQ-MODALITY-PLATFORM-V2
 author: oracle_7c4a
-status: APPROVED
+status: ACTIVE
 date: 2026-02-12
+purpose: Canonical requirements baseline and active backlog for all modalities
 ---
 
 # Requirements: Modality Platform V2
+
+> **Document Type:** Requirements Document (Active)  
+> **Purpose:** Single active requirements baseline for all supported modalities  
+> **Audience:** Product, engineering, and QA teams  
+> **Related Documents:**
+> - [Modality Platform V2 Spec](../architecture/TECHSPEC-MODALITY-PLATFORM-V2.md) - Technical contracts
+> - [Hub/MCP Architecture](../architecture/HUB-MCP-ARCHITECTURE.md) - Implementation reference
+> - [Architecture Review](../ARCHITECTURE_REVIEW_OPENSPACE.md) - Point-in-time review (archived)
 
 ## 1. Purpose
 

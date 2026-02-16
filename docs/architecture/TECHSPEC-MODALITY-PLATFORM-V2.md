@@ -1,11 +1,20 @@
 ---
 id: TECHSPEC-MODALITY-PLATFORM-V2
 author: oracle_7c4a
-status: APPROVED
+status: ACTIVE
 date: 2026-02-12
+purpose: Canonical specification for modality platform contracts and execution order
 ---
 
 # Tech Spec: Modality Platform V2
+
+> **Document Type:** Technical Specification (Active)  
+> **Purpose:** Define canonical architecture contracts for all modalities  
+> **Audience:** Developers implementing modality features  
+> **Related Documents:**
+> - [Hub/MCP Architecture](./HUB-MCP-ARCHITECTURE.md) - Technical reference for Hub/MCP implementation
+> - [Modality Platform V2 Requirements](../requirements/REQ-MODALITY-PLATFORM-V2.md) - User stories and backlog
+> - [Architecture Review](../ARCHITECTURE_REVIEW_OPENSPACE.md) - Point-in-time comprehensive review (archived)
 
 ## 1. Purpose
 

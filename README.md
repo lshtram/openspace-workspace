@@ -2,7 +2,37 @@
 
 A modular workspace for AI-assisted development with integrated whiteboard, editor, drawing, and presentation modalities.
 
+## Documentation
+
+- **[Hub/MCP Architecture](./docs/architecture/HUB-MCP-ARCHITECTURE.md)** - Canonical technical reference for Hub/MCP multi-modal architecture
+- **[Modality Platform V2 Spec](./docs/architecture/TECHSPEC-MODALITY-PLATFORM-V2.md)** - Contracts and execution order
+- **[Modality Platform V2 Requirements](./docs/requirements/REQ-MODALITY-PLATFORM-V2.md)** - User stories and active backlog
+- **[Architecture Review](./docs/ARCHITECTURE_REVIEW_OPENSPACE.md)** - Comprehensive review (2026-02-15, archived)
+
+## Quick Start
+
+```bash
+# Start all services (hub, MCP server, client)
+./scripts/dev.sh
+```
+
+This starts:
+- **Hub server**: http://localhost:3001
+- **Client**: http://localhost:5173
+
+## Project Structure
+
+```
+openspace/                    # Monorepo root
+├── runtime-hub/              # Hub server + MCP server
+├── openspace-client/         # Frontend React app
+├── scripts/dev.sh            # Dev server script
+└── design/                   # User projects (diagrams, decks, etc.)
+```
+
 ## Security Model
+
+**See [Hub/MCP Architecture - Security Model](./docs/architecture/HUB-MCP-ARCHITECTURE.md#10-security-model) for complete details.**
 
 ### Hub Server Binding
 

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "diagramType": "generic",
+  "metadata": {
+    "title": "systemTest",
+    "createdAt": "2026-02-15T15:55:08.981Z",
+    "updatedAt": "2026-02-15T15:55:08.981Z"
+  },
+  "style": {"theme": "light"},
+  "nodes": [
+    {"id": "input", "type": "rectangle", "x": 100, "y": 20, "width": 150, "height": 50, "props": {"text": "User Input"}},
+    {"id": "agent", "type": "rectangle", "x": 100, "y": 100, "width": 150, "height": 80, "props": {"text": "LLM Agent"}},
+    {"id": "mcp", "type": "rectangle", "x": 400, "y": 100, "width": 150, "height": 80, "props": {"text": "MCP"}},
+    {"id": "output", "type": "rectangle", "x": 400, "y": 20, "width": 150, "height": 50, "props": {"text": "Agent Output"}}
+  ],
+  "edges": [
+    {"id": "arrow1", "type": "arrow", "from": "input", "to": "agent"},
+    {"id": "arrow2", "type": "arrow", "from": "agent", "to": "mcp"},
+    {"id": "arrow3", "type": "arrow", "from": "mcp", "to": "agent"},
+    {"id": "arrow4", "type": "arrow", "from": "agent", "to": "output"}
+  ]
+}

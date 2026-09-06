@@ -8,18 +8,24 @@ import { useLinkResolver } from '../hooks/useLinkResolver'
 import ReactMarkdown from 'react-markdown'
 import { parseSlides } from '../utils/presentation'
 
-// Re-export parseSlides for tests
-export { parseSlides }
-
 export interface PresentationFrameProps {
   filePath: string
   onOpenFile?: (path: string) => void
 }
 
+// Define a minimal interface for reveal.js instance based on usage
+interface RevealInstance {
+  initialize: () => Promise<void> | void
+  destroy: () => void
+  slide: (index: number) => void
+  getIndices: () => { h: number } | undefined
+  on: (event: string, listener: () => void) => void
+  off: (event: string, listener: () => void) => void
+}
+
 const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
   const deckRef = useRef<HTMLDivElement>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const revealRef = useRef<any>(null)
+  const revealRef = useRef<RevealInstance | null>(null)
   const { resolveLink } = useLinkResolver()
 
   const {
@@ -36,17 +42,19 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
 
   useEffect(() => {
     if (deckRef.current && !revealRef.current && slides.length > 0) {
-      // Cast options to any to allow controls property which reveal.js supports
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      revealRef.current = new Reveal(deckRef.current, {
+      const reveal = new Reveal(deckRef.current, {
         embedded: true,
         keyboardCondition: 'focused',
         controls: false,
         progress: true,
         hash: false,
         respondToHashChanges: false,
-      } as any)
-      revealRef.current.initialize()
+        // reveal.js types are incomplete
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any) as unknown as RevealInstance
+      // Store reference immediately - initialization happens async but doesn't affect our ref
+      revealRef.current = reveal
+      reveal.initialize()
     }
 
     return () => {
@@ -63,10 +71,61 @@ const PresentationFrame: React.FC<PresentationFrameProps> = ({ filePath }) => {
   }, [slides.length]) // Re-init if slide count changes
 
   useEffect(() => {
-    if (revealRef.current && playback.currentSlide !== revealRef.current.getIndices().h) {
-      revealRef.current.slide(playback.currentSlide)
+    // Only sync playback state to reveal.js after initialization is complete
+    if (!revealRef.current) return
+    
+    const reveal = revealRef.current
+    const currentIndices = reveal.getIndices()
+    const currentSlide = currentIndices?.h ?? 0
+    
+    if (playback.currentSlide !== currentSlide) {
+      reveal.slide(playback.currentSlide)
     }
   }, [playback.currentSlide])
+
+  // Listen for agent navigation commands
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ slideIndex: number; name?: string }>
+      const { slideIndex } = customEvent.detail
+      
+      if (revealRef.current && typeof slideIndex === 'number') {
+        revealRef.current.slide(slideIndex)
+      }
+    }
+    
+    window.addEventListener('agent:presentation:navigate', handleNavigate)
+    return () => {
+      window.removeEventListener('agent:presentation:navigate', handleNavigate)
+    }
+  }, [])
+
+  // Report current slide to hub so MCP can query it
+  useEffect(() => {
+    if (!filePath || !revealRef.current) return
+
+    const reveal = revealRef.current
+    const reportSlide = () => {
+      const indices = reveal.getIndices()
+      const currentSlide = indices?.h ?? 0
+      fetch('/presentation/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath, currentSlide }),
+      }).catch(() => {
+        // Silently fail - not critical
+      })
+    }
+
+    // Report initial slide
+    reportSlide()
+
+    // Listen for slide changes
+    reveal.on('slidechanged', reportSlide)
+    return () => {
+      reveal.off('slidechanged', reportSlide)
+    }
+  }, [filePath])
 
   if (loading) {
     return <div className="p-4">Loading presentation...</div>

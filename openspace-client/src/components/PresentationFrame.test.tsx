@@ -1,6 +1,7 @@
 import { render as rtlRender, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import PresentationFrame, { parseSlides } from './PresentationFrame';
+import PresentationFrame from './PresentationFrame';
+import { parseSlides } from '../utils/presentationUtils';
 import { LayoutProvider } from '../context/LayoutContext';
 import { FileTabsProvider } from '../context/FileTabsContext';
 import { HighlightProvider } from '../context/HighlightContext';

@@ -23,12 +23,12 @@ export interface SttProviderAdapter {
   readonly kind: 'stt';
   readonly id: SttProviderId;
   isAvailable(): boolean;
-  transcribe(request: SttTranscriptionRequest): Promise<SttTranscriptionResult>;
+  transcribe(_request: SttTranscriptionRequest): Promise<SttTranscriptionResult>;
 }
 
 export interface TtsProviderAdapter {
   readonly kind: 'tts';
   readonly id: TtsProviderId;
   isAvailable(): boolean;
-  synthesize(request: TtsSynthesisRequest): Promise<TtsSynthesisResult>;
+  synthesize(_request: TtsSynthesisRequest): Promise<TtsSynthesisResult>;
 }

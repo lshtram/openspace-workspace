@@ -1,11 +1,21 @@
 # OpenSpace Agent Capabilities Inventory
 
+> **Document Type:** Implementation Analysis (NOT Requirements)  
+> **Purpose:** Factual inventory of what's implemented vs missing, with code references  
+> **For Requirements, See:** [REQ-MODALITY-PLATFORM-V2](requirements/REQ-MODALITY-PLATFORM-V2.md) (Single Source of Truth)  
+
 ## Executive Summary
 
-This document provides a comprehensive inventory of all functions available to the agent across four modalities: **Pane System**, **Whiteboard**, **Presentation**, and **Editor**. For each modality, we list:
-- ✅ **Implemented Functions** (currently available)
-- ⚠️ **Partially Implemented** (exist but have limitations)
-- ❌ **Missing Functions** (not yet implemented)
+This document provides a **factual inventory** (not requirements) of all functions available to the agent across four modalities: **Pane System**, **Whiteboard**, **Presentation**, and **Editor**. It serves as:
+- Implementation audit reference
+- Code archaeology guide
+- Gap analysis for planning
+
+**Document Status Legend:**
+- ✅ **Implemented** - Working in production
+- ⚠️ **Partially Implemented** - Exists but has bugs or limitations
+- ❌ **Missing** - Not yet implemented
+- 🐛 **Bug Identified** - Implementation exists but is broken
 
 ---
 
@@ -95,13 +105,13 @@ The editor modality provides code/text editing capabilities via Monaco Editor.
 | Set selection | `setSelection()` | Sets cursor/selection to range |
 | Jump back | `useNavigation.jumpBack()` | Return to previous location |
 
-### ⚠️ Partially Implemented
+### ⚠️ Partially Implemented / 🐛 Bugged
 
 | Function | Status | Limitation |
 |----------|--------|------------|
-| `line` parameter in `editor.open` | ⚠️ | Parameter exists in schema but implementation in `useAgentCommands.ts` ignores it - only opens file without scrolling |
-| `endLine` parameter | ⚠️ | Same issue - not implemented in agent command handler |
-| `highlight` parameter | ⚠️ | Not implemented in agent command handler |
+| `line` parameter in `editor.open` | 🐛 **BUG** | Parameter exists in MCP schema but **completely ignored** in `useAgentCommands.ts` implementation. File opens but does NOT scroll to line. |
+| `endLine` parameter | 🐛 **BUG** | Same issue - accepted but ignored |
+| `highlight` parameter | 🐛 **BUG** | Same issue - accepted but ignored |
 | Scroll position tracking | ⚠️ | Interface defines `scrollPosition` but not used for agent commands |
 | View state per tab | ✅ | Saved when switching tabs but not exposed to agent |
 
@@ -333,13 +343,17 @@ const knownTypes = [
 
 ## Priority Summary
 
-### Critical Missing (Blocking common workflows)
+### Critical Bugs (Must Fix Immediately)
 
-1. **Editor**: `editor.scroll_to` - Cannot navigate to specific line from agent
-2. **Editor**: `editor.highlight` - Cannot highlight code sections from agent  
-3. **Whiteboard**: `whiteboard.camera.set` - Cannot control whiteboard view
-4. **Whiteboard**: `whiteboard.shape.add` - Cannot add shapes programmatically
-5. **Whiteboard**: `whiteboard.shape.update` - Cannot modify shapes
+1. 🐛 **Editor**: `editor.open` `line` parameter ignored - Schema accepts line number but implementation completely ignores it. File opens but doesn't scroll.
+
+### Critical Missing (Blocking Common Workflows)
+
+2. **Editor**: `editor.scroll_to` - Cannot scroll in already-open file
+3. **Editor**: `editor.highlight` - Cannot highlight code sections from agent  
+4. **Whiteboard**: `whiteboard.camera.set` - Cannot control whiteboard view
+5. **Whiteboard**: `whiteboard.shape.add` - Cannot add shapes programmatically
+6. **Whiteboard**: `whiteboard.shape.update` - Cannot modify shapes
 
 ### High Priority (Enable richer interactions)
 

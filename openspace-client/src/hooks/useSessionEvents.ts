@@ -28,10 +28,6 @@ function assertValidHookInput(sessionId: string | undefined) {
   }
 }
 
-function nowIso() {
-  return new Date().toISOString()
-}
-
 function logExternalIo(stage: "start" | "success" | "failure", message: string, error?: unknown) {
   const prefix = `${stage}: ${message}`
   if (stage === "failure") {

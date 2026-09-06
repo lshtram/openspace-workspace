@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Response } from 'express';
 import { EventEmitter } from 'events';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -419,7 +419,7 @@ function parseEnvBoolean(rawValue: string | undefined, fallback: boolean): boole
 function resolveVoiceProviderSelectionFromRuntimeConfig(): VoiceProviderSelection {
   const whisperCppCommandPath = process.env.VOICE_WHISPER_CPP_COMMAND_PATH?.trim();
   const fasterWhisperCommandPath = process.env.VOICE_FASTER_WHISPER_COMMAND_PATH?.trim();
-  const kokoroCommandPath = process.env.VOICE_KOKORO_COMMAND_PATH?.trim();
+  const _kokoroCommandPath = process.env.VOICE_KOKORO_COMMAND_PATH?.trim();
 
   return selectVoiceProviders({
     config: {
@@ -796,6 +796,29 @@ export function createHubApp(options: HubAppOptions = {}): {
   // GET /panes/state — MCP reads the current layout
   app.get('/panes/state', (req, res) => {
     res.json(paneState);
+  });
+
+  // Presentation state - tracks current slide index for active presentations
+  let presentationState: { path: string; currentSlide: number } | null = null;
+
+  // POST /presentation/state — Client reports current slide
+  app.post('/presentation/state', (req, res) => {
+    const body = req.body as Record<string, unknown> | undefined;
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({ error: 'Request body is required' });
+    }
+    const { path, currentSlide } = body as { path?: unknown; currentSlide?: unknown };
+    if (typeof path !== 'string' || typeof currentSlide !== 'number') {
+      return res.status(400).json({ error: 'path (string) and currentSlide (number) are required' });
+    }
+    presentationState = { path, currentSlide };
+    log.debug('Presentation state updated', { path, currentSlide, ts: now() });
+    res.json({ success: true });
+  });
+
+  // GET /presentation/state — MCP reads current presentation state
+  app.get('/presentation/state', (req, res) => {
+    res.json(presentationState);
   });
 
   app.get('/events', (req, res) => {

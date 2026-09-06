@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0",
+  "diagramType": "generic",
+  "metadata": {
+    "title": "design/test3.diagram.json",
+    "createdAt": "2026-02-15T12:00:00.000Z",
+    "updatedAt": "2026-02-15T14:26:38.679Z"
+  },
+  "style": {
+    "theme": "light",
+    "tokens": {}
+  },
+  "nodes": [
+    {
+      "id": "agent_block",
+      "kind": "block",
+      "label": "Agent",
+      "layout": {
+        "x": 100,
+        "y": 200,
+        "w": 200,
+        "h": 100,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "rectangle"
+      },
+      "styleToken": ""
+    },
+    {
+      "id": "mcp_block",
+      "kind": "block",
+      "label": "MCP Service",
+      "layout": {
+        "x": 450,
+        "y": 200,
+        "w": 200,
+        "h": 100,
+        "locked": false
+      },
+      "semantics": {
+        "geoType": "rectangle"
+      },
+      "styleToken": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "agent_to_mcp",
+      "from": "agent_block",
+      "to": "mcp_block",
+      "relation": "association",
+      "label": "MCP Protocol",
+      "styleToken": ""
+    }
+  ],
+  "groups": [],
+  "constraints": [],
+  "sourceRefs": {}
+}

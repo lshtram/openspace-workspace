@@ -5,7 +5,6 @@ import { type ReactNode, createElement } from "react"
 import { PaneProvider, usePane } from "../context/PaneContext"
 import {
   installMockEventSource,
-  flushPromises,
 } from "../test/utils/useArtifactTestUtils"
 
 // ============================================================================
@@ -39,12 +38,11 @@ function renderAgentCommandsHook() {
 
 describe("useAgentCommands", () => {
   const eventSourceMock = installMockEventSource()
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     vi.stubGlobal("EventSource", eventSourceMock.EventSource)
     eventSourceMock.reset()
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => undefined)
+    vi.spyOn(console, "log").mockImplementation(() => undefined)
     vi.spyOn(console, "error").mockImplementation(() => undefined)
     vi.spyOn(console, "warn").mockImplementation(() => undefined)
   })
@@ -277,7 +275,7 @@ describe("useAgentCommands", () => {
   })
 
   it("handles presentation.navigate command by emitting a custom event", async () => {
-    const { result } = renderAgentCommandsHook()
+    renderAgentCommandsHook()
     const es = eventSourceMock.getLatest()
 
     const eventPromise = new Promise<CustomEvent>((resolve) => {

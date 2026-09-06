@@ -78,6 +78,7 @@ async function postHubCommand(
     logIo('success', opName, { commandType, commandId: body.commandId });
     return {
       content: [{ type: 'text', text: `Command sent: ${commandType} (commandId: ${body.commandId})` }],
+      isError: false,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -555,13 +556,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["slideIndex"],
         },
       },
+      {
+        name: "presentation.current_slide",
+        description: "Get the current slide index of the active presentation in the client UI.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
     ],
   };
 });
 
 // Tool Handlers
 export const callToolHandler = async (request: { params: { name: string, arguments?: any } }) => {
-  const { name, arguments: args } = request.params;
+  let { name, arguments: args } = request.params;
+
+  // Normalize tool name: handle MCP protocol prefixes and underscore/dot notation
+  // Examples:
+  //   - "openspace-modality_presentation_open" -> "presentation.open"
+  //   - "modality_presentation_open" -> "presentation.open"
+  //   - "presentation_open" -> "presentation.open"
+  //   - "presentation.open" -> "presentation.open" (unchanged)
+  const normalizedName = name
+    .replace(/^(openspace-)?modality_/, '')  // Remove "openspace-modality_" or "modality_" prefix
+    .replace(/_/g, '.');                    // Convert underscores to dots
+
+  name = normalizedName;
 
   if (name === "modality.validate_handoff") {
     try {
@@ -877,11 +898,35 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       // Ensure at least name or path is provided
       if (!payload.name && !payload.path) {
         return {
-          content: [{ type: "text", text: "name or path is required for presentation.open" }],
+          content: [{ type: "text", text: "name or path is required for presentation.open. Examples: {name: 'flowers'} or {path: 'design/deck/flowers.deck.md'}" }],
           isError: true,
         };
       }
-      return postHubCommand("presentation.open", payload);
+      
+      // Send command and verify it worked by checking pane state
+      const result = await postHubCommand("presentation.open", payload);
+      
+      // If command was sent successfully, verify the presentation is in the pane layout
+      if (!result.isError) {
+        try {
+          const paneRes = await fetch(`${HUB_URL}/panes/state`);
+          if (paneRes.ok) {
+            const paneState = await paneRes.json() as { root?: unknown };
+            // Check if presentation pane exists in the layout
+            const hasPresentation = JSON.stringify(paneState).includes('"type":"presentation"');
+            if (hasPresentation) {
+              return {
+                content: [{ type: "text", text: `Opened presentation '${payload.name || payload.path}'. The presentation should now be visible in the client.` }],
+                isError: false,
+              };
+            }
+          }
+        } catch {
+          // Verification failed, but command was sent successfully
+        }
+      }
+      
+      return result;
     }
 
     // Agent-Modality Control: navigate to a slide in the client UI
@@ -896,6 +941,26 @@ export const callToolHandler = async (request: { params: { name: string, argumen
       const payload: Record<string, unknown> = { slideIndex };
       if ((args as any)?.name) payload.name = (args as any).name;
       return postHubCommand("presentation.navigate", payload);
+    }
+
+    // Agent-Modality Control: get current slide in the active presentation
+    if (subName === "current_slide") {
+      try {
+        const res = await fetch(`${HUB_URL}/presentation/state`);
+        if (!res.ok) {
+          return { content: [{ type: "text", text: "No presentation is currently active" }], isError: true };
+        }
+        const state = await res.json() as { path?: string; currentSlide?: number };
+        if (!state || !state.path) {
+          return { content: [{ type: "text", text: "No presentation is currently active" }], isError: true };
+        }
+        return {
+          content: [{ type: "text", text: `Current slide: ${state.currentSlide ?? 0} (0-based index) for presentation: ${state.path}` }],
+          isError: false,
+        };
+      } catch (error: any) {
+        return { content: [{ type: "text", text: `Error getting current slide: ${error.message}` }], isError: true };
+      }
     }
 
     // Common logic for read/update/read_slide/update_slide

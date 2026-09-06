@@ -118,10 +118,13 @@ export function useAgentCommands(): UseAgentCommandsResult {
       case "presentation.open": {
         const name = (payload.name as string) ?? "Presentation"
         const path = payload.path as string | undefined
+        // Construct full path from name if only name is provided
+        // name: "flowers" -> path: "design/deck/flowers.deck.md"
+        const contentId = path ?? (name ? `design/deck/${name}.deck.md` : undefined)
         p.openContent({
           type: "presentation",
           title: name,
-          contentId: path,
+          contentId,
         })
         break
       }

@@ -153,3 +153,46 @@ This project uses the **Neuro-Symbolic Orchestrator (NSO)** framework for AI-ass
 - **Memory**: `.opencode/context/01_memory/`
 
 Always check NSO instructions before starting development tasks.
+
+---
+
+## Development Server Setup
+
+### Running All Services
+
+**IMPORTANT:** This is a **monorepo** with two main packages:
+
+| Package | Directory | Port | Purpose |
+|---------|-----------|------|---------|
+| **runtime-hub** | `runtime-hub/` | 3001 | Hub server + MCP server |
+| **openspace-client** | `openspace-client/` | 5173 | Frontend client |
+
+#### Option 1: Use the dev script (RECOMMENDED)
+```bash
+./scripts/dev.sh
+```
+
+This script:
+1. Starts the runtime-hub server on port 3001
+2. Starts the MCP modality server (connected to hub via stdio)
+3. Starts the openspace-client on port 5173
+4. Waits for all services to be ready
+
+#### Option 2: Manual start
+```bash
+# Terminal 1: Start hub server
+cd runtime-hub && npm run start:hub
+
+# Terminal 2: Start MCP server (connects to hub)
+cd runtime-hub && npm run start:modality
+
+# Terminal 3: Start client
+cd openspace-client && npm run dev
+```
+
+### MCP Server
+The MCP server runs as a child process of the hub via stdio. It handles agent tool calls (editor.open, presentation.open, whiteboard.*, etc.).
+
+### Key Environment Variables
+- `HUB_URL=http://localhost:3001` - Hub server URL
+- `PROJECT_ROOT=/Users/Shared/dev/openspace` - Project root (used by MCP to resolve file paths)
